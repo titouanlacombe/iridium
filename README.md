@@ -5,7 +5,7 @@ An easy to use and fast particle simulator.
 ## Setup for development
 
 ```sh
-sudo apt-get install libsdl2-dev
+sudo apt-get install build-essential git python cmake libsdl2-dev libvulkan-dev vulkan-utils
 ```
 
 Use cargo to build and run the project.

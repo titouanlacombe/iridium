@@ -15,7 +15,7 @@ fn main() {
     let window = video_subsystem
         .window("Iridium", 800, 600)
         .position_centered()
-        .opengl() // TODO switch to vulkan
+        .vulkan()
         .build()
         .unwrap();
 
