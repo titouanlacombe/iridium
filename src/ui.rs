@@ -9,15 +9,13 @@ use crate::simulation::Simulation;
 pub struct IridiumRenderer<T: RenderTarget> {
     pub canvas: Canvas<T>,
     pub running: bool,
-    pub event_pump: EventPump,
 }
 
 impl<T: RenderTarget> IridiumRenderer<T> {
-    pub fn new(canvas: Canvas<T>, event_pump: EventPump) -> IridiumRenderer<T> {
+    pub fn new(canvas: Canvas<T>) -> IridiumRenderer<T> {
         IridiumRenderer {
             canvas,
             running: true,
-            event_pump,
         }
     }
 
@@ -27,9 +25,9 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         self.canvas.present();
     }
 
-    pub fn process_events(&mut self) {
+    pub fn process_events(&mut self, event_pump: &mut EventPump) {
         // Exit on escape or Quit event
-        for event in self.event_pump.poll_iter() {
+        for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } => self.running = false,
                 Event::KeyDown {
@@ -41,10 +39,10 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         }
     }
 
-    pub fn render_loop(&mut self, simulation: &Simulation) {
+    pub fn render_loop(&mut self, simulation: &Simulation, event_pump: &mut EventPump) {
         while self.running {
             self.render(simulation);
-            self.process_events();
+            self.process_events(event_pump);
         }
     }
 }
