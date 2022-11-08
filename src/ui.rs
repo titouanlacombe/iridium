@@ -77,7 +77,7 @@ impl<T: RenderTarget> IridiumRenderer<T> {
 
             frameCount += 1;
 
-            if lastLog.elapsed().as_secs() >= 1 {
+            if lastLog.elapsed().as_secs_f32() >= 1. {
                 let av_frame_time = start.elapsed().as_secs_f32() / frameCount as f32;
 
                 println!(
