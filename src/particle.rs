@@ -28,10 +28,26 @@ pub struct Drain {
     pub rate: f32,
 }
 
+impl Drain {
+    pub fn new(area: Area, rate: f32) -> Drain {
+        Drain { area, rate }
+    }
+
+    pub fn update(&mut self) {}
+}
+
 // TODO turn into interface
 pub struct ParticleFactory {}
 
 pub struct Tap {
     pub p_factory: ParticleFactory,
     pub rate: f32,
+}
+
+impl Tap {
+    pub fn new(p_factory: ParticleFactory, rate: f32) -> Tap {
+        Tap { p_factory, rate }
+    }
+
+    pub fn update(&mut self) {}
 }

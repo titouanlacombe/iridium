@@ -1,6 +1,5 @@
 use sdl2;
 
-use iridium::particle::Particle;
 use iridium::simulation::Simulation;
 use iridium::ui::IridiumRenderer;
 
@@ -24,9 +23,8 @@ fn main() {
     let mut iridium_window = IridiumRenderer::new(canvas);
 
     // Build simulation
-    let particles: Vec<Particle> = Vec::new();
-    let simulation = Simulation::new(particles);
+    let mut simulation = Simulation::new_empty();
 
     // Render loop
-    iridium_window.render_loop(&simulation, &mut event_pump);
+    iridium_window.render_loop(&mut simulation, &mut event_pump);
 }
