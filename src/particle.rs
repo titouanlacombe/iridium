@@ -6,6 +6,20 @@ pub struct Particle {
     pub mass: f32,
 }
 
+impl Particle {
+    pub fn new(position: Vector2<f32>, velocity: Vector2<f32>, mass: f32) -> Particle {
+        Particle {
+            position,
+            velocity,
+            mass,
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.position += self.velocity;
+    }
+}
+
 // TODO turn into interface
 pub struct Area {}
 

@@ -21,8 +21,10 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         }
     }
 
-    pub fn render(simulation: &Simulation) {
-        println!("Rendering simulation");
+    pub fn render(&mut self, simulation: &Simulation) {
+        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        self.canvas.clear();
+        self.canvas.present();
     }
 
     pub fn process_events(&mut self) {
@@ -39,12 +41,9 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         }
     }
 
-    pub fn render_loop(&mut self) {
+    pub fn render_loop(&mut self, simulation: &Simulation) {
         while self.running {
-            self.canvas.set_draw_color(Color::RGB(0, 0, 0));
-            self.canvas.clear();
-            self.canvas.present();
-
+            self.render(simulation);
             self.process_events();
         }
     }
