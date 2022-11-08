@@ -64,18 +64,32 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         }
     }
 
+    // Default loop for quick prototyping
     pub fn render_loop(&mut self, simulation: &mut Simulation, event_pump: &mut EventPump) {
-        while self.running {
-            let start = std::time::Instant::now();
+        let mut lastLog = std::time::Instant::now();
+        let mut start = std::time::Instant::now();
+        let mut frameCount = 0;
 
+        while self.running {
             simulation.update();
             self.render(simulation);
             self.process_events(simulation, event_pump);
 
-            let elapsed = start.elapsed();
-            let elapsed_ms =
-                (elapsed.as_secs() as f64) * 1000.0 + (elapsed.subsec_nanos() as f64) / 1_000_000.0;
-            // println!("Frame time: {} ms", elapsed_ms);
+            frameCount += 1;
+
+            if lastLog.elapsed().as_secs() >= 1 {
+                let av_frame_time = start.elapsed().as_secs_f32() / frameCount as f32;
+
+                println!(
+                    "~{} ms ({} fps)",
+                    av_frame_time * 1000.,
+                    (1. / av_frame_time) as i32
+                );
+
+                lastLog = std::time::Instant::now();
+                start = std::time::Instant::now();
+                frameCount = 0;
+            }
         }
     }
 }
