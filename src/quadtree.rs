@@ -1,3 +1,5 @@
+use nalgebra::Vector2;
+
 pub struct QuadTree {
     pub position: Vector2<f32>,
     pub width: f32,
