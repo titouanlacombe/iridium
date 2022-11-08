@@ -1,5 +1,6 @@
 use nalgebra::Vector2;
 use sdl2::event::Event;
+use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
@@ -20,6 +21,17 @@ impl<T: RenderTarget> IridiumRenderer<T> {
             canvas,
             running: true,
         }
+    }
+
+    pub fn render_particle(&mut self, particle: &Particle) {
+        self.canvas
+            .filled_circle(
+                particle.position.x as i16,
+                particle.position.y as i16,
+                5,
+                Color::RGB(255, 255, 255),
+            )
+            .unwrap();
     }
 
     pub fn render(&mut self, simulation: &Simulation) {
