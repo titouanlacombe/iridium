@@ -99,7 +99,7 @@ impl<T: RenderTarget> IridiumRenderer<T> {
                 let av_frame_time = elapsed / frame_count as f32;
 
                 println!(
-                    "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles ({} µs/particle)",
+                    "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles ({} µs/particle)\n",
                     frame_count,
                     elapsed,
                     av_frame_time * 1000.,
