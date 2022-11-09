@@ -118,6 +118,10 @@ impl Simulation {
                     }
                 }
             }
+
+            for i in to_remove {
+                self.particles.swap_remove(i);
+            }
         }
 
         // Update particles
