@@ -28,7 +28,7 @@ impl<T: RenderTarget> IridiumRenderer<T> {
             .filled_circle(
                 particle.position.x as i16,
                 particle.position.y as i16,
-                5,
+                2,
                 Color::RGB(255, 255, 255),
             )
             .unwrap();

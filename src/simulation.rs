@@ -1,6 +1,6 @@
 use nalgebra::Vector2;
 
-use crate::particle::{Drain, Particle, Tap, Updatable};
+use crate::particle::{Consumer, Emitter, Particle, Updatable};
 
 pub enum LimitCond {
     // infinite space
@@ -22,22 +22,22 @@ pub enum LimitCond {
 
 pub struct Simulation {
     pub particles: Vec<Particle>,
-    pub taps: Vec<Tap>,
-    pub drains: Vec<Drain>,
+    pub emitters: Vec<Emitter>,
+    pub consumers: Vec<Consumer>,
     pub limit: LimitCond,
 }
 
 impl Simulation {
     pub fn new(
         particles: Vec<Particle>,
-        taps: Vec<Tap>,
-        drains: Vec<Drain>,
+        emitters: Vec<Emitter>,
+        consumers: Vec<Consumer>,
         limit: LimitCond,
     ) -> Self {
         Simulation {
             particles,
-            taps,
-            drains,
+            emitters,
+            consumers,
             limit,
         }
     }
@@ -54,12 +54,12 @@ impl Simulation {
             self.particles[i].update(dt);
         }
 
-        for i in 0..self.taps.len() {
-            self.taps[i].update(dt, &mut self.particles);
+        for i in 0..self.emitters.len() {
+            self.emitters[i].update(dt, &mut self.particles);
         }
 
-        for i in 0..self.drains.len() {
-            self.drains[i].update(dt, &mut self.particles);
+        for i in 0..self.consumers.len() {
+            self.consumers[i].update(dt, &mut self.particles);
         }
 
         // --- Update limit conditions ---
