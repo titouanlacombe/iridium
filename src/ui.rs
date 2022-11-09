@@ -39,10 +39,7 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         self.canvas.clear();
 
         for particle in &simulation.particles {
-            self.canvas.set_draw_color(Color::RGB(255, 255, 255));
-            self.canvas
-                .draw_point((particle.position.x as i32, particle.position.y as i32))
-                .unwrap();
+            self.render_particle(particle);
         }
 
         self.canvas.present();
