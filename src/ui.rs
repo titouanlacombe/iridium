@@ -17,20 +17,24 @@ pub struct IridiumRenderer<T: RenderTarget> {
 
 impl<T: RenderTarget> IridiumRenderer<T> {
     pub fn new(canvas: Canvas<T>) -> IridiumRenderer<T> {
-        IridiumRenderer {
+        Self {
             canvas,
             running: true,
         }
     }
 
-    pub fn render_particle(&mut self, particle: &Particle) {
+    // Convert simulation position to screen position
+    pub fn sim2screen(&self, sim: &Simulation, position: Vector2<f32>) -> (i16, i16) {
+        (
+            position.x as i16,
+            self.canvas.viewport().height() as i16 - position.y as i16,
+        )
+    }
+
+    pub fn render_particle(&mut self, simulation: &Simulation, particle: &Particle) {
+        let (x, y) = self.sim2screen(&simulation, particle.position);
         self.canvas
-            .filled_circle(
-                particle.position.x as i16,
-                particle.position.y as i16,
-                2,
-                Color::RGB(255, 255, 255),
-            )
+            .filled_circle(x, y, 2, Color::RGB(255, 255, 255))
             .unwrap();
     }
 
@@ -39,7 +43,7 @@ impl<T: RenderTarget> IridiumRenderer<T> {
         self.canvas.clear();
 
         for particle in &simulation.particles {
-            self.render_particle(particle);
+            self.render_particle(simulation, particle);
         }
 
         self.canvas.present();

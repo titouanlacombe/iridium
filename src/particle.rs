@@ -7,8 +7,8 @@ pub struct Particle {
 }
 
 impl Particle {
-    pub fn new(position: Vector2<f32>, velocity: Vector2<f32>, mass: f32) -> Particle {
-        Particle {
+    pub fn new(position: Vector2<f32>, velocity: Vector2<f32>, mass: f32) -> Self {
+        Self {
             position,
             velocity,
             mass,
@@ -89,8 +89,8 @@ impl RandomFactory {
         velocity_angle_max: f32,
         mass_min: f32,
         mass_max: f32,
-    ) -> RandomFactory {
-        RandomFactory {
+    ) -> Self {
+        Self {
             area,
             velocity_min,
             velocity_max,
@@ -125,8 +125,8 @@ pub struct Consumer {
 }
 
 impl Consumer {
-    pub fn new(area: Box<dyn Area>, rate: f32) -> Consumer {
-        Consumer { area, rate }
+    pub fn new(area: Box<dyn Area>, rate: f32) -> Self {
+        Self { area, rate }
     }
 }
 
@@ -136,7 +136,7 @@ pub struct Emitter {
 }
 
 impl Emitter {
-    pub fn new(p_factory: Box<dyn ParticleFactory>, rate: f32) -> Emitter {
-        Emitter { p_factory, rate }
+    pub fn new(p_factory: Box<dyn ParticleFactory>, rate: f32) -> Self {
+        Self { p_factory, rate }
     }
 }

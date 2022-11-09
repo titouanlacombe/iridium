@@ -1,3 +1,4 @@
+pub mod forces;
 pub mod particle;
 pub mod quadtree;
 pub mod simulation;

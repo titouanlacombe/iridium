@@ -1,4 +1,7 @@
-use crate::particle::{Consumer, Emitter, Particle};
+use crate::{
+    forces::{UniformDrag, UniformGravity},
+    particle::{Consumer, Emitter, Particle},
+};
 
 pub enum LimitCond {
     // infinite space
@@ -70,6 +73,8 @@ pub struct Simulation {
     pub particles: Vec<Particle>,
     pub emitters: Vec<Emitter>,
     pub consumers: Vec<Consumer>,
+    pub uniform_gravity: Option<UniformGravity>,
+    pub uniform_drag: Option<UniformDrag>,
     pub limit: LimitCond,
 }
 
@@ -78,18 +83,18 @@ impl Simulation {
         particles: Vec<Particle>,
         emitters: Vec<Emitter>,
         consumers: Vec<Consumer>,
+        uniform_gravity: Option<UniformGravity>,
+        uniform_drag: Option<UniformDrag>,
         limit: LimitCond,
     ) -> Self {
-        Simulation {
+        Self {
             particles,
             emitters,
             consumers,
+            uniform_gravity,
+            uniform_drag,
             limit,
         }
-    }
-
-    pub fn new_empty(limit: LimitCond) -> Simulation {
-        Simulation::new(Vec::new(), Vec::new(), Vec::new(), limit)
     }
 
     pub fn update(&mut self) {
@@ -130,6 +135,15 @@ impl Simulation {
         let mut to_remove: Vec<usize> = Vec::new();
 
         for (i, particle) in self.particles.iter_mut().enumerate() {
+            // Apply forces
+            if let Some(gravity) = &self.uniform_gravity {
+                gravity.apply(particle);
+            }
+
+            if let Some(drag) = &self.uniform_drag {
+                drag.apply(particle);
+            }
+
             // Update position
             particle.position += particle.velocity * dt;
 
