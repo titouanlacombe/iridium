@@ -76,7 +76,6 @@ impl<T: RenderTarget> IridiumRenderer<T> {
     // Default loop for quick prototyping
     pub fn render_loop(&mut self, simulation: &mut Simulation, event_pump: &mut EventPump) {
         let mut last_log = std::time::Instant::now();
-        let mut start = std::time::Instant::now();
         let mut frame_count = 0;
 
         while self.running {
@@ -86,8 +85,9 @@ impl<T: RenderTarget> IridiumRenderer<T> {
 
             frame_count += 1;
 
-            if last_log.elapsed().as_secs_f32() >= 1. {
-                let av_frame_time = start.elapsed().as_secs_f32() / frame_count as f32;
+            let elapsed = last_log.elapsed().as_secs_f32();
+            if elapsed >= 1. {
+                let av_frame_time = elapsed / frame_count as f32;
 
                 println!(
                     "~{} ms ({} fps)",
@@ -96,7 +96,6 @@ impl<T: RenderTarget> IridiumRenderer<T> {
                 );
 
                 last_log = std::time::Instant::now();
-                start = std::time::Instant::now();
                 frame_count = 0;
             }
         }
