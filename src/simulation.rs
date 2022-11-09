@@ -1,3 +1,5 @@
+use nalgebra::Vector2;
+
 use crate::{
     forces::{UniformDrag, UniformGravity},
     particle::{Consumer, Emitter, Particle},
@@ -135,16 +137,19 @@ impl Simulation {
         let mut to_remove: Vec<usize> = Vec::new();
 
         for (i, particle) in self.particles.iter_mut().enumerate() {
+            let mut forces: Vector2<f32> = Vector2::new(0., 0.);
+
             // Apply forces
             if let Some(gravity) = &self.uniform_gravity {
-                gravity.apply(particle);
+                gravity.apply(particle, &mut forces);
             }
 
             if let Some(drag) = &self.uniform_drag {
-                drag.apply(particle);
+                drag.apply(particle, &mut forces);
             }
 
-            // Update position
+            // Update particle
+            particle.velocity += forces * dt / particle.mass;
             particle.position += particle.velocity * dt;
 
             // Check limits

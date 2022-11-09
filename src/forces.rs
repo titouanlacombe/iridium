@@ -11,8 +11,8 @@ impl UniformGravity {
         Self { acceleration }
     }
 
-    pub fn apply(&self, particle: &mut Particle) {
-        particle.velocity += self.acceleration;
+    pub fn apply(&self, particle: &mut Particle, forces: &mut Vector2<f32>) {
+        *forces += self.acceleration * particle.mass;
     }
 }
 
@@ -25,7 +25,7 @@ impl UniformDrag {
         Self { coef: 1. - drag }
     }
 
-    pub fn apply(&self, particle: &mut Particle) {
-        particle.velocity *= self.coef;
+    pub fn apply(&self, particle: &mut Particle, forces: &mut Vector2<f32>) {
+        *forces += self.coef * particle.velocity;
     }
 }
