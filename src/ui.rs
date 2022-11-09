@@ -99,12 +99,13 @@ impl<T: RenderTarget> IridiumRenderer<T> {
                 let av_frame_time = elapsed / frame_count as f32;
 
                 println!(
-                    "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles\n",
+                    "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles ({} µs/particle)",
                     frame_count,
                     elapsed,
                     av_frame_time * 1000.,
                     (1. / av_frame_time) as i32,
-                    simulation.particles.len()
+                    simulation.particles.len(),
+                    (elapsed * 1_000_000.) / frame_count as f32
                 );
 
                 last_log = std::time::Instant::now();

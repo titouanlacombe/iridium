@@ -1,6 +1,6 @@
 # TODO
 
-add µs/particule
+benchmark simulation
 
 Simulation builder object for easy api
 emitter & consumer builder objects
