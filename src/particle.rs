@@ -15,9 +15,13 @@ impl Particle {
         }
     }
 
-    pub fn update(&mut self) {
-        self.position += self.velocity;
+    pub fn update(&mut self, dt: f32) {
+        self.position += self.velocity * dt;
     }
+}
+
+pub trait Updatable {
+    fn update(&mut self, dt: f32, particles: &mut Vec<Particle>);
 }
 
 // TODO turn into interface
@@ -32,8 +36,10 @@ impl Drain {
     pub fn new(area: Area, rate: f32) -> Drain {
         Drain { area, rate }
     }
+}
 
-    pub fn update(&mut self) {}
+impl Updatable for Drain {
+    fn update(&mut self, dt: f32, particles: &mut Vec<Particle>) {}
 }
 
 // TODO turn into interface
@@ -48,6 +54,8 @@ impl Tap {
     pub fn new(p_factory: ParticleFactory, rate: f32) -> Tap {
         Tap { p_factory, rate }
     }
+}
 
-    pub fn update(&mut self) {}
+impl Updatable for Tap {
+    fn update(&mut self, dt: f32, particles: &mut Vec<Particle>) {}
 }

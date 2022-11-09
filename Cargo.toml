@@ -9,6 +9,7 @@ rust-version = "1.65.0"
 [dependencies]
 nalgebra = "0.10.*"
 vulkano = "0.32.0"
+rand = "0.8.5"
 
 [dependencies.sdl2]
 version = "0.35"

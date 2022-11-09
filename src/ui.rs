@@ -62,9 +62,12 @@ impl<T: RenderTarget> IridiumRenderer<T> {
                     y,
                     ..
                 } => {
-                    simulation.add_particle(Particle::new(
+                    let angle = rand::random::<f32>() * 2. * std::f32::consts::PI;
+                    let velocity = Vector2::new(angle.cos(), angle.sin()) * 1.;
+
+                    simulation.particles.push(Particle::new(
                         Vector2::new(x as f32, y as f32),
-                        Vector2::new(1., 1.),
+                        velocity,
                         1.0,
                     ));
                 }
@@ -92,11 +95,12 @@ impl<T: RenderTarget> IridiumRenderer<T> {
                 let av_frame_time = elapsed / frame_count as f32;
 
                 println!(
-                    "{} frames in {} s => ~{} ms/frame ({} fps)",
+                    "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles\n",
                     frame_count,
                     elapsed,
                     av_frame_time * 1000.,
-                    (1. / av_frame_time) as i32
+                    (1. / av_frame_time) as i32,
+                    simulation.particles.len()
                 );
 
                 last_log = std::time::Instant::now();
