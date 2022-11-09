@@ -14,14 +14,6 @@ impl Particle {
             mass,
         }
     }
-
-    pub fn update(&mut self, dt: f32) {
-        self.position += self.velocity * dt;
-    }
-}
-
-pub trait Updatable {
-    fn update(&mut self, dt: f32, particles: &mut Vec<Particle>);
 }
 
 pub trait Area {
@@ -66,38 +58,6 @@ impl Area for Disk {
         // For a uniform distribution, we need to square root the random number
         let radius = rand::random::<f32>().sqrt() * self.radius;
         self.position + Vector2::new(radius * angle.cos(), radius * angle.sin())
-    }
-}
-
-pub struct Consumer {
-    pub area: Box<dyn Area>,
-    pub rate: f32,
-}
-
-impl Consumer {
-    pub fn new(area: Box<dyn Area>, rate: f32) -> Consumer {
-        Consumer { area, rate }
-    }
-}
-
-impl Updatable for Consumer {
-    fn update(&mut self, dt: f32, particles: &mut Vec<Particle>) {
-        let limit = (self.rate * dt) as usize;
-        let mut to_remove = Vec::new();
-
-        for i in 0..particles.len() {
-            if self.area.contains(particles[i].position) {
-                to_remove.push(i);
-
-                if to_remove.len() >= limit {
-                    break;
-                }
-            }
-        }
-
-        for i in to_remove {
-            particles.swap_remove(i);
-        }
     }
 }
 
@@ -159,6 +119,17 @@ impl ParticleFactory for RandomFactory {
     }
 }
 
+pub struct Consumer {
+    pub area: Box<dyn Area>,
+    pub rate: f32,
+}
+
+impl Consumer {
+    pub fn new(area: Box<dyn Area>, rate: f32) -> Consumer {
+        Consumer { area, rate }
+    }
+}
+
 pub struct Emitter {
     pub p_factory: Box<dyn ParticleFactory>,
     pub rate: f32,
@@ -167,15 +138,5 @@ pub struct Emitter {
 impl Emitter {
     pub fn new(p_factory: Box<dyn ParticleFactory>, rate: f32) -> Emitter {
         Emitter { p_factory, rate }
-    }
-}
-
-impl Updatable for Emitter {
-    fn update(&mut self, dt: f32, particles: &mut Vec<Particle>) {
-        let limit = (self.rate * dt) as usize;
-
-        for _ in 0..limit {
-            particles.push(self.p_factory.new());
-        }
     }
 }

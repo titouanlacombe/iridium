@@ -55,7 +55,7 @@ fn main() {
         Vec::new(),
         vec![emitter],
         vec![consumer],
-        LimitCond::Wall(Vector2::new(0., 0.), width as f32, height as f32, 0.8),
+        LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
     // Main loop
