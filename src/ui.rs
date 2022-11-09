@@ -77,6 +77,8 @@ impl<T: RenderTarget> IridiumRenderer<T> {
     pub fn render_loop(&mut self, simulation: &mut Simulation, event_pump: &mut EventPump) {
         let mut last_log = std::time::Instant::now();
         let mut frame_count = 0;
+        let mut elapsed: f32;
+        let log_delta = 1.0; // Log every second
 
         while self.running {
             simulation.update();
@@ -85,12 +87,14 @@ impl<T: RenderTarget> IridiumRenderer<T> {
 
             frame_count += 1;
 
-            let elapsed = last_log.elapsed().as_secs_f32();
-            if elapsed >= 1. {
+            elapsed = last_log.elapsed().as_secs_f32();
+            if elapsed >= log_delta {
                 let av_frame_time = elapsed / frame_count as f32;
 
                 println!(
-                    "~{} ms ({} fps)",
+                    "{} frames in {} s => ~{} ms/frame ({} fps)",
+                    frame_count,
+                    elapsed,
                     av_frame_time * 1000.,
                     (1. / av_frame_time) as i32
                 );
