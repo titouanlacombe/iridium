@@ -16,7 +16,7 @@ for sim benchmark disable render
 
 friction generates heat => black body => color
 
-
+// How to handle cache ? particle pos needed in big struct & in quadtree?
 quadtree.update_pos() {
 	let moved = []
 
