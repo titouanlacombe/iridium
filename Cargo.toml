@@ -14,7 +14,7 @@ rand = "0.8.5"
 [dependencies.sdl2]
 version = "0.35"
 default-features = false
-features = ["ttf","image","gfx","mixer"]
+features = ["ttf", "image", "gfx", "mixer"]
 
 [profile.dev]
 opt-level = 1
