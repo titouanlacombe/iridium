@@ -1,3 +1,4 @@
+look at concret example from open source
 create vfx pipeline
 
 particle add temperature (friction => heat)
