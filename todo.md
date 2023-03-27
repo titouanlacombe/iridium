@@ -1,6 +1,5 @@
-# TODO
-
 create vfx pipeline
+check if sdl is using GPU
 
 particle add temperature (friction => heat)
 particle add pressure (only for rendering?)
