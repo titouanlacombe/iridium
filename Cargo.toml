@@ -13,11 +13,6 @@ vulkano = "0.32.0"
 vulkano-win = "0.32.0"
 vulkano-shaders = "0.32.0"
 
-[dependencies.sdl2]
-version = "0.35"
-default-features = false
-features = ["ttf", "image", "gfx", "mixer"]
-
 [profile.dev.package."*"]
 opt-level = 3
 
