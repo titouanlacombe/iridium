@@ -1,4 +1,4 @@
-look at concret example from open source
+https://www.sfml-dev.org/tutorials/2.1/graphics-vertex-array.php#example-particle-system
 create vfx pipeline
 
 particle add temperature (friction => heat)
