@@ -1,6 +1,6 @@
 use iridium::forces::UniformGravity;
 use nalgebra::Vector2;
-use sfml::graphics::{CircleShape, RenderWindow};
+use sfml::graphics::RenderWindow;
 
 use iridium::particle::{Consumer, Disk, Emitter, RandomFactory};
 use iridium::simulation::{LimitCond, Simulation};
@@ -20,7 +20,7 @@ fn main() {
     );
 
     // Create UI
-    let mut ui = IridiumRenderer::new(window, CircleShape::new(4., 10));
+    let mut ui = IridiumRenderer::new(window);
 
     // Build simulation
     let emitter = Emitter::new(
@@ -36,7 +36,7 @@ fn main() {
             1.,
             1.,
         )),
-        1.,
+        5.,
     );
 
     let consumer = Consumer::new(
@@ -44,7 +44,7 @@ fn main() {
             position: Vector2::new(400., 0.),
             radius: 100.,
         }),
-        1.,
+        3.,
     );
 
     let mut simulation = Simulation::new(

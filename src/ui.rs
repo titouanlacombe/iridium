@@ -1,46 +1,48 @@
 use nalgebra::Vector2;
-use sfml::graphics::{CircleShape, Color, RenderTarget, RenderWindow, Transformable};
+use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use sfml::system::Vector2f;
 use sfml::window::Event;
 
 use crate::particle::Particle;
 use crate::simulation::Simulation;
 
-pub struct IridiumRenderer<'a> {
+pub struct IridiumRenderer {
     pub window: RenderWindow,
-    pub particle_shape: CircleShape<'a>,
+    pub pos_buffer: Vec<Vertex>,
 }
 
-impl<'a> IridiumRenderer<'a> {
-    pub fn new(window: RenderWindow, particle_shape: CircleShape<'a>) -> Self {
+impl IridiumRenderer {
+    pub fn new(window: RenderWindow) -> Self {
         Self {
             window,
-            particle_shape,
+            pos_buffer: Vec::new(),
         }
     }
 
     // Convert simulation position to screen position
-    pub fn sim2screen(&self, sim: &Simulation, position: Vector2<f32>) -> (i16, i16) {
-        (
-            position.x as i16,
-            self.window.size().y as i16 - position.y as i16,
-        )
-    }
-
-    pub fn render_particle(&mut self, simulation: &Simulation, particle: &Particle) {
-        let (x, y) = self.sim2screen(&simulation, particle.position);
-        // Position
-        self.particle_shape
-            .set_position(Vector2f::new(x as f32, y as f32));
-        self.window.draw(&self.particle_shape);
+    pub fn sim2screen(&self, sim: &Simulation, position: Vector2<f32>) -> Vector2f {
+        Vector2f::new(position.x, self.window.size().y as f32 - position.y)
     }
 
     pub fn render(&mut self, simulation: &Simulation) {
         self.window.clear(Color::BLACK);
 
+        self.pos_buffer.resize(
+            simulation.particles.len(),
+            Vertex::new(Vector2f::new(0., 0.), Color::WHITE, Vector2f::new(0., 0.)),
+        );
+        let mut i = 0;
         for particle in &simulation.particles {
-            self.render_particle(simulation, particle);
+            self.pos_buffer[i].position = self.sim2screen(simulation, particle.position);
+            i += 1;
         }
+
+        // Draw all particles
+        self.window.draw_primitives(
+            &self.pos_buffer,
+            PrimitiveType::POINTS,
+            &RenderStates::default(),
+        );
 
         self.window.display();
     }
