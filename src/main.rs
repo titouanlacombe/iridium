@@ -39,7 +39,7 @@ fn main() {
             0.,
             0.2 * std::f32::consts::PI,
             1.,
-            1.,
+            5.,
         )),
         1.,
     );
@@ -49,7 +49,7 @@ fn main() {
             position: Vector2::new(400., 0.),
             radius: 100.,
         }),
-        1.,
+        3.,
     );
 
     let mut simulation = Simulation::new(
