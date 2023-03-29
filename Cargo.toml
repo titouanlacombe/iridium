@@ -1,20 +1,14 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 name = "iridium"
 version = "0.1.0"
+rust-version = "1.68"
 edition = "2021"
-rust-version = "1.65.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra = "0.10.*"
-vulkano = "0.32.0"
-rand = "0.8.5"
-
-[dependencies.sdl2]
-version = "0.35"
-default-features = false
-features = ["ttf", "image", "gfx", "mixer"]
+nalgebra = "*"
+rand = "*"
+sfml = "0.20.*"
 
 [profile.dev]
 opt-level = 1

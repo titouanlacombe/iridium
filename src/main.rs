@@ -1,6 +1,6 @@
 use iridium::forces::UniformGravity;
 use nalgebra::Vector2;
-use sdl2;
+use sfml::graphics::{CircleShape, RenderWindow};
 
 use iridium::particle::{Consumer, Disk, Emitter, RandomFactory};
 use iridium::simulation::{LimitCond, Simulation};
@@ -11,21 +11,16 @@ fn main() {
     let width = 800;
     let height = 600;
 
-    // Build renderer
-    let sdl_context = sdl2::init().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
+    // Create window
+    let window = RenderWindow::new(
+        (width, height),
+        "Iridium",
+        sfml::window::Style::CLOSE,
+        &Default::default(),
+    );
 
-    let window = video_subsystem
-        .window("Iridium", width, height)
-        .position_centered()
-        .vulkan()
-        .build()
-        .unwrap();
-
-    let canvas = window.into_canvas().build().unwrap();
-
-    let mut iridium_window = IridiumRenderer::new(canvas);
+    // Create UI
+    let mut ui = IridiumRenderer::new(window, CircleShape::new(4., 10));
 
     // Build simulation
     let emitter = Emitter::new(
@@ -61,8 +56,5 @@ fn main() {
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
-    // Main loop
-    iridium_window.render_loop(&mut simulation, &mut event_pump);
-
-    // End
+    ui.render_loop(&mut simulation);
 }
