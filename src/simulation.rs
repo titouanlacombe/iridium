@@ -27,8 +27,8 @@ fn limit_update(limit: &LimitCond, i: usize, particle: &mut Particle, to_remove:
     match limit {
         LimitCond::None => {}
         LimitCond::Wall(x_min, y_min, x_max, y_max, restitution) => {
-            let mut p_pos = &mut particle.position;
-            let mut p_vel = &mut particle.velocity;
+            let p_pos = &mut particle.position;
+            let p_vel = &mut particle.velocity;
 
             if p_pos.x < *x_min {
                 p_pos.x = *x_min;
@@ -47,7 +47,7 @@ fn limit_update(limit: &LimitCond, i: usize, particle: &mut Particle, to_remove:
             }
         }
         LimitCond::Loop(x_min, y_min, x_max, y_max) => {
-            let mut p_pos = &mut particle.position;
+            let p_pos = &mut particle.position;
 
             if p_pos.x < *x_min {
                 p_pos.x = *x_max;
