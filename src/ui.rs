@@ -1,7 +1,7 @@
 use nalgebra::Vector2;
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use sfml::system::Vector2f;
-use sfml::window::Event;
+use sfml::window::{Event, Key};
 
 use crate::particle::Particle;
 use crate::simulation::Simulation;
@@ -51,6 +51,11 @@ impl IridiumRenderer {
         while let Some(event) = self.window.poll_event() {
             match event {
                 Event::Closed => self.window.close(),
+                Event::KeyPressed { code, .. } => {
+                    if code == Key::Escape {
+                        self.window.close();
+                    }
+                }
                 Event::MouseButtonPressed {
                     button: sfml::window::mouse::Button::Left,
                     x,
