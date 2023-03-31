@@ -21,12 +21,20 @@ impl IridiumRenderer {
     }
 
     // Convert simulation position to screen position
-    pub fn sim2screen(&self, sim: &Simulation, position: Vector2<f32>) -> Vector2f {
-        Vector2f::new(position.x, self.window.size().y as f32 - position.y)
+    pub fn sim2screen(
+        &self,
+        sim: &Simulation,
+        position: Vector2<f32>,
+        screen_size: Vector2<f32>,
+    ) -> Vector2f {
+        Vector2f::new(position.x, screen_size.y - position.y)
     }
 
     pub fn render(&mut self, simulation: &Simulation) {
         self.window.clear(Color::BLACK);
+
+        let screen_size = self.window.size();
+        let screen_size = Vector2::new(screen_size.x as f32, screen_size.y as f32);
 
         self.pos_buffer.resize(
             simulation.particles.len(),
@@ -34,7 +42,8 @@ impl IridiumRenderer {
         );
         let mut i = 0;
         for particle in &simulation.particles {
-            self.pos_buffer[i].position = self.sim2screen(simulation, particle.position);
+            self.pos_buffer[i].position =
+                self.sim2screen(simulation, particle.position, screen_size);
             i += 1;
         }
 
