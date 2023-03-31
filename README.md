@@ -27,10 +27,11 @@ sudo apt install -y perf
 Run:
 ```sh
 cargo build --release
-perf ./target/release/iridium
+perf record -g -F 999 ./target/release/iridium
+perf script -F +pid > iridium.perf 
 ```
 
-See result:
+See result with firefox profiler:
 https://profiler.firefox.com/
 
 ## Features
