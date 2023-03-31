@@ -12,3 +12,7 @@ sfml = "0.20.*"
 
 [profile.dev]
 opt-level = 1
+
+# For profiling
+[profile.release]
+debug = 1
