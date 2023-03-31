@@ -93,6 +93,7 @@ impl IridiumRenderer {
             elapsed = last_log.elapsed().as_secs_f32();
             if elapsed >= log_delta {
                 let frame_time_av = elapsed / frame_count as f32;
+                let particle_count = simulation.particles.len();
 
                 println!(
                     "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles ({} µs/particle)\n",
@@ -100,8 +101,8 @@ impl IridiumRenderer {
                     elapsed,
                     frame_time_av * 1000.,
                     (1. / frame_time_av) as i32,
-                    simulation.particles.len(),
-                    (elapsed * 1_000_000.) / frame_count as f32
+                    particle_count,
+                    ((elapsed * 1_000_000.) / frame_count as f32) / particle_count as f32
                 );
 
                 last_log = std::time::Instant::now();
