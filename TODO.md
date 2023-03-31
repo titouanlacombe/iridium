@@ -1,6 +1,7 @@
 benchmark & optimize
 refactor emitters sub 1 rate
 UI limit fps option
+multithreaded particle update (custom foreach with stack size & thread pool)
 
 Simulation events (time of execution, lambda taking simulation as argument) => store sorted list of events
 Simulation builder object
