@@ -96,7 +96,9 @@ impl IridiumRenderer {
                 let particle_count = simulation.particles.len();
 
                 println!(
-                    "{} frames in {} s\n~{} ms/frame ({} fps)\n{} particles ({} µs/particle)\n",
+                    "{} steps in {:.2} s\n\
+					{:.2} ms/frame ({:.2} fps)\n\
+					{:.0e} particles ({:.2} µs/particle)\n",
                     frame_count,
                     elapsed,
                     frame_time_av * 1000.,
