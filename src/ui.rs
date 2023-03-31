@@ -2,6 +2,7 @@ use nalgebra::Vector2;
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use sfml::system::Vector2f;
 use sfml::window::{Event, Key};
+use std::time::{Duration, Instant};
 
 use crate::particle::Particle;
 use crate::simulation::Simulation;
@@ -78,36 +79,56 @@ impl IridiumRenderer {
 
     // Default loop for quick prototyping
     pub fn render_loop(&mut self, simulation: &mut Simulation) {
-        let mut last_log = std::time::Instant::now();
-        let mut frame_count = 0;
-        let mut elapsed: f32;
         let log_delta = 1.0; // Log every second
 
+        let mut last_log = Instant::now();
+        let mut sim_elapsed = Duration::ZERO;
+        let mut render_elapsed = Duration::ZERO;
+        let mut events_elapsed = Duration::ZERO;
+        let mut frame_count = 0;
+
+        let mut log_elapsed;
+        let mut t;
+
         while self.window.is_open() {
+            t = Instant::now();
             simulation.update();
+            sim_elapsed += t.elapsed();
+
+            t = Instant::now();
             self.render(simulation);
+            render_elapsed += t.elapsed();
+
+            t = Instant::now();
             self.process_events(simulation);
+            events_elapsed += t.elapsed();
 
             frame_count += 1;
 
-            elapsed = last_log.elapsed().as_secs_f32();
-            if elapsed >= log_delta {
-                let frame_time_av = elapsed / frame_count as f32;
+            log_elapsed = last_log.elapsed().as_secs_f64();
+            if log_elapsed >= log_delta {
+                let frame_time_av = log_elapsed / frame_count as f64;
                 let particle_count = simulation.particles.len();
 
                 println!(
-                    "{} steps in {:.2} s\n\
-					{:.2} ms/frame ({:.2} fps)\n\
-					{:.0e} particles ({:.2} µs/particle)\n",
+                    "\n{} steps in {:.2} s (~{:.2} fps)\n\
+					{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)\n\
+					{:.2e} particles ({:.2} µs/particle)\n",
                     frame_count,
-                    elapsed,
+                    log_elapsed,
+                    1. / frame_time_av,
                     frame_time_av * 1000.,
-                    (1. / frame_time_av) as i32,
+                    sim_elapsed.as_secs_f64() * 1000. / frame_count as f64,
+                    render_elapsed.as_secs_f64() * 1000. / frame_count as f64,
+                    events_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     particle_count,
-                    ((elapsed * 1_000_000.) / frame_count as f32) / particle_count as f32
+                    ((log_elapsed * 1e6) / frame_count as f64) / particle_count as f64,
                 );
 
-                last_log = std::time::Instant::now();
+                last_log = Instant::now();
+                sim_elapsed = Duration::ZERO;
+                render_elapsed = Duration::ZERO;
+                events_elapsed = Duration::ZERO;
                 frame_count = 0;
             }
         }
