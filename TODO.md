@@ -1,10 +1,12 @@
-SFML vertex array
+benchmark & optimize
 
-Simulation builder object for easy api
+Simulation builder object
 emitter & consumer builder objects
 
-add quadtree?
-add hard forces (coulomb, friction, gravity)
+add quadtree (readme.md)
+add coulomb, friction, gravity
+
+custom shading (geometry shader)
 
 notes:
 for sim benchmark disable render
