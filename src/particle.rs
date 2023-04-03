@@ -1,4 +1,4 @@
-use nalgebra::{Norm, Vector2};
+use nalgebra::Vector2;
 
 pub struct Particle {
     pub position: Vector2<f32>,
