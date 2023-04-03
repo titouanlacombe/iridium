@@ -11,17 +11,6 @@ fn main() {
     let width = 800;
     let height = 600;
 
-    // Create window
-    let window = RenderWindow::new(
-        (width, height),
-        "Iridium",
-        sfml::window::Style::CLOSE,
-        &Default::default(),
-    );
-
-    // Create UI
-    let mut ui = IridiumRenderer::new(window);
-
     // Build simulation
     let emitter = Emitter::new(
         Box::new(RandomFactory::new(
@@ -36,7 +25,7 @@ fn main() {
             1.,
             1.,
         )),
-        5.,
+        10.,
     );
 
     let consumer = Consumer::new(
@@ -49,12 +38,24 @@ fn main() {
 
     let mut simulation = Simulation::new(
         Vec::new(),
-        vec![emitter],
-        vec![consumer],
+        vec![],
+        vec![],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
-    ui.render_loop(&mut simulation);
+    // Create window
+    let window = RenderWindow::new(
+        (width, height),
+        "Iridium",
+        sfml::window::Style::CLOSE,
+        &Default::default(),
+    );
+
+    // Create UI
+    let mut ui = IridiumRenderer::new(window, simulation);
+
+    // Run simulation with UI loop
+    ui.render_loop();
 }

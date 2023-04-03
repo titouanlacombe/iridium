@@ -1,10 +1,16 @@
-SFML vertex array
+benchmark & optimize
+refactor emitters sub 1 rate
+UI limit fps option
+multithreaded particle update (custom foreach with stack size & thread pool)
 
-Simulation builder object for easy api
+Simulation events (time of execution, lambda taking simulation as argument) => store sorted list of events
+Simulation builder object
 emitter & consumer builder objects
 
-add quadtree?
-add hard forces (coulomb, friction, gravity)
+add quadtree (readme.md)
+add coulomb, friction, gravity
+
+custom shading (geometry shader)
 
 notes:
 for sim benchmark disable render
