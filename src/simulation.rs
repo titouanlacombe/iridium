@@ -103,6 +103,7 @@ impl Simulation {
     }
 
     pub fn update(&mut self, dt: f32) {
+        // TODO Iterate once, process multiple systems? maybe slower?
         // Emit new particles
         for emitter in &self.emitters {
             emitter.emit(&mut self.particles, dt);
@@ -114,11 +115,7 @@ impl Simulation {
         }
 
         // Update particles
-        // List of changes to not modify while iterating
-        let mut to_add: Vec<Particle> = Vec::new();
-        let mut to_remove: Vec<usize> = Vec::new();
-
-        for (i, particle) in self.particles.iter_mut().enumerate() {
+        for particle in &mut self.particles {
             let mut forces: Vector2<f32> = Vector2::new(0., 0.);
 
             // Apply forces
@@ -130,18 +127,19 @@ impl Simulation {
                 drag.apply(particle, &mut forces);
             }
 
+            // TODO use custom integrator?
             // Update particle
             particle.velocity += forces * dt / particle.mass;
             particle.position += particle.velocity * dt;
-
-            // Check limits
-            limit_update(&self.limit, i, particle, &mut to_remove)
         }
 
+        // Check limits
+        let mut to_remove: Vec<usize> = Vec::new();
+        for (i, particle) in self.particles.iter_mut().enumerate() {
+            limit_update(&self.limit, i, particle, &mut to_remove)
+        }
         for i in to_remove {
             self.particles.swap_remove(i);
         }
-
-        self.particles.append(&mut to_add);
     }
 }
