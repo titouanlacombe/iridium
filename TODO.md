@@ -1,6 +1,8 @@
 benchmark & optimize
 simulation runner interface (run simulation with delta times) in the future will be his own thread
 refactor emitters sub 1 rate
+create yaml config file?
+create config for integrator option (euler, verlet, etc)
 UI limit fps option
 multithreaded particle update (custom foreach with stack size & thread pool)
 

@@ -8,7 +8,7 @@ An easy to use and fast 2D particle simulator.
 
 ```sh
 curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh
-sudo apt install -y build-essential git python3 cmake libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev libsdl2-gfx-dev libvulkan-dev vulkan-tools
+sudo apt install -y build-essential git python3 cmake sfml-dev
 ```
 
 Use cargo to build and run the project.
@@ -26,8 +26,8 @@ sudo apt install -y perf
 
 Run:
 ```sh
-cargo build --release
-perf record -g -F 999 ./target/release/iridium
+cargo build --profile bench
+perf record --call-graph dwarf ./target/release/iridium
 perf script -F +pid > iridium.perf 
 ```
 

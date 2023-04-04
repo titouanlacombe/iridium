@@ -29,7 +29,7 @@ pub fn benchmark1() -> Simulation {
         LimitCond::Wall(0., 0., 500., 500., 0.8),
     );
 
-    for _ in 0..20_000 {
+    for _ in 0..100_000 {
         simulation.particles.push(factory.new());
     }
 
