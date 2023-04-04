@@ -98,6 +98,7 @@ impl IridiumRenderer {
     }
 
     // Default loop for quick prototyping
+    // TODO move to default simulation runner (ui takes runner as argument)
     pub fn render_loop(&mut self) {
         let log_delta = 1.0; // Log every second
 
