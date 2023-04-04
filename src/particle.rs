@@ -95,6 +95,7 @@ pub struct RandomFactory {
     pub mass_max: f32,
 }
 
+// TODO Switch from box dyn to generic
 impl RandomFactory {
     pub fn new(
         area: Box<dyn Area>,

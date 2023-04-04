@@ -5,21 +5,21 @@ use sfml::window::{Event, Key};
 use std::time::{Duration, Instant};
 
 use crate::particle::{ParticleFactory, Point, RandomFactory};
-use crate::simulation::Simulation;
+use crate::simulation::SimulationRunner;
 
 pub struct IridiumRenderer {
     pub window: RenderWindow,
-    pub simulation: Simulation,
+    pub sim_runner: Box<dyn SimulationRunner>,
 
     pub screen_size: Vector2<f32>,
     pub pos_buffer: Vec<Vertex>,
 }
 
 impl IridiumRenderer {
-    pub fn new(window: RenderWindow, simulation: Simulation) -> Self {
+    pub fn new(window: RenderWindow, sim_runner: Box<dyn SimulationRunner>) -> Self {
         Self {
             window,
-            simulation,
+            sim_runner,
             screen_size: Vector2::new(0., 0.),
             pos_buffer: Vec::new(),
         }
@@ -44,14 +44,15 @@ impl IridiumRenderer {
         // Cache current screen size
         self.update_screen_size();
 
+        let particles = &self.sim_runner.get_simulation().particles;
+
         // Resize particle buffer
         let vertex = Vertex::new(Vector2f::new(0., 0.), Color::WHITE, Vector2f::new(0., 0.));
-        self.pos_buffer
-            .resize(self.simulation.particles.len(), vertex);
+        self.pos_buffer.resize(particles.len(), vertex);
 
         // Update position buffer
         let mut i = 0;
-        for particle in &self.simulation.particles {
+        for particle in particles {
             self.pos_buffer[i].position = self.sim2screen(particle.position);
             i += 1;
         }
@@ -96,9 +97,10 @@ impl IridiumRenderer {
                         1.,
                         1.,
                     );
+                    let particles = &mut self.sim_runner.get_simulation_mut().particles;
 
                     for _ in 0..1000 {
-                        self.simulation.particles.push(pfactory.create());
+                        particles.push(pfactory.create());
                     }
                 }
                 _ => {}
@@ -122,7 +124,7 @@ impl IridiumRenderer {
 
         while self.window.is_open() {
             t = Instant::now();
-            self.simulation.update(1.);
+            self.sim_runner.step();
             sim_elapsed += t.elapsed();
 
             t = Instant::now();
@@ -138,7 +140,8 @@ impl IridiumRenderer {
             log_elapsed = last_log.elapsed().as_secs_f64();
             if log_elapsed >= log_delta {
                 let frame_time_av = log_elapsed / frame_count as f64;
-                let particle_count = self.simulation.particles.len();
+                let particles = &self.sim_runner.get_simulation().particles;
+                let particle_count = particles.len();
 
                 println!(
                     "\n{} steps in {:.2} s (~{:.2} fps)\n\

@@ -73,14 +73,15 @@ fn limit_update(limit: &LimitCond, i: usize, particle: &mut Particle, to_remove:
 
 pub struct Simulation {
     pub particles: Vec<Particle>,
-    pub emitters: Vec<Emitter>,
-    pub consumers: Vec<Consumer>,
+    emitters: Vec<Emitter>,
+    consumers: Vec<Consumer>,
 
     // TODO: make these a Vec of Box<dyn Force>
-    pub uniform_gravity: Option<UniformGravity>,
-    pub uniform_drag: Option<UniformDrag>,
+    uniform_gravity: Option<UniformGravity>,
+    uniform_drag: Option<UniformDrag>,
 
-    pub limit: LimitCond,
+    limit: LimitCond,
+    // TODO add sim event handler
 }
 
 impl Simulation {
@@ -102,7 +103,7 @@ impl Simulation {
         }
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn step(&mut self, dt: f32) {
         // TODO Iterate once, process multiple systems? maybe slower?
         // Emit new particles
         for emitter in &self.emitters {
@@ -141,5 +142,36 @@ impl Simulation {
         for i in to_remove {
             self.particles.swap_remove(i);
         }
+    }
+}
+
+pub trait SimulationRunner {
+    fn step(&mut self);
+    fn get_simulation_mut(&mut self) -> &mut Simulation;
+    fn get_simulation(&self) -> &Simulation;
+}
+
+pub struct ContinuousSimulationRunner {
+    simulation: Simulation,
+    dt: f32,
+}
+
+impl ContinuousSimulationRunner {
+    pub fn new(simulation: Simulation, dt: f32) -> Self {
+        Self { simulation, dt }
+    }
+}
+
+impl SimulationRunner for ContinuousSimulationRunner {
+    fn step(&mut self) {
+        self.simulation.step(self.dt);
+    }
+
+    fn get_simulation_mut(&mut self) -> &mut Simulation {
+        &mut self.simulation
+    }
+
+    fn get_simulation(&self) -> &Simulation {
+        &self.simulation
     }
 }

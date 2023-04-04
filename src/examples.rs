@@ -3,10 +3,10 @@ use nalgebra::Vector2;
 use crate::{
     forces::UniformGravity,
     particle::{Consumer, Disk, Emitter, ParticleFactory, RandomFactory},
-    simulation::{LimitCond, Simulation},
+    simulation::{ContinuousSimulationRunner, LimitCond, Simulation, SimulationRunner},
 };
 
-pub fn benchmark1() -> Simulation {
+pub fn benchmark1() -> Box<dyn SimulationRunner> {
     let factory = Box::new(RandomFactory::new(
         Box::new(Disk {
             position: Vector2::new(200., 300.),
@@ -20,8 +20,13 @@ pub fn benchmark1() -> Simulation {
         1.,
     ));
 
-    let mut simulation = Simulation::new(
-        Vec::new(),
+    let mut particles = Vec::new();
+    for _ in 0..100_000 {
+        particles.push(factory.create());
+    }
+
+    let simulation = Simulation::new(
+        particles,
         vec![],
         vec![],
         Some(UniformGravity::new(Vector2::new(0., -0.003))),
@@ -29,14 +34,12 @@ pub fn benchmark1() -> Simulation {
         LimitCond::Wall(0., 0., 500., 500., 0.8),
     );
 
-    for _ in 0..100_000 {
-        simulation.particles.push(factory.create());
-    }
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
 
-    simulation
+    sim_runner
 }
 
-pub fn fireworks(width: u32, height: u32) -> Simulation {
+pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
     // TODO define key handler here
     let simulation = Simulation::new(
         Vec::new(),
@@ -47,10 +50,12 @@ pub fn fireworks(width: u32, height: u32) -> Simulation {
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
-    simulation
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
+
+    sim_runner
 }
 
-pub fn flow(width: u32, height: u32) -> Simulation {
+pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
     let emitter = Emitter::new(
         Box::new(RandomFactory::new(
             Box::new(Disk {
@@ -84,5 +89,7 @@ pub fn flow(width: u32, height: u32) -> Simulation {
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
-    simulation
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
+
+    sim_runner
 }
