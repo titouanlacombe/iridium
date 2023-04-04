@@ -1,6 +1,7 @@
 benchmark & optimize
 simulation runner interface (run simulation with delta times) in the future will be his own thread
 refactor emitters sub 1 rate
+class particles => store buffers for pos, vel, mass, color, etc interact with them like there were individual particles
 create yaml config file?
 create config for integrator option (euler, verlet, etc)
 UI limit fps option

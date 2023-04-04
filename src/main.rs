@@ -1,6 +1,7 @@
 use sfml::graphics::RenderWindow;
 
 use iridium::{examples::benchmark1, ui::IridiumRenderer};
+// type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>;
 
 fn main() {
     // Global Params

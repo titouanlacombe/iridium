@@ -9,18 +9,19 @@ use crate::simulation::Simulation;
 
 pub struct IridiumRenderer {
     pub window: RenderWindow,
+    pub simulation: Simulation,
+
     pub screen_size: Vector2<f32>,
     pub pos_buffer: Vec<Vertex>,
-    pub simulation: Simulation,
 }
 
 impl IridiumRenderer {
     pub fn new(window: RenderWindow, simulation: Simulation) -> Self {
         Self {
             window,
+            simulation,
             screen_size: Vector2::new(0., 0.),
             pos_buffer: Vec::new(),
-            simulation,
         }
     }
 
@@ -30,37 +31,42 @@ impl IridiumRenderer {
         self.screen_size.y = tmp.y as f32;
     }
 
-    // Convert simulation position to screen position
+    // Convert between simulation and screen coordinates
     pub fn sim2screen(&self, position: Vector2<f32>) -> Vector2f {
         Vector2f::new(position.x, self.screen_size.y - position.y)
     }
 
-    pub fn screen2sim(&self, position: Vector2<f32>) -> Vector2f {
-        Vector2f::new(position.x, self.screen_size.y - position.y)
+    pub fn screen2sim(&self, position: Vector2f) -> Vector2<f32> {
+        Vector2::new(position.x, self.screen_size.y - position.y)
     }
 
     pub fn render(&mut self) {
-        self.window.clear(Color::BLACK);
-
+        // Cache current screen size
         self.update_screen_size();
 
-        self.pos_buffer.resize(
-            self.simulation.particles.len(),
-            Vertex::new(Vector2f::new(0., 0.), Color::WHITE, Vector2f::new(0., 0.)),
-        );
+        // Resize particle buffer
+        let vertex = Vertex::new(Vector2f::new(0., 0.), Color::WHITE, Vector2f::new(0., 0.));
+        self.pos_buffer
+            .resize(self.simulation.particles.len(), vertex);
+
+        // Update position buffer
         let mut i = 0;
         for particle in &self.simulation.particles {
             self.pos_buffer[i].position = self.sim2screen(particle.position);
             i += 1;
         }
 
-        // Draw all particles
+        // Clear screen
+        self.window.clear(Color::BLACK);
+
+        // Draw buffer
         self.window.draw_primitives(
             &self.pos_buffer,
             PrimitiveType::POINTS,
             &RenderStates::default(),
         );
 
+        // Display
         self.window.display();
     }
 
@@ -79,17 +85,18 @@ impl IridiumRenderer {
                     y,
                     ..
                 } => {
+                    let mouse_pos = Vector2f::new(x as f32, y as f32);
+                    let sim_pos = self.screen2sim(mouse_pos);
+
                     for _ in 0..1000 {
+                        // TODO create generator for explosive particle distribution
                         let angle = rand::random::<f32>() * 2. * std::f32::consts::PI;
                         let velocity =
                             Vector2::new(angle.cos(), angle.sin()) * rand::random::<f32>() * 1.;
 
-                        let tmp = self.screen2sim(Vector2::new(x as f32, y as f32));
-                        self.simulation.particles.push(Particle::new(
-                            Vector2::new(tmp.x, tmp.y),
-                            velocity,
-                            1.0,
-                        ));
+                        self.simulation
+                            .particles
+                            .push(Particle::new(sim_pos, velocity, 1.0));
                     }
                 }
                 _ => {}
