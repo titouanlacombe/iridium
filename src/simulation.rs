@@ -104,31 +104,12 @@ impl Simulation {
 
         // Emit new particles
         for emitter in &self.emitters {
-            let limit = (emitter.rate * dt) as usize;
-
-            for _ in 0..limit {
-                self.particles.push(emitter.p_factory.create());
-            }
+            emitter.emit(&mut self.particles, dt);
         }
 
         // Consume particles
         for consumer in &self.consumers {
-            let mut to_remove = Vec::new();
-            let limit = (consumer.rate * dt) as usize;
-
-            for (i, particle) in self.particles.iter_mut().enumerate() {
-                if consumer.area.contains(particle.position) {
-                    to_remove.push(i);
-
-                    if to_remove.len() >= limit {
-                        break;
-                    }
-                }
-            }
-
-            for i in to_remove {
-                self.particles.swap_remove(i);
-            }
+            consumer.consume(&mut self.particles, dt);
         }
 
         // Update particles

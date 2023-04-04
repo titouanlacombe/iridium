@@ -143,6 +143,25 @@ impl Consumer {
     pub fn new(area: Box<dyn Area>, rate: f32) -> Self {
         Self { area, rate }
     }
+
+    pub fn consume(&self, particles: &mut Vec<Particle>, dt: f32) {
+        let mut to_remove = Vec::new();
+        let limit = (self.rate * dt) as usize;
+
+        for (i, particle) in particles.iter_mut().enumerate() {
+            if self.area.contains(particle.position) {
+                to_remove.push(i);
+
+                if to_remove.len() >= limit {
+                    break;
+                }
+            }
+        }
+
+        for i in to_remove {
+            particles.swap_remove(i);
+        }
+    }
 }
 
 pub struct Emitter {
@@ -153,5 +172,13 @@ pub struct Emitter {
 impl Emitter {
     pub fn new(p_factory: Box<dyn ParticleFactory>, rate: f32) -> Self {
         Self { p_factory, rate }
+    }
+
+    pub fn emit(&self, particles: &mut Vec<Particle>, dt: f32) {
+        let n = (self.rate * dt) as usize;
+
+        for _ in 0..n {
+            particles.push(self.p_factory.create());
+        }
     }
 }

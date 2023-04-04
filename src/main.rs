@@ -1,6 +1,6 @@
 use sfml::graphics::RenderWindow;
 
-use iridium::{examples::benchmark1, ui::IridiumRenderer};
+use iridium::{examples::flow, ui::IridiumRenderer};
 // type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>;
 
 fn main() {
@@ -17,7 +17,7 @@ fn main() {
     );
 
     // Create UI
-    let mut ui = IridiumRenderer::new(window, benchmark1());
+    let mut ui = IridiumRenderer::new(window, flow(width, height));
 
     // Run simulation with UI loop
     ui.render_loop();

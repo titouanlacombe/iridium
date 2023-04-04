@@ -54,8 +54,8 @@ pub fn flow(width: u32, height: u32) -> Simulation {
     let emitter = Emitter::new(
         Box::new(RandomFactory::new(
             Box::new(Disk {
-                position: Vector2::new(200., 400.),
-                radius: 100.,
+                position: Vector2::new(width as f32 / 10., height as f32 - (height as f32 / 10.)),
+                radius: width as f32 / 10.,
             }),
             0.4,
             0.4,
@@ -69,8 +69,8 @@ pub fn flow(width: u32, height: u32) -> Simulation {
 
     let consumer = Consumer::new(
         Box::new(Disk {
-            position: Vector2::new(400., 0.),
-            radius: 100.,
+            position: Vector2::new(width as f32 / 2., height as f32 / 2.),
+            radius: width as f32 / 10.,
         }),
         3.,
     );
