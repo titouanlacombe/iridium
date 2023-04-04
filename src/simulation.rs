@@ -107,7 +107,7 @@ impl Simulation {
             let limit = (emitter.rate * dt) as usize;
 
             for _ in 0..limit {
-                self.particles.push(emitter.p_factory.new());
+                self.particles.push(emitter.p_factory.create());
             }
         }
 

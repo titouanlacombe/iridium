@@ -30,7 +30,7 @@ pub fn benchmark1() -> Simulation {
     );
 
     for _ in 0..100_000 {
-        simulation.particles.push(factory.new());
+        simulation.particles.push(factory.create());
     }
 
     simulation

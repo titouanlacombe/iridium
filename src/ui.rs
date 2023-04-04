@@ -4,7 +4,7 @@ use sfml::system::Vector2f;
 use sfml::window::{Event, Key};
 use std::time::{Duration, Instant};
 
-use crate::particle::Particle;
+use crate::particle::{ParticleFactory, Point, RandomFactory};
 use crate::simulation::Simulation;
 
 pub struct IridiumRenderer {
@@ -85,18 +85,20 @@ impl IridiumRenderer {
                     y,
                     ..
                 } => {
-                    let mouse_pos = Vector2f::new(x as f32, y as f32);
-                    let sim_pos = self.screen2sim(mouse_pos);
+                    let pfactory = RandomFactory::new(
+                        Box::new(Point {
+                            position: self.screen2sim(Vector2f::new(x as f32, y as f32)),
+                        }),
+                        0.,
+                        1.,
+                        0.,
+                        2. * std::f32::consts::PI,
+                        1.,
+                        1.,
+                    );
 
                     for _ in 0..1000 {
-                        // TODO create generator for explosive particle distribution
-                        let angle = rand::random::<f32>() * 2. * std::f32::consts::PI;
-                        let velocity =
-                            Vector2::new(angle.cos(), angle.sin()) * rand::random::<f32>() * 1.;
-
-                        self.simulation
-                            .particles
-                            .push(Particle::new(sim_pos, velocity, 1.0));
+                        self.simulation.particles.push(pfactory.create());
                     }
                 }
                 _ => {}

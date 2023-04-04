@@ -61,15 +61,30 @@ impl Area for Disk {
     }
 }
 
+pub struct Point {
+    pub position: Vector2<f32>,
+}
+
+impl Area for Point {
+    fn contains(&self, position: Vector2<f32>) -> bool {
+        position == self.position
+    }
+
+    fn rand(&self) -> Vector2<f32> {
+        self.position
+    }
+}
+
 fn rand_range(min: f32, max: f32) -> f32 {
     min + (max - min) * rand::random::<f32>()
 }
 
 pub trait ParticleFactory {
-    fn new(&self) -> Particle;
+    fn create(&self) -> Particle;
 }
 
 pub struct RandomFactory {
+    // TODO use generators for rand ranges (constant generators, uniform generators, etc.)
     pub area: Box<dyn Area>,
     pub velocity_min: f32,
     pub velocity_max: f32,
@@ -103,7 +118,7 @@ impl RandomFactory {
 }
 
 impl ParticleFactory for RandomFactory {
-    fn new(&self) -> Particle {
+    fn create(&self) -> Particle {
         let position = self.area.rand();
 
         let velocity_magn = rand_range(self.velocity_min, self.velocity_max);
