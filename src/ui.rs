@@ -10,16 +10,22 @@ use crate::simulation::SimulationRunner;
 pub struct IridiumRenderer {
     pub window: RenderWindow,
     pub sim_runner: Box<dyn SimulationRunner>,
+    pub min_frame_time: Option<Duration>,
 
     pub screen_size: Vector2<f32>,
     pub pos_buffer: Vec<Vertex>,
 }
 
 impl IridiumRenderer {
-    pub fn new(window: RenderWindow, sim_runner: Box<dyn SimulationRunner>) -> Self {
+    pub fn new(
+        window: RenderWindow,
+        sim_runner: Box<dyn SimulationRunner>,
+        min_frame_time: Option<Duration>,
+    ) -> Self {
         Self {
             window,
             sim_runner,
+            min_frame_time,
             screen_size: Vector2::new(0., 0.),
             pos_buffer: Vec::new(),
         }
@@ -120,20 +126,32 @@ impl IridiumRenderer {
         let mut frame_count = 0;
 
         let mut log_elapsed;
-        let mut t;
+        let mut frame_start;
+        let mut timer;
+        let mut elapsed;
 
         while self.window.is_open() {
-            t = Instant::now();
+            // TODO refactor timers (search/make utility class)
+            frame_start = Instant::now();
+            timer = frame_start.clone();
+
             self.sim_runner.step();
-            sim_elapsed += t.elapsed();
 
-            t = Instant::now();
+            elapsed = timer.elapsed();
+            sim_elapsed += elapsed;
+            timer += elapsed;
+
             self.render();
-            render_elapsed += t.elapsed();
 
-            t = Instant::now();
+            elapsed = timer.elapsed();
+            render_elapsed += elapsed;
+            timer += elapsed;
+
             self.process_events();
-            events_elapsed += t.elapsed();
+
+            elapsed = timer.elapsed();
+            events_elapsed += elapsed;
+            timer += elapsed;
 
             frame_count += 1;
 
@@ -163,6 +181,20 @@ impl IridiumRenderer {
                 render_elapsed = Duration::ZERO;
                 events_elapsed = Duration::ZERO;
                 frame_count = 0;
+            }
+
+            if let Some(min_frame_time) = self.min_frame_time {
+                let frame_time = frame_start.elapsed();
+
+                if frame_time < min_frame_time {
+                    let sleep_time = min_frame_time - frame_time;
+                    // TODO log debug
+                    // println!(
+                    //     "Frame time too short, sleeping for {:.2} ms",
+                    //     sleep_time.as_secs_f64() * 1000.
+                    // );
+                    std::thread::sleep(sleep_time);
+                }
             }
         }
     }
