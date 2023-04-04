@@ -122,7 +122,7 @@ impl IridiumRenderer {
 
         while self.window.is_open() {
             t = Instant::now();
-            self.simulation.update();
+            self.simulation.update(1.);
             sim_elapsed += t.elapsed();
 
             t = Instant::now();

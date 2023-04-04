@@ -75,8 +75,11 @@ pub struct Simulation {
     pub particles: Vec<Particle>,
     pub emitters: Vec<Emitter>,
     pub consumers: Vec<Consumer>,
+
+    // TODO: make these a Vec of Box<dyn Force>
     pub uniform_gravity: Option<UniformGravity>,
     pub uniform_drag: Option<UniformDrag>,
+
     pub limit: LimitCond,
 }
 
@@ -99,9 +102,7 @@ impl Simulation {
         }
     }
 
-    pub fn update(&mut self) {
-        let dt = 1.0;
-
+    pub fn update(&mut self, dt: f32) {
         // Emit new particles
         for emitter in &self.emitters {
             emitter.emit(&mut self.particles, dt);
@@ -136,10 +137,6 @@ impl Simulation {
             // Check limits
             limit_update(&self.limit, i, particle, &mut to_remove)
         }
-
-        // Remove double to_remove entries
-        // to_remove.sort();
-        // to_remove.dedup();
 
         for i in to_remove {
             self.particles.swap_remove(i);
