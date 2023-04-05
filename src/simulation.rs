@@ -65,32 +65,21 @@ impl Simulation {
 }
 
 pub trait SimulationRunner {
-    fn step(&mut self);
-    fn get_simulation_mut(&mut self) -> &mut Simulation;
-    fn get_simulation(&self) -> &Simulation;
+    fn step(&mut self, sim: &mut Simulation);
 }
 
 pub struct ContinuousSimulationRunner {
-    simulation: Simulation,
     dt: f32,
 }
 
 impl ContinuousSimulationRunner {
-    pub fn new(simulation: Simulation, dt: f32) -> Self {
-        Self { simulation, dt }
+    pub fn new(dt: f32) -> Self {
+        Self { dt }
     }
 }
 
 impl SimulationRunner for ContinuousSimulationRunner {
-    fn step(&mut self) {
-        self.simulation.step(self.dt);
-    }
-
-    fn get_simulation_mut(&mut self) -> &mut Simulation {
-        &mut self.simulation
-    }
-
-    fn get_simulation(&self) -> &Simulation {
-        &self.simulation
+    fn step(&mut self, sim: &mut Simulation) {
+        sim.step(self.dt);
     }
 }

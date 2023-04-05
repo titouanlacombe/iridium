@@ -1,13 +1,18 @@
 use nalgebra::Vector2;
-use sfml::graphics::RenderWindow;
+use sfml::{
+    graphics::RenderWindow,
+    system::Vector2f,
+    window::{Event as SfmlEvent, Key},
+};
 use std::time::Duration;
 
 use crate::{
-    areas::Disk,
+    areas::{Disk, Point},
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
+    iridium::IridiumMain,
     particle::{ParticleFactory, RandomFactory},
-    renderer::IridiumRenderer,
+    renderer::BasicRenderer,
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Wall},
 };
@@ -23,7 +28,26 @@ pub fn get_window(width: u32, height: u32) -> RenderWindow {
     window
 }
 
-pub fn benchmark1() -> IridiumRenderer {
+fn default_event_handler(
+    _renderer: &mut BasicRenderer,
+    _sim: &mut Simulation,
+    running: &mut bool,
+    &event: &SfmlEvent,
+) {
+    match event {
+        SfmlEvent::Closed => {
+            *running = false;
+        }
+        SfmlEvent::KeyPressed { code, .. } => {
+            if code == Key::Escape {
+                *running = false;
+            }
+        }
+        _ => {}
+    }
+}
+
+pub fn benchmark1() -> IridiumMain {
     let width = 500;
     let height = 500;
 
@@ -53,26 +77,29 @@ pub fn benchmark1() -> IridiumRenderer {
         restitution: 0.8,
     });
 
-    let simulation = Simulation::new(
+    let sim = Simulation::new(
         particles,
         vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.003))),
         None,
     );
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = IridiumRenderer::new(
-        get_window(width, height),
+    let renderer = BasicRenderer::new(get_window(width, height), None);
+
+    let main = IridiumMain::new(
+        renderer,
+        sim,
         sim_runner,
-        None,
+        Box::new(default_event_handler),
         Duration::from_secs(1),
     );
 
-    renderer
+    main
 }
 
-pub fn fireworks(width: u32, height: u32) -> IridiumRenderer {
+pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
@@ -81,26 +108,58 @@ pub fn fireworks(width: u32, height: u32) -> IridiumRenderer {
         restitution: 0.8,
     });
 
-    let simulation = Simulation::new(
+    let sim = Simulation::new(
         Vec::new(),
         vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
     );
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = IridiumRenderer::new(
-        get_window(width, height),
+    let event_handler = |m_renderer: &mut BasicRenderer,
+                         m_sim: &mut Simulation,
+                         running: &mut bool,
+                         &event: &SfmlEvent| match event {
+        SfmlEvent::MouseButtonPressed {
+            button: sfml::window::mouse::Button::Left,
+            x,
+            y,
+            ..
+        } => {
+            let pfactory = RandomFactory::new(
+                Box::new(Point {
+                    position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
+                }),
+                0.,
+                1.,
+                0.,
+                2. * std::f32::consts::PI,
+                1.,
+                1.,
+            );
+
+            for _ in 0..1000 {
+                m_sim.particles.push(pfactory.create());
+            }
+        }
+        _ => default_event_handler(m_renderer, m_sim, running, &event),
+    };
+
+    let renderer = BasicRenderer::new(get_window(width, height), None);
+
+    let main = IridiumMain::new(
+        renderer,
+        sim,
         sim_runner,
-        None,
+        Box::new(event_handler),
         Duration::from_secs(1),
     );
 
-    renderer
+    main
 }
 
-pub fn flow(width: u32, height: u32) -> IridiumRenderer {
+pub fn flow(width: u32, height: u32) -> IridiumMain {
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(RandomFactory::new(
             Box::new(Disk {
@@ -145,21 +204,24 @@ pub fn flow(width: u32, height: u32) -> IridiumRenderer {
         restitution: 0.8,
     });
 
-    let simulation = Simulation::new(
+    let sim = Simulation::new(
         Vec::new(),
         vec![emitter, consumer, events_handler, limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
     );
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = IridiumRenderer::new(
-        get_window(width, height),
+    let renderer = BasicRenderer::new(get_window(width, height), None);
+
+    let main = IridiumMain::new(
+        renderer,
+        sim,
         sim_runner,
-        None,
+        Box::new(default_event_handler),
         Duration::from_secs(1),
     );
 
-    renderer
+    main
 }

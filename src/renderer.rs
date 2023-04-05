@@ -1,62 +1,54 @@
-use log::{debug, info};
+use log::debug;
 use nalgebra::Vector2;
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use sfml::system::Vector2f;
-use sfml::window::{Event, Key};
+use sfml::window::Event;
 use std::time::{Duration, Instant};
 
-use crate::areas::Point;
-use crate::particle::{ParticleFactory, RandomFactory};
-use crate::simulation::SimulationRunner;
-use crate::timer::Timer;
+use crate::particle::Particle;
 
-pub struct IridiumRenderer {
-    pub window: RenderWindow,
-    pub sim_runner: Box<dyn SimulationRunner>,
-    pub min_frame_time: Option<Duration>,
-    pub log_interval: Duration,
+pub struct BasicRenderer {
+    window: RenderWindow,
+    min_frame_time: Option<Duration>,
 
-    pub screen_size: Vector2<f32>,
-    pub pos_buffer: Vec<Vertex>,
+    // Cache
+    screen_size: Vector2<u32>,
+    pos_buffer: Vec<Vertex>,
 }
 
-impl IridiumRenderer {
-    pub fn new(
-        window: RenderWindow,
-        sim_runner: Box<dyn SimulationRunner>,
-        min_frame_time: Option<Duration>,
-        log_interval: Duration,
-    ) -> Self {
-        Self {
+impl BasicRenderer {
+    pub fn new(window: RenderWindow, min_frame_time: Option<Duration>) -> Self {
+        let mut obj = Self {
             window,
-            sim_runner,
             min_frame_time,
-            log_interval,
-            screen_size: Vector2::new(0., 0.),
+            screen_size: Vector2::new(0, 0),
             pos_buffer: Vec::new(),
-        }
+        };
+        obj.update_screen_size();
+        obj
     }
 
-    pub fn update_screen_size(&mut self) {
+    fn update_screen_size(&mut self) {
         let tmp = self.window.size();
-        self.screen_size.x = tmp.x as f32;
-        self.screen_size.y = tmp.y as f32;
+        self.screen_size.x = tmp.x as u32;
+        self.screen_size.y = tmp.y as u32;
     }
 
     // Convert between simulation and screen coordinates
     pub fn sim2screen(&self, position: Vector2<f32>) -> Vector2f {
-        Vector2f::new(position.x, self.screen_size.y - position.y)
+        Vector2f::new(position.x, self.screen_size.y as f32 - position.y)
     }
 
     pub fn screen2sim(&self, position: Vector2f) -> Vector2<f32> {
-        Vector2::new(position.x, self.screen_size.y - position.y)
+        Vector2::new(position.x, self.screen_size.y as f32 - position.y)
     }
 
-    pub fn render(&mut self) {
+    // TODO trait for renderers
+    pub fn render(&mut self, particles: &Vec<Particle>) {
+        let frame_start = Instant::now();
+
         // Cache current screen size
         self.update_screen_size();
-
-        let particles = &self.sim_runner.get_simulation().particles;
 
         // Resize particle buffer
         let vertex = Vertex::new(Vector2f::new(0., 0.), Color::WHITE, Vector2f::new(0., 0.));
@@ -81,112 +73,27 @@ impl IridiumRenderer {
 
         // Display
         self.window.display();
-    }
 
-    pub fn process_events(&mut self) {
-        while let Some(event) = self.window.poll_event() {
-            match event {
-                Event::Closed => self.window.close(),
-                Event::KeyPressed { code, .. } => {
-                    if code == Key::Escape {
-                        self.window.close();
-                    }
-                }
-                Event::MouseButtonPressed {
-                    button: sfml::window::mouse::Button::Left,
-                    x,
-                    y,
-                    ..
-                } => {
-                    let pfactory = RandomFactory::new(
-                        Box::new(Point {
-                            position: self.screen2sim(Vector2f::new(x as f32, y as f32)),
-                        }),
-                        0.,
-                        1.,
-                        0.,
-                        2. * std::f32::consts::PI,
-                        1.,
-                        1.,
-                    );
-                    let particles = &mut self.sim_runner.get_simulation_mut().particles;
+        // Handle frame rate limiting
+        if let Some(min_frame_time) = self.min_frame_time {
+            let frame_time = frame_start.elapsed();
 
-                    for _ in 0..1000 {
-                        particles.push(pfactory.create());
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // Default loop for quick prototyping
-    pub fn main_loop(&mut self) {
-        let mut last_log = Instant::now();
-
-        let mut sim_elapsed = Duration::ZERO;
-        let mut render_elapsed = Duration::ZERO;
-        let mut events_elapsed = Duration::ZERO;
-        let mut frame_count = 0;
-
-        while self.window.is_open() {
-            let frame_start = Instant::now();
-            let mut timer = Timer::new(frame_start);
-            frame_count += 1;
-
-            self.sim_runner.step();
-            sim_elapsed += timer.lap();
-
-            self.render();
-            render_elapsed += timer.lap();
-
-            self.process_events();
-            events_elapsed += timer.lap();
-
-            let log_elapsed = last_log.elapsed();
-            if log_elapsed >= self.log_interval {
-                let log_elapsed_sec = log_elapsed.as_secs_f64();
-                let frame_time_av = log_elapsed_sec / frame_count as f64;
-                let particles = &self.sim_runner.get_simulation().particles;
-                let particle_count = particles.len();
-
-                info!(
-                    "\n{} steps in {:.2} s (~{:.2} fps)\n\
-					{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)\n\
-					{:.2e} particles ({:.2} µs/particle)\n\
-					{} systems",
-                    frame_count,
-                    log_elapsed_sec,
-                    1. / frame_time_av,
-                    frame_time_av * 1000.,
-                    sim_elapsed.as_secs_f64() * 1000. / frame_count as f64,
-                    render_elapsed.as_secs_f64() * 1000. / frame_count as f64,
-                    events_elapsed.as_secs_f64() * 1000. / frame_count as f64,
-                    particle_count,
-                    ((log_elapsed_sec * 1e6) / frame_count as f64) / particle_count as f64,
-                    self.sim_runner.get_simulation().systems.len()
+            if frame_time < min_frame_time {
+                let sleep_time = min_frame_time - frame_time;
+                debug!(
+                    "Frame time too short, sleeping for {:.2} ms",
+                    sleep_time.as_secs_f64() * 1000.
                 );
-
-                last_log = Instant::now();
-                sim_elapsed = Duration::ZERO;
-                render_elapsed = Duration::ZERO;
-                events_elapsed = Duration::ZERO;
-                frame_count = 0;
-            }
-
-            // Handle frame rate limiting
-            if let Some(min_frame_time) = self.min_frame_time {
-                let frame_time = frame_start.elapsed();
-
-                if frame_time < min_frame_time {
-                    let sleep_time = min_frame_time - frame_time;
-                    debug!(
-                        "Frame time too short, sleeping for {:.2} ms",
-                        sleep_time.as_secs_f64() * 1000.
-                    );
-                    std::thread::sleep(sleep_time);
-                }
+                std::thread::sleep(sleep_time);
             }
         }
+    }
+
+    pub fn events(&mut self) -> Vec<Event> {
+        let mut events = Vec::new();
+        while let Some(event) = self.window.poll_event() {
+            events.push(event);
+        }
+        events
     }
 }

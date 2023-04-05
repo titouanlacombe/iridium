@@ -2,6 +2,7 @@ pub mod areas;
 pub mod events;
 pub mod examples;
 pub mod forces;
+pub mod iridium;
 pub mod particle;
 pub mod quadtree;
 pub mod renderer;
