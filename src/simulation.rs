@@ -107,7 +107,6 @@ impl Simulation {
             updatable.update(&mut self.particles, dt);
         }
 
-        // TODO Iterate once, process multiple systems? maybe slower? particle_systems: Vec<ParticleSystem>
         // Update particles
         for particle in &mut self.particles {
             let mut forces: Vector2<f32> = Vector2::new(0., 0.);
