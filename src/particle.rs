@@ -65,11 +65,11 @@ impl ParticleFactory for RandomFactory {
     fn create(&self) -> Particle {
         let position = self.area.rand();
 
-        let velocity_magn = rand_range(self.velocity_min, self.velocity_max);
+        let velocity_mag = rand_range(self.velocity_min, self.velocity_max);
         let velocity_angle = rand_range(self.velocity_angle_min, self.velocity_angle_max);
         let velocity = Vector2::new(
-            velocity_magn * velocity_angle.cos(),
-            velocity_magn * velocity_angle.sin(),
+            velocity_mag * velocity_angle.cos(),
+            velocity_mag * velocity_angle.sin(),
         );
 
         let mass = rand_range(self.mass_min, self.mass_max);

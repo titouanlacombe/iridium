@@ -12,7 +12,6 @@ pub struct Simulation {
     pub particles: Vec<Particle>,
     pub systems: Vec<Box<dyn System>>,
 
-    // TODO: make these a Vec of Box<dyn Force>
     uniform_gravity: Option<UniformGravity>,
     uniform_drag: Option<UniformDrag>,
 }
@@ -58,7 +57,6 @@ impl Simulation {
                 drag.apply(particle, &mut forces);
             }
 
-            // TODO use custom integrator?
             // Update particle
             particle.velocity += forces * dt / particle.mass;
             particle.position += particle.velocity * dt;

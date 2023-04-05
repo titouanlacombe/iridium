@@ -57,7 +57,6 @@ pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
         restitution: 0.8,
     });
 
-    // TODO define key handler here
     let simulation = Simulation::new(
         Vec::new(),
         vec![limit_cond],
@@ -67,6 +66,7 @@ pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
 
+    // TODO define key handler here (examples output renderer)
     sim_runner
 }
 
