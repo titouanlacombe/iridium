@@ -2,7 +2,8 @@ use nalgebra::Vector2;
 
 use crate::{
     forces::{UniformDrag, UniformGravity},
-    particle::{Consumer, Emitter, Particle},
+    particle::Particle,
+    updatables::Updatable,
 };
 
 pub enum LimitCond {
@@ -73,8 +74,7 @@ fn limit_update(limit: &LimitCond, i: usize, particle: &mut Particle, to_remove:
 
 pub struct Simulation {
     pub particles: Vec<Particle>,
-    emitters: Vec<Emitter>,
-    consumers: Vec<Consumer>,
+    updatables: Vec<Box<dyn Updatable>>,
 
     // TODO: make these a Vec of Box<dyn Force>
     uniform_gravity: Option<UniformGravity>,
@@ -87,16 +87,14 @@ pub struct Simulation {
 impl Simulation {
     pub fn new(
         particles: Vec<Particle>,
-        emitters: Vec<Emitter>,
-        consumers: Vec<Consumer>,
+        updatables: Vec<Box<dyn Updatable>>,
         uniform_gravity: Option<UniformGravity>,
         uniform_drag: Option<UniformDrag>,
         limit: LimitCond,
     ) -> Self {
         Self {
             particles,
-            emitters,
-            consumers,
+            updatables,
             uniform_gravity,
             uniform_drag,
             limit,
@@ -104,17 +102,12 @@ impl Simulation {
     }
 
     pub fn step(&mut self, dt: f32) {
-        // TODO Iterate once, process multiple systems? maybe slower?
-        // Emit new particles
-        for emitter in &self.emitters {
-            emitter.emit(&mut self.particles, dt);
+        // Update updatables
+        for updatable in &mut self.updatables {
+            updatable.update(&mut self.particles, dt);
         }
 
-        // Consume particles
-        for consumer in &self.consumers {
-            consumer.consume(&mut self.particles, dt);
-        }
-
+        // TODO Iterate once, process multiple systems? maybe slower? particle_systems: Vec<ParticleSystem>
         // Update particles
         for particle in &mut self.particles {
             let mut forces: Vector2<f32> = Vector2::new(0., 0.);

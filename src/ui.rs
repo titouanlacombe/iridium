@@ -4,7 +4,8 @@ use sfml::system::Vector2f;
 use sfml::window::{Event, Key};
 use std::time::{Duration, Instant};
 
-use crate::particle::{ParticleFactory, Point, RandomFactory};
+use crate::areas::Point;
+use crate::particle::{ParticleFactory, RandomFactory};
 use crate::simulation::SimulationRunner;
 
 pub struct IridiumRenderer {

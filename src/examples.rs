@@ -1,9 +1,11 @@
 use nalgebra::Vector2;
 
 use crate::{
+    areas::Disk,
     forces::UniformGravity,
-    particle::{Consumer, Disk, Emitter, ParticleFactory, RandomFactory},
+    particle::{ParticleFactory, RandomFactory},
     simulation::{ContinuousSimulationRunner, LimitCond, Simulation, SimulationRunner},
+    updatables::{ConstantConsumer, ConstantEmitter},
 };
 
 pub fn benchmark1() -> Box<dyn SimulationRunner> {
@@ -28,7 +30,6 @@ pub fn benchmark1() -> Box<dyn SimulationRunner> {
     let simulation = Simulation::new(
         particles,
         vec![],
-        vec![],
         Some(UniformGravity::new(Vector2::new(0., -0.003))),
         None,
         LimitCond::Wall(0., 0., 500., 500., 0.8),
@@ -44,7 +45,6 @@ pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
     let simulation = Simulation::new(
         Vec::new(),
         vec![],
-        vec![],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
@@ -56,7 +56,7 @@ pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
 }
 
 pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
-    let emitter = Emitter::new(
+    let emitter = Box::new(ConstantEmitter::new(
         Box::new(RandomFactory::new(
             Box::new(Disk {
                 position: Vector2::new(width as f32 / 10., height as f32 - (height as f32 / 10.)),
@@ -70,20 +70,19 @@ pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
             1.,
         )),
         10.,
-    );
+    ));
 
-    let consumer = Consumer::new(
+    let consumer = Box::new(ConstantConsumer::new(
         Box::new(Disk {
             position: Vector2::new(width as f32 / 2., height as f32 / 2.),
             radius: width as f32 / 10.,
         }),
         3.,
-    );
+    ));
 
     let simulation = Simulation::new(
         Vec::new(),
-        vec![emitter],
-        vec![consumer],
+        vec![emitter, consumer],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),

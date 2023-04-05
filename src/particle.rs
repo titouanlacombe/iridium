@@ -1,5 +1,7 @@
 use nalgebra::Vector2;
 
+use crate::areas::Area;
+
 pub struct Particle {
     pub position: Vector2<f32>,
     pub velocity: Vector2<f32>,
@@ -13,65 +15,6 @@ impl Particle {
             velocity,
             mass,
         }
-    }
-}
-
-pub trait Area {
-    fn contains(&self, position: Vector2<f32>) -> bool;
-    fn rand(&self) -> Vector2<f32>;
-}
-
-pub struct Rect {
-    pub position: Vector2<f32>,
-    pub size: Vector2<f32>,
-}
-
-impl Area for Rect {
-    fn contains(&self, position: Vector2<f32>) -> bool {
-        position.x >= self.position.x
-            && position.x <= self.position.x + self.size.x
-            && position.y >= self.position.y
-            && position.y <= self.position.y + self.size.y
-    }
-
-    fn rand(&self) -> Vector2<f32> {
-        Vector2::new(
-            self.position.x + rand::random::<f32>() * self.size.x,
-            self.position.y + rand::random::<f32>() * self.size.y,
-        )
-    }
-}
-
-pub struct Disk {
-    pub position: Vector2<f32>,
-    pub radius: f32,
-}
-
-impl Area for Disk {
-    fn contains(&self, position: Vector2<f32>) -> bool {
-        (position - self.position).norm() <= self.radius
-    }
-
-    fn rand(&self) -> Vector2<f32> {
-        let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
-
-        // For a uniform distribution, we need to square root the random number
-        let radius = rand::random::<f32>().sqrt() * self.radius;
-        self.position + Vector2::new(radius * angle.cos(), radius * angle.sin())
-    }
-}
-
-pub struct Point {
-    pub position: Vector2<f32>,
-}
-
-impl Area for Point {
-    fn contains(&self, position: Vector2<f32>) -> bool {
-        position == self.position
-    }
-
-    fn rand(&self) -> Vector2<f32> {
-        self.position
     }
 }
 
@@ -132,54 +75,5 @@ impl ParticleFactory for RandomFactory {
         let mass = rand_range(self.mass_min, self.mass_max);
 
         Particle::new(position, velocity, mass)
-    }
-}
-
-pub struct Consumer {
-    pub area: Box<dyn Area>,
-    pub rate: f32,
-}
-
-impl Consumer {
-    pub fn new(area: Box<dyn Area>, rate: f32) -> Self {
-        Self { area, rate }
-    }
-
-    pub fn consume(&self, particles: &mut Vec<Particle>, dt: f32) {
-        let mut to_remove = Vec::new();
-        let limit = (self.rate * dt) as usize;
-
-        for (i, particle) in particles.iter_mut().enumerate() {
-            if self.area.contains(particle.position) {
-                to_remove.push(i);
-
-                if to_remove.len() >= limit {
-                    break;
-                }
-            }
-        }
-
-        for i in to_remove {
-            particles.swap_remove(i);
-        }
-    }
-}
-
-pub struct Emitter {
-    pub p_factory: Box<dyn ParticleFactory>,
-    pub rate: f32,
-}
-
-impl Emitter {
-    pub fn new(p_factory: Box<dyn ParticleFactory>, rate: f32) -> Self {
-        Self { p_factory, rate }
-    }
-
-    pub fn emit(&self, particles: &mut Vec<Particle>, dt: f32) {
-        let n = (self.rate * dt) as usize;
-
-        for _ in 0..n {
-            particles.push(self.p_factory.create());
-        }
     }
 }
