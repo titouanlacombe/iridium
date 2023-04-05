@@ -166,7 +166,7 @@ impl IridiumRenderer {
                 info!(
                     "\n{} steps in {:.2} s (~{:.2} fps)\n\
 					{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)\n\
-					{:.2e} particles ({:.2} µs/particle)\n",
+					{:.2e} particles ({:.2} µs/particle)",
                     frame_count,
                     log_elapsed,
                     1. / frame_time_av,
