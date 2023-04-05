@@ -18,16 +18,30 @@ impl ConstantConsumer {
     }
 }
 
+// Handle the case where the rate is not an integer
+// Making the rate smooth & accurate across steps
+fn smooth_rate(rate: f32, dt: f32) -> usize {
+    let n = rate * dt;
+    let mut quotient = n as usize;
+
+    // Remainder
+    if rand::random::<f32>() < n - quotient as f32 {
+        quotient += 1;
+    }
+
+    quotient
+}
+
 impl Updatable for ConstantConsumer {
     fn update(&mut self, particles: &mut Vec<Particle>, dt: f32) {
-        let mut to_remove = Vec::new();
-        let limit = (self.rate * dt) as usize;
+        let quotient = smooth_rate(self.rate, dt);
 
+        let mut to_remove = Vec::new();
         for (i, particle) in particles.iter_mut().enumerate() {
             if self.area.contains(particle.position) {
                 to_remove.push(i);
 
-                if to_remove.len() >= limit {
+                if to_remove.len() >= quotient {
                     break;
                 }
             }
@@ -52,15 +66,9 @@ impl ConstantEmitter {
 
 impl Updatable for ConstantEmitter {
     fn update(&mut self, particles: &mut Vec<Particle>, dt: f32) {
-        let n = self.rate * dt;
+        let quotient = smooth_rate(self.rate, dt);
 
-        let quotient = n as usize;
         for _ in 0..quotient {
-            particles.push(self.p_factory.create());
-        }
-
-        let remainder = n - quotient as f32;
-        if rand::random::<f32>() < remainder {
             particles.push(self.p_factory.create());
         }
     }
