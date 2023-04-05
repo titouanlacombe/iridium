@@ -6,6 +6,7 @@ rust-version = "1.68"
 edition = "2021"
 
 [dependencies]
+env_logger = "0.10.0"
 nalgebra = "*"
 rand = "*"
 sfml = "0.20.*"
