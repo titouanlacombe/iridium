@@ -1,7 +1,7 @@
 use sfml::graphics::RenderWindow;
 use std::time::Duration;
 
-use iridium::{examples::flow, ui::IridiumRenderer};
+use iridium::{examples::flow, renderer::IridiumRenderer};
 // type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>;
 
 // TODO move somewhere
@@ -10,6 +10,7 @@ fn _max_fps(fps: u64) -> Option<Duration> {
 }
 
 fn main() {
+    // Configure logging
     env_logger::builder()
         .format_timestamp(None)
         .format_level(true)
@@ -28,8 +29,9 @@ fn main() {
     );
 
     // Create UI
-    let mut ui = IridiumRenderer::new(window, flow(width, height), None);
+    let mut renderer =
+        IridiumRenderer::new(window, flow(width, height), None, Duration::from_secs(1));
 
-    // Run simulation with UI loop
-    ui.render_loop();
+    // Run simulation with renderer loop
+    renderer.main_loop();
 }

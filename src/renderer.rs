@@ -8,11 +8,13 @@ use std::time::{Duration, Instant};
 use crate::areas::Point;
 use crate::particle::{ParticleFactory, RandomFactory};
 use crate::simulation::SimulationRunner;
+use crate::timer::Timer;
 
 pub struct IridiumRenderer {
     pub window: RenderWindow,
     pub sim_runner: Box<dyn SimulationRunner>,
     pub min_frame_time: Option<Duration>,
+    pub log_interval: Duration,
 
     pub screen_size: Vector2<f32>,
     pub pos_buffer: Vec<Vertex>,
@@ -23,11 +25,13 @@ impl IridiumRenderer {
         window: RenderWindow,
         sim_runner: Box<dyn SimulationRunner>,
         min_frame_time: Option<Duration>,
+        log_interval: Duration,
     ) -> Self {
         Self {
             window,
             sim_runner,
             min_frame_time,
+            log_interval,
             screen_size: Vector2::new(0., 0.),
             pos_buffer: Vec::new(),
         }
@@ -117,49 +121,32 @@ impl IridiumRenderer {
     }
 
     // Default loop for quick prototyping
-    // TODO move to default simulation runner (ui takes runner as argument)
-    pub fn render_loop(&mut self) {
-        let log_delta = 1.0; // Log every second
-
+    pub fn main_loop(&mut self) {
         let mut last_log = Instant::now();
+
         let mut sim_elapsed = Duration::ZERO;
         let mut render_elapsed = Duration::ZERO;
         let mut events_elapsed = Duration::ZERO;
         let mut frame_count = 0;
 
-        let mut log_elapsed;
-        let mut frame_start;
-        let mut timer;
-        let mut elapsed;
-
         while self.window.is_open() {
-            // TODO refactor timers (search/make utility class)
-            frame_start = Instant::now();
-            timer = frame_start.clone();
-
-            self.sim_runner.step();
-
-            elapsed = timer.elapsed();
-            sim_elapsed += elapsed;
-            timer += elapsed;
-
-            self.render();
-
-            elapsed = timer.elapsed();
-            render_elapsed += elapsed;
-            timer += elapsed;
-
-            self.process_events();
-
-            elapsed = timer.elapsed();
-            events_elapsed += elapsed;
-            timer += elapsed;
-
+            let frame_start = Instant::now();
+            let mut timer = Timer::new(frame_start);
             frame_count += 1;
 
-            log_elapsed = last_log.elapsed().as_secs_f64();
-            if log_elapsed >= log_delta {
-                let frame_time_av = log_elapsed / frame_count as f64;
+            self.sim_runner.step();
+            sim_elapsed += timer.lap();
+
+            self.render();
+            render_elapsed += timer.lap();
+
+            self.process_events();
+            events_elapsed += timer.lap();
+
+            let log_elapsed = last_log.elapsed();
+            if log_elapsed >= self.log_interval {
+                let log_elapsed_sec = log_elapsed.as_secs_f64();
+                let frame_time_av = log_elapsed_sec / frame_count as f64;
                 let particles = &self.sim_runner.get_simulation().particles;
                 let particle_count = particles.len();
 
@@ -169,14 +156,14 @@ impl IridiumRenderer {
 					{:.2e} particles ({:.2} µs/particle)\n\
 					{} systems",
                     frame_count,
-                    log_elapsed,
+                    log_elapsed_sec,
                     1. / frame_time_av,
                     frame_time_av * 1000.,
                     sim_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     render_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     events_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     particle_count,
-                    ((log_elapsed * 1e6) / frame_count as f64) / particle_count as f64,
+                    ((log_elapsed_sec * 1e6) / frame_count as f64) / particle_count as f64,
                     self.sim_runner.get_simulation().systems.len()
                 );
 
@@ -187,6 +174,7 @@ impl IridiumRenderer {
                 frame_count = 0;
             }
 
+            // Handle frame rate limiting
             if let Some(min_frame_time) = self.min_frame_time {
                 let frame_time = frame_start.elapsed();
 

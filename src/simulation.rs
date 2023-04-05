@@ -1,9 +1,11 @@
+use log::debug;
 use nalgebra::Vector2;
 
 use crate::{
     forces::{UniformDrag, UniformGravity},
     particle::Particle,
     systems::System,
+    timer::Timer,
 };
 
 pub struct Simulation {
@@ -31,10 +33,16 @@ impl Simulation {
     }
 
     pub fn step(&mut self, dt: f32) {
+        let mut timer = Timer::new_now();
+
         // Update systems
-        for system in &mut self.systems {
-            // TODO time each system (how to report system name? use index?)
+        for (i, system) in &mut self.systems.iter_mut().enumerate() {
             system.update(&mut self.particles, dt);
+            debug!(
+                "System {} update took {:.2} ms",
+                i,
+                timer.lap().as_secs_f64() * 1000.,
+            );
         }
 
         // Update particles
