@@ -1,24 +1,23 @@
-Simulation events (time of execution, lambda taking simulation as argument) => store sorted list of events
-class particles => store buffers for pos, vel, mass, color, forces, etc interact with them like there were individual particles {
-	multithreaded iterator (hold thread pool & stack size)
-}
-forces are updatables
-integrator is updatable (done at the end of the step)
+limit condition is system
+class particles => store buffers for pos, vel, mass, color, forces, etc interact with them like there were individual particles
+forces are systems
+integrator is system (warning, need to be at the end of the update list)
+particles multithreaded iterator (hold thread pool & stack size)
+fix Simulation events: taking more than just particles (hopefully also systems)
 
 builders object to make simulation creation easier
-create config for integrator option (euler, verlet, etc)
+more integrators option (euler, verlet, etc) & test smallest dt possible?
 is it posible to implement particles lifetimes ?
 create yaml config file?
-
+add particle color
 benchmark & optimize
 
 add quadtree (readme.md)
 add coulomb, friction, gravity
-
-add colors
-custom shading (geometry shader)
-
 benchmark & optimize
+
+custom shading (geometry shader)
+benchmark & optimize gpu?
 
 notes:
 for sim benchmark disable render
