@@ -166,7 +166,8 @@ impl IridiumRenderer {
                 info!(
                     "\n{} steps in {:.2} s (~{:.2} fps)\n\
 					{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)\n\
-					{:.2e} particles ({:.2} µs/particle)",
+					{:.2e} particles ({:.2} µs/particle)\n\
+					{} systems",
                     frame_count,
                     log_elapsed,
                     1. / frame_time_av,
@@ -176,6 +177,7 @@ impl IridiumRenderer {
                     events_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     particle_count,
                     ((log_elapsed * 1e6) / frame_count as f64) / particle_count as f64,
+                    self.sim_runner.get_simulation().systems.len()
                 );
 
                 last_log = Instant::now();

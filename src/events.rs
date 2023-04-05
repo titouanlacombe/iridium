@@ -1,4 +1,4 @@
-use crate::{particle::Particle, updatables::Updatable};
+use crate::{particle::Particle, systems::System};
 
 pub struct SortedVec<T> {
     pub vec: Vec<T>,
@@ -74,7 +74,7 @@ impl EventsHandler {
     }
 }
 
-impl Updatable for EventsHandler {
+impl System for EventsHandler {
     fn update(&mut self, particles: &mut Vec<Particle>, dt: f32) {
         self.current_time += dt;
 

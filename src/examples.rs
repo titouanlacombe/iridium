@@ -5,8 +5,8 @@ use crate::{
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
     particle::{ParticleFactory, RandomFactory},
-    simulation::{ContinuousSimulationRunner, LimitCond, Simulation, SimulationRunner},
-    updatables::{ConstantConsumer, ConstantEmitter},
+    simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
+    systems::{ConstantConsumer, ConstantEmitter, Wall},
 };
 
 pub fn benchmark1() -> Box<dyn SimulationRunner> {
@@ -28,12 +28,19 @@ pub fn benchmark1() -> Box<dyn SimulationRunner> {
         particles.push(factory.create());
     }
 
+    let limit_cond = Box::new(Wall {
+        x_min: 0.,
+        y_min: 0.,
+        x_max: 500.,
+        y_max: 500.,
+        restitution: 0.8,
+    });
+
     let simulation = Simulation::new(
         particles,
-        vec![],
+        vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.003))),
         None,
-        LimitCond::Wall(0., 0., 500., 500., 0.8),
     );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
@@ -42,13 +49,20 @@ pub fn benchmark1() -> Box<dyn SimulationRunner> {
 }
 
 pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
+    let limit_cond = Box::new(Wall {
+        x_min: 0.,
+        y_min: 0.,
+        x_max: width as f32,
+        y_max: height as f32,
+        restitution: 0.8,
+    });
+
     // TODO define key handler here
     let simulation = Simulation::new(
         Vec::new(),
-        vec![],
+        vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
-        LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
@@ -93,12 +107,19 @@ pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
 
     let events_handler = Box::new(EventsHandler::new(events, 0.));
 
+    let limit_cond = Box::new(Wall {
+        x_min: 0.,
+        y_min: 0.,
+        x_max: width as f32,
+        y_max: height as f32,
+        restitution: 0.8,
+    });
+
     let simulation = Simulation::new(
         Vec::new(),
-        vec![emitter, consumer, events_handler],
+        vec![emitter, consumer, events_handler, limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
-        LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),
     );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
