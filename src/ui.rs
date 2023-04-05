@@ -1,3 +1,4 @@
+use log::{debug, info};
 use nalgebra::Vector2;
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use sfml::system::Vector2f;
@@ -162,7 +163,7 @@ impl IridiumRenderer {
                 let particles = &self.sim_runner.get_simulation().particles;
                 let particle_count = particles.len();
 
-                println!(
+                info!(
                     "\n{} steps in {:.2} s (~{:.2} fps)\n\
 					{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)\n\
 					{:.2e} particles ({:.2} µs/particle)\n",
@@ -189,11 +190,10 @@ impl IridiumRenderer {
 
                 if frame_time < min_frame_time {
                     let sleep_time = min_frame_time - frame_time;
-                    // TODO log debug
-                    // println!(
-                    //     "Frame time too short, sleeping for {:.2} ms",
-                    //     sleep_time.as_secs_f64() * 1000.
-                    // );
+                    debug!(
+                        "Frame time too short, sleeping for {:.2} ms",
+                        sleep_time.as_secs_f64() * 1000.
+                    );
                     std::thread::sleep(sleep_time);
                 }
             }

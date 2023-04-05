@@ -10,6 +10,11 @@ fn max_fps(fps: u64) -> Option<Duration> {
 }
 
 fn main() {
+    env_logger::builder()
+        .format_timestamp(None)
+        .format_level(true)
+        .init();
+
     // Global Params
     let width = 500;
     let height = 500;
