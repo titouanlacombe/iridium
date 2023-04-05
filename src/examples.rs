@@ -90,7 +90,6 @@ pub fn fireworks(width: u32, height: u32) -> IridiumRenderer {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
 
-    // TODO define key handler here (examples output renderer)
     let renderer = IridiumRenderer::new(
         get_window(width, height),
         sim_runner,

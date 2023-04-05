@@ -14,7 +14,6 @@ fn main() {
 }
 
 // TODO move somewhere
-// type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>;
 fn _max_fps(fps: u64) -> Option<Duration> {
     Some(Duration::from_micros(1_000_000 / fps))
 }

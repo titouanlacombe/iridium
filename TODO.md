@@ -1,3 +1,6 @@
+window event handler in renderer
+<!-- type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>; -->
+
 class particles => store buffers for pos, vel, mass, color, forces, etc interact with them like there were individual particles
 forces are systems
 integrator is system (warning, need to be at the end of the update list)
