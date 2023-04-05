@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use iridium::examples::flow;
 
 fn main() {
@@ -10,10 +8,5 @@ fn main() {
         .init();
 
     // Run simulation with renderer loop
-    flow(500, 500).main_loop();
-}
-
-// TODO move somewhere
-fn _max_fps(fps: u64) -> Option<Duration> {
-    Some(Duration::from_micros(1_000_000 / fps))
+    flow(500, 500).run();
 }

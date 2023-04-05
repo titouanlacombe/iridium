@@ -43,7 +43,6 @@ impl BasicRenderer {
         Vector2::new(position.x, self.screen_size.y as f32 - position.y)
     }
 
-    // TODO trait for renderers
     pub fn render(&mut self, particles: &Vec<Particle>) {
         let frame_start = Instant::now();
 

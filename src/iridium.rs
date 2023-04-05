@@ -39,7 +39,7 @@ impl IridiumMain {
     }
 
     // Default loop for quick prototyping
-    pub fn main_loop(&mut self) {
+    pub fn run(&mut self) {
         let mut last_log = Instant::now();
 
         let mut sim_elapsed = Duration::ZERO;
@@ -96,4 +96,7 @@ impl IridiumMain {
     }
 }
 
-// TODO big facade
+// TODO move to facade
+fn _max_fps(fps: u64) -> Option<Duration> {
+    Some(Duration::from_micros(1_000_000 / fps))
+}

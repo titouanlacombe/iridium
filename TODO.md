@@ -1,13 +1,12 @@
-window event handler in renderer
-<!-- type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>; -->
-
 class particles => store buffers for pos, vel, mass, color, forces, etc interact with them like there were individual particles
 forces are systems
 integrator is system (warning, need to be at the end of the update list)
+trait for renderers
 particles multithreaded iterator (hold thread pool & stack size)
 fix Simulation events: taking more than just particles (hopefully also systems)
 
-builders object to make simulation creation easier
+builders object to make simulation creation easier?
+iridium big facade
 more integrators option (euler, verlet, etc) & test smallest dt possible?
 is it posible to implement particles lifetimes ?
 create yaml config file?
