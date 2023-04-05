@@ -1,4 +1,5 @@
 pub mod areas;
+pub mod events;
 pub mod examples;
 pub mod forces;
 pub mod particle;

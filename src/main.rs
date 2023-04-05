@@ -5,7 +5,7 @@ use iridium::{examples::flow, ui::IridiumRenderer};
 // type WindowEventHandler = Box<dyn FnMut(&mut IridiumRenderer, Event)>;
 
 // TODO move somewhere
-fn max_fps(fps: u64) -> Option<Duration> {
+fn _max_fps(fps: u64) -> Option<Duration> {
     Some(Duration::from_micros(1_000_000 / fps))
 }
 

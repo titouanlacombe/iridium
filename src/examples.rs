@@ -2,6 +2,7 @@ use nalgebra::Vector2;
 
 use crate::{
     areas::Disk,
+    events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
     particle::{ParticleFactory, RandomFactory},
     simulation::{ContinuousSimulationRunner, LimitCond, Simulation, SimulationRunner},
@@ -80,9 +81,21 @@ pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
         3.,
     ));
 
+    let mut events = SortedVec::new();
+    events.add(Event::new(
+        5000.,
+        Box::new(|particles| {
+            for particle in particles.iter_mut() {
+                particle.velocity = Vector2::new(0., 0.);
+            }
+        }),
+    ));
+
+    let events_handler = Box::new(EventsHandler::new(events, 0.));
+
     let simulation = Simulation::new(
         Vec::new(),
-        vec![emitter, consumer],
+        vec![emitter, consumer, events_handler],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
         LimitCond::Wall(0., 0., width as f32, height as f32, 0.8),

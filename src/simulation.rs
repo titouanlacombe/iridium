@@ -74,7 +74,7 @@ fn limit_update(limit: &LimitCond, i: usize, particle: &mut Particle, to_remove:
 
 pub struct Simulation {
     pub particles: Vec<Particle>,
-    updatables: Vec<Box<dyn Updatable>>,
+    systems: Vec<Box<dyn Updatable>>,
 
     // TODO: make these a Vec of Box<dyn Force>
     uniform_gravity: Option<UniformGravity>,
@@ -87,14 +87,14 @@ pub struct Simulation {
 impl Simulation {
     pub fn new(
         particles: Vec<Particle>,
-        updatables: Vec<Box<dyn Updatable>>,
+        systems: Vec<Box<dyn Updatable>>,
         uniform_gravity: Option<UniformGravity>,
         uniform_drag: Option<UniformDrag>,
         limit: LimitCond,
     ) -> Self {
         Self {
             particles,
-            updatables,
+            systems,
             uniform_gravity,
             uniform_drag,
             limit,
@@ -102,9 +102,9 @@ impl Simulation {
     }
 
     pub fn step(&mut self, dt: f32) {
-        // Update updatables
-        for updatable in &mut self.updatables {
-            updatable.update(&mut self.particles, dt);
+        // Update systems
+        for system in &mut self.systems {
+            system.update(&mut self.particles, dt);
         }
 
         // Update particles
