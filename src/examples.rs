@@ -10,7 +10,7 @@ use crate::{
     areas::{Disk, Point},
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
-    iridium::IridiumMain,
+    iridium::{max_fps, IridiumMain},
     particle::{ParticleFactory, RandomFactory},
     renderer::BasicRenderer,
     simulation::{ContinuousSimulationRunner, Simulation},
@@ -65,7 +65,7 @@ pub fn benchmark1() -> IridiumMain {
     ));
 
     let mut particles = Vec::new();
-    for _ in 0..100_000 {
+    for _ in 0..500_000 {
         particles.push(factory.create());
     }
 
@@ -146,7 +146,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         _ => default_event_handler(m_renderer, m_sim, running, &event),
     };
 
-    let renderer = BasicRenderer::new(get_window(width, height), None);
+    let renderer = BasicRenderer::new(get_window(width, height), max_fps(400));
 
     let main = IridiumMain::new(
         renderer,

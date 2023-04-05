@@ -97,6 +97,6 @@ impl IridiumMain {
 }
 
 // TODO move to facade
-fn _max_fps(fps: u64) -> Option<Duration> {
+pub fn max_fps(fps: u64) -> Option<Duration> {
     Some(Duration::from_micros(1_000_000 / fps))
 }
