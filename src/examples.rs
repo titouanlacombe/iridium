@@ -1,15 +1,32 @@
 use nalgebra::Vector2;
+use sfml::graphics::RenderWindow;
+use std::time::Duration;
 
 use crate::{
     areas::Disk,
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
     particle::{ParticleFactory, RandomFactory},
-    simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
+    renderer::IridiumRenderer,
+    simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Wall},
 };
 
-pub fn benchmark1() -> Box<dyn SimulationRunner> {
+pub fn get_window(width: u32, height: u32) -> RenderWindow {
+    let window = RenderWindow::new(
+        (width, height),
+        "Iridium",
+        sfml::window::Style::CLOSE,
+        &Default::default(),
+    );
+
+    window
+}
+
+pub fn benchmark1() -> IridiumRenderer {
+    let width = 500;
+    let height = 500;
+
     let factory = Box::new(RandomFactory::new(
         Box::new(Disk {
             position: Vector2::new(200., 300.),
@@ -31,8 +48,8 @@ pub fn benchmark1() -> Box<dyn SimulationRunner> {
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
-        x_max: 500.,
-        y_max: 500.,
+        x_max: width as f32,
+        y_max: height as f32,
         restitution: 0.8,
     });
 
@@ -45,10 +62,17 @@ pub fn benchmark1() -> Box<dyn SimulationRunner> {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
 
-    sim_runner
+    let renderer = IridiumRenderer::new(
+        get_window(width, height),
+        sim_runner,
+        None,
+        Duration::from_secs(1),
+    );
+
+    renderer
 }
 
-pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
+pub fn fireworks(width: u32, height: u32) -> IridiumRenderer {
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
@@ -67,10 +91,17 @@ pub fn fireworks(width: u32, height: u32) -> Box<dyn SimulationRunner> {
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
 
     // TODO define key handler here (examples output renderer)
-    sim_runner
+    let renderer = IridiumRenderer::new(
+        get_window(width, height),
+        sim_runner,
+        None,
+        Duration::from_secs(1),
+    );
+
+    renderer
 }
 
-pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
+pub fn flow(width: u32, height: u32) -> IridiumRenderer {
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(RandomFactory::new(
             Box::new(Disk {
@@ -124,5 +155,12 @@ pub fn flow(width: u32, height: u32) -> Box<dyn SimulationRunner> {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(simulation, 1.));
 
-    sim_runner
+    let renderer = IridiumRenderer::new(
+        get_window(width, height),
+        sim_runner,
+        None,
+        Duration::from_secs(1),
+    );
+
+    renderer
 }
