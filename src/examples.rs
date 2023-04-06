@@ -94,6 +94,7 @@ pub fn benchmark1() -> IridiumMain {
         sim_runner,
         Box::new(default_event_handler),
         Duration::from_secs(1),
+        1,
     );
 
     main
@@ -154,6 +155,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         Box::new(event_handler),
         Duration::from_secs(1),
+        1,
     );
 
     main
@@ -221,6 +223,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         Box::new(default_event_handler),
         Duration::from_secs(1),
+        1,
     );
 
     main

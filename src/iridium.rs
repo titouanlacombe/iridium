@@ -17,6 +17,7 @@ pub struct IridiumMain {
     pub event_handler: EventHandler,
 
     pub log_interval: Duration,
+    pub steps_per_frame: usize,
     pub running: bool,
 }
 
@@ -27,6 +28,7 @@ impl IridiumMain {
         sim_runner: Box<dyn SimulationRunner>,
         event_handler: EventHandler,
         log_interval: Duration,
+        steps_per_frame: usize,
     ) -> Self {
         Self {
             renderer,
@@ -34,6 +36,7 @@ impl IridiumMain {
             sim_runner,
             event_handler,
             log_interval,
+            steps_per_frame,
             running: true,
         }
     }
@@ -51,7 +54,9 @@ impl IridiumMain {
             let mut timer = Timer::new_now();
             frame_count += 1;
 
-            self.sim_runner.step(&mut self.sim);
+            for _ in 0..self.steps_per_frame {
+                self.sim_runner.step(&mut self.sim);
+            }
             sim_elapsed += timer.lap();
 
             self.renderer.render(&self.sim.particles);
