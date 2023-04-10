@@ -1,5 +1,5 @@
-class particles => store buffers for pos, vel, mass, color, forces, etc interact with them like there were individual particles
-forces are systems
+class particles => store buffers for pos, vel, mass, color interact with them like there were individual particles
+create physics system (forces are part of that system)
 integrator is system (warning, need to be at the end of the update list)
 trait for renderers
 particles multithreaded iterator (hold thread pool & stack size)
