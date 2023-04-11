@@ -1,8 +1,7 @@
 class particles => store buffers for pos, vel, mass, color interact with them like there were individual particles
-create physics system (forces are part of that system)
-integrator is system (warning, need to be at the end of the update list)
+create physics system (forces are part of that system, use internal force buffer + integrator)
 trait for renderers
-particles multithreaded iterator (hold thread pool & stack size)
+particles multithreaded iterator (hold thread pool & cluster size)
 fix Simulation events: taking more than just particles (hopefully also systems)
 
 builders object to make simulation creation easier?
