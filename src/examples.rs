@@ -11,7 +11,10 @@ use crate::{
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
     iridium::{max_fps, IridiumMain},
-    particle::{ParticleFactory, RandomFactory},
+    particle::{
+        ConstantGenerator, GeneratorFactory, ParticleFactory, UniformGenerator,
+        Vector2PolarGenerator,
+    },
     renderer::BasicRenderer,
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Wall},
@@ -51,23 +54,17 @@ pub fn benchmark1() -> IridiumMain {
     let width = 500;
     let height = 500;
 
-    let factory = Box::new(RandomFactory::new(
+    let factory = GeneratorFactory::new(
         Box::new(Disk {
             position: Vector2::new(200., 300.),
             radius: 100.,
         }),
-        1.2,
-        1.5,
-        -0.2 * std::f32::consts::PI,
-        0.,
-        1.,
-        1.,
-    ));
-
-    let mut particles = Vec::new();
-    for _ in 0..500_000 {
-        particles.push(factory.create());
-    }
+        Box::new(Vector2PolarGenerator::new(
+            Box::new(UniformGenerator::new(1.2, 1.5)),
+            Box::new(UniformGenerator::new(-0.2 * std::f32::consts::PI, 0.)),
+        )),
+        Box::new(ConstantGenerator::new(1.)),
+    );
 
     let limit_cond = Box::new(Wall {
         x_min: 0.,
@@ -78,7 +75,7 @@ pub fn benchmark1() -> IridiumMain {
     });
 
     let sim = Simulation::new(
-        particles,
+        factory.create(500_000),
         vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.003))),
         None,
@@ -128,21 +125,19 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
             y,
             ..
         } => {
-            let pfactory = RandomFactory::new(
+            let pfactory = GeneratorFactory::new(
                 Box::new(Point {
                     position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
                 }),
-                0.,
-                1.,
-                0.,
-                2. * std::f32::consts::PI,
-                1.,
-                1.,
+                Box::new(Vector2PolarGenerator::new(
+                    Box::new(UniformGenerator::new(0., 1.)),
+                    Box::new(UniformGenerator::new(0., 2. * std::f32::consts::PI)),
+                )),
+                Box::new(ConstantGenerator::new(1.)),
             );
 
-            for _ in 0..1000 {
-                m_sim.particles.push(pfactory.create());
-            }
+            let new = pfactory.create(1_000);
+            m_sim.particles.extend(new);
         }
         _ => default_event_handler(m_renderer, m_sim, running, &event),
     };
@@ -163,19 +158,18 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
 pub fn flow(width: u32, height: u32) -> IridiumMain {
     let emitter = Box::new(ConstantEmitter::new(
-        Box::new(RandomFactory::new(
+        Box::new(GeneratorFactory::new(
             Box::new(Disk {
                 position: Vector2::new(width as f32 / 10., height as f32 - (height as f32 / 10.)),
                 radius: width as f32 / 10.,
             }),
-            0.4,
-            0.4,
-            0.,
-            0.2 * std::f32::consts::PI,
-            1.,
-            1.,
+            Box::new(Vector2PolarGenerator::new(
+                Box::new(UniformGenerator::new(0.4, 0.4)),
+                Box::new(UniformGenerator::new(0., 0.2 * std::f32::consts::PI)),
+            )),
+            Box::new(ConstantGenerator::new(1.)),
         )),
-        10.,
+        30.,
     ));
 
     let consumer = Box::new(ConstantConsumer::new(
@@ -223,7 +217,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         Box::new(default_event_handler),
         Duration::from_secs(1),
-        1,
+        4,
     );
 
     main
