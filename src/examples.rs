@@ -10,11 +10,9 @@ use crate::{
     areas::{Disk, Point},
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
+    generators::{ConstantGenerator, UniformGenerator, Vector2PolarGenerator},
     iridium::{max_fps, IridiumMain},
-    particle::{
-        ConstantGenerator, GeneratorFactory, ParticleFactory, UniformGenerator,
-        Vector2PolarGenerator,
-    },
+    particle::{GeneratorFactory, ParticleFactory},
     renderer::BasicRenderer,
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Wall},

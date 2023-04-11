@@ -8,7 +8,7 @@ add particle color
 more integrators option (euler, verlet, etc) & test smallest dt possible?
 is it posible to implement particles lifetimes ?
 builders object to make simulation creation easier? look at good practices
-iridium big facade
+iridium big facade?
 create yaml config file?
 benchmark & optimize
 
