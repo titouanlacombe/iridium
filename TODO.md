@@ -1,4 +1,3 @@
-create physics system (forces are part of that system, use internal force buffer + integrator)
 trait for renderers
 particles multithreaded iterator (hold thread pool & cluster size)
 fix Simulation events: taking more than just particles (hopefully also systems)
