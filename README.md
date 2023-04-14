@@ -46,3 +46,9 @@ Forces:
 - Coulomb (particle to particle)
 - Drag (uniform)
 - Drag (particle to particle)
+
+## Development
+
+```sh
+RUST_BACKTRACE=1 RUST_LOG=info cargo run --release
+```
