@@ -11,9 +11,9 @@ use crate::{
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
     generators::{ConstantGenerator, UniformGenerator, Vector2PolarGenerator},
-    iridium::{max_fps, IridiumMain},
+    iridium::IridiumMain,
     particle::{GeneratorFactory, ParticleFactory, Particles},
-    renderer::BasicRenderer,
+    renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, GaussianIntegrator, Physics, Wall},
 };
@@ -30,7 +30,7 @@ pub fn get_window(width: u32, height: u32) -> RenderWindow {
 }
 
 fn default_event_handler(
-    _renderer: &mut BasicRenderer,
+    _renderer: &mut Box<dyn Renderer>,
     _sim: &mut Simulation,
     running: &mut bool,
     &event: &SfmlEvent,
@@ -86,11 +86,11 @@ pub fn benchmark1() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = BasicRenderer::new(get_window(width, height), None);
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
 
     let main = IridiumMain::new(
-        renderer,
         sim,
+        renderer,
         sim_runner,
         Box::new(default_event_handler),
         Duration::from_secs(1),
@@ -120,7 +120,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let event_handler = |m_renderer: &mut BasicRenderer,
+    let event_handler = |m_renderer: &mut Box<dyn Renderer>,
                          m_sim: &mut Simulation,
                          running: &mut bool,
                          &event: &SfmlEvent| match event {
@@ -146,11 +146,11 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         _ => default_event_handler(m_renderer, m_sim, running, &event),
     };
 
-    let renderer = BasicRenderer::new(get_window(width, height), max_fps(400));
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
 
     let main = IridiumMain::new(
-        renderer,
         sim,
+        renderer,
         sim_runner,
         Box::new(event_handler),
         Duration::from_secs(1),
@@ -218,11 +218,11 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = BasicRenderer::new(get_window(width, height), None);
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
 
     let main = IridiumMain::new(
-        renderer,
         sim,
+        renderer,
         sim_runner,
         Box::new(default_event_handler),
         Duration::from_secs(1),

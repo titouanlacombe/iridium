@@ -7,6 +7,13 @@ use std::time::{Duration, Instant};
 
 use crate::particle::Particles;
 
+pub trait Renderer {
+    fn sim2screen(&self, position: Vector2<f32>) -> Vector2f;
+    fn screen2sim(&self, position: Vector2f) -> Vector2<f32>;
+    fn render(&mut self, particles: &Particles);
+    fn events(&mut self) -> Vec<Event>;
+}
+
 pub struct BasicRenderer {
     window: RenderWindow,
     min_frame_time: Option<Duration>,
@@ -33,17 +40,18 @@ impl BasicRenderer {
         self.screen_size.x = tmp.x as u32;
         self.screen_size.y = tmp.y as u32;
     }
+}
 
-    // Convert between simulation and screen coordinates
-    pub fn sim2screen(&self, position: Vector2<f32>) -> Vector2f {
+impl Renderer for BasicRenderer {
+    fn sim2screen(&self, position: Vector2<f32>) -> Vector2f {
         Vector2f::new(position.x, self.screen_size.y as f32 - position.y)
     }
 
-    pub fn screen2sim(&self, position: Vector2f) -> Vector2<f32> {
+    fn screen2sim(&self, position: Vector2f) -> Vector2<f32> {
         Vector2::new(position.x, self.screen_size.y as f32 - position.y)
     }
 
-    pub fn render(&mut self, particles: &Particles) {
+    fn render(&mut self, particles: &Particles) {
         let frame_start = Instant::now();
 
         // Cache current screen size
@@ -88,7 +96,7 @@ impl BasicRenderer {
         }
     }
 
-    pub fn events(&mut self) -> Vec<Event> {
+    fn events(&mut self) -> Vec<Event> {
         let mut events = Vec::new();
         while let Some(event) = self.window.poll_event() {
             events.push(event);

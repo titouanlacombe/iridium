@@ -3,16 +3,16 @@ use sfml::window::Event;
 use std::time::{Duration, Instant};
 
 use crate::{
-    renderer::BasicRenderer,
+    renderer::Renderer,
     simulation::{Simulation, SimulationRunner},
     timer::Timer,
 };
 
-type EventHandler = Box<dyn FnMut(&mut BasicRenderer, &mut Simulation, &mut bool, &Event)>;
+type EventHandler = Box<dyn FnMut(&mut Box<dyn Renderer>, &mut Simulation, &mut bool, &Event)>;
 
 pub struct IridiumMain {
-    pub renderer: BasicRenderer,
     pub sim: Simulation,
+    pub renderer: Box<dyn Renderer>,
     pub sim_runner: Box<dyn SimulationRunner>,
     pub event_handler: EventHandler,
 
@@ -23,16 +23,16 @@ pub struct IridiumMain {
 
 impl IridiumMain {
     pub fn new(
-        renderer: BasicRenderer,
         sim: Simulation,
+        renderer: Box<dyn Renderer>,
         sim_runner: Box<dyn SimulationRunner>,
         event_handler: EventHandler,
         log_interval: Duration,
         steps_per_frame: usize,
     ) -> Self {
         Self {
-            renderer,
             sim,
+            renderer,
             sim_runner,
             event_handler,
             log_interval,
