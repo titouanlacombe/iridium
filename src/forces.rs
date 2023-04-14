@@ -1,7 +1,5 @@
 use nalgebra::Vector2;
 
-use crate::particle::Particle;
-
 pub struct UniformGravity {
     pub acceleration: Vector2<f32>,
 }
@@ -11,8 +9,14 @@ impl UniformGravity {
         Self { acceleration }
     }
 
-    pub fn apply(&self, particle: &mut Particle, forces: &mut Vector2<f32>) {
-        *forces += self.acceleration * particle.mass;
+    pub fn apply(
+        &self,
+        _position: &Vector2<f32>,
+        _velocity: &Vector2<f32>,
+        mass: &f32,
+        forces: &mut Vector2<f32>,
+    ) {
+        *forces += self.acceleration * *mass;
     }
 }
 
@@ -25,7 +29,13 @@ impl UniformDrag {
         Self { coef: 1. - drag }
     }
 
-    pub fn apply(&self, particle: &mut Particle, forces: &mut Vector2<f32>) {
-        *forces += self.coef * particle.velocity;
+    pub fn apply(
+        &self,
+        _position: &Vector2<f32>,
+        velocity: &Vector2<f32>,
+        _mass: &f32,
+        forces: &mut Vector2<f32>,
+    ) {
+        *forces += velocity * -self.coef;
     }
 }

@@ -12,7 +12,7 @@ use crate::{
     forces::UniformGravity,
     generators::{ConstantGenerator, UniformGenerator, Vector2PolarGenerator},
     iridium::{max_fps, IridiumMain},
-    particle::{GeneratorFactory, ParticleFactory},
+    particle::{GeneratorFactory, ParticleFactory, Particles},
     renderer::BasicRenderer,
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Wall},
@@ -72,7 +72,7 @@ pub fn benchmark1() -> IridiumMain {
         restitution: 0.8,
     });
 
-    let mut particles = Vec::new();
+    let mut particles = Particles::new_empty();
     factory.create(500_000, &mut particles);
 
     let sim = Simulation::new(
@@ -108,7 +108,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     });
 
     let sim = Simulation::new(
-        Vec::new(),
+        Particles::new_empty(),
         vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,
@@ -184,8 +184,8 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     events.add(Event::new(
         5000.,
         Box::new(|particles| {
-            for particle in particles.iter_mut() {
-                particle.velocity = Vector2::new(0., 0.);
+            for vel in particles.velocities.iter_mut() {
+                *vel *= 0.5;
             }
         }),
     ));
@@ -201,7 +201,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     });
 
     let sim = Simulation::new(
-        Vec::new(),
+        Particles::new_empty(),
         vec![emitter, consumer, events_handler, limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.001))),
         None,

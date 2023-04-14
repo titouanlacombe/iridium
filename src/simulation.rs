@@ -3,13 +3,13 @@ use nalgebra::Vector2;
 
 use crate::{
     forces::{UniformDrag, UniformGravity},
-    particle::Particle,
+    particle::Particles,
     systems::System,
     timer::Timer,
 };
 
 pub struct Simulation {
-    pub particles: Vec<Particle>,
+    pub particles: Particles,
     pub systems: Vec<Box<dyn System>>,
 
     uniform_gravity: Option<UniformGravity>,
@@ -18,7 +18,7 @@ pub struct Simulation {
 
 impl Simulation {
     pub fn new(
-        particles: Vec<Particle>,
+        particles: Particles,
         systems: Vec<Box<dyn System>>,
         uniform_gravity: Option<UniformGravity>,
         uniform_drag: Option<UniformDrag>,
@@ -45,21 +45,21 @@ impl Simulation {
         }
 
         // Update particles
-        for particle in &mut self.particles {
+        for (pos, vel, mass) in self.particles.iter_mut() {
             let mut forces: Vector2<f32> = Vector2::new(0., 0.);
 
             // Apply forces
             if let Some(gravity) = &self.uniform_gravity {
-                gravity.apply(particle, &mut forces);
+                gravity.apply(pos, vel, mass, &mut forces);
             }
 
             if let Some(drag) = &self.uniform_drag {
-                drag.apply(particle, &mut forces);
+                drag.apply(pos, vel, mass, &mut forces);
             }
 
             // Update particle
-            particle.velocity += forces * dt / particle.mass;
-            particle.position += particle.velocity * dt;
+            *vel += forces * dt / *mass;
+            *pos += *vel * dt;
         }
     }
 }

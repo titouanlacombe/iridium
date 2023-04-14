@@ -5,7 +5,7 @@ use sfml::system::Vector2f;
 use sfml::window::Event;
 use std::time::{Duration, Instant};
 
-use crate::particle::Particle;
+use crate::particle::Particles;
 
 pub struct BasicRenderer {
     window: RenderWindow,
@@ -43,7 +43,7 @@ impl BasicRenderer {
         Vector2::new(position.x, self.screen_size.y as f32 - position.y)
     }
 
-    pub fn render(&mut self, particles: &Vec<Particle>) {
+    pub fn render(&mut self, particles: &Particles) {
         let frame_start = Instant::now();
 
         // Cache current screen size
@@ -55,8 +55,8 @@ impl BasicRenderer {
 
         // Update position buffer
         let mut i = 0;
-        for particle in particles {
-            self.pos_buffer[i].position = self.sim2screen(particle.position);
+        for position in particles.positions.iter() {
+            self.pos_buffer[i].position = self.sim2screen(*position);
             i += 1;
         }
 

@@ -1,10 +1,10 @@
 use crate::{
     areas::Area,
-    particle::{Particle, ParticleFactory},
+    particle::{ParticleFactory, Particles},
 };
 
 pub trait System {
-    fn update(&mut self, particles: &mut Vec<Particle>, dt: f32);
+    fn update(&mut self, particles: &mut Particles, dt: f32);
 }
 
 pub struct ConstantConsumer {
@@ -33,12 +33,12 @@ fn smooth_rate(rate: f32, dt: f32) -> usize {
 }
 
 impl System for ConstantConsumer {
-    fn update(&mut self, particles: &mut Vec<Particle>, dt: f32) {
+    fn update(&mut self, particles: &mut Particles, dt: f32) {
         let quotient = smooth_rate(self.rate, dt);
 
         let mut to_remove = Vec::new();
-        for (i, particle) in particles.iter_mut().enumerate() {
-            if self.area.contains(particle.position) {
+        for (i, position) in particles.positions.iter().enumerate() {
+            if self.area.contains(*position) {
                 to_remove.push(i);
 
                 if to_remove.len() >= quotient {
@@ -65,7 +65,7 @@ impl ConstantEmitter {
 }
 
 impl System for ConstantEmitter {
-    fn update(&mut self, particles: &mut Vec<Particle>, dt: f32) {
+    fn update(&mut self, particles: &mut Particles, dt: f32) {
         let quotient = smooth_rate(self.rate, dt);
         self.p_factory.create(quotient, particles);
     }
@@ -80,25 +80,22 @@ pub struct Wall {
 }
 
 impl System for Wall {
-    fn update(&mut self, particles: &mut Vec<Particle>, _dt: f32) {
-        for particle in particles.iter_mut() {
-            let p_pos = &mut particle.position;
-            let p_vel = &mut particle.velocity;
-
-            if p_pos.x < self.x_min {
-                p_pos.x = self.x_min;
-                p_vel.x = -p_vel.x * self.restitution;
-            } else if p_pos.x > self.x_max {
-                p_pos.x = self.x_max;
-                p_vel.x = -p_vel.x * self.restitution;
+    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+        for (position, velocity, _mass) in particles.iter_mut() {
+            if position.x < self.x_min {
+                position.x = self.x_min;
+                velocity.x = -velocity.x * self.restitution;
+            } else if position.x > self.x_max {
+                position.x = self.x_max;
+                velocity.x = -velocity.x * self.restitution;
             }
 
-            if p_pos.y < self.y_min {
-                p_pos.y = self.y_min;
-                p_vel.y = -p_vel.y * self.restitution;
-            } else if p_pos.y > self.y_max {
-                p_pos.y = self.y_max;
-                p_vel.y = -p_vel.y * self.restitution;
+            if position.y < self.y_min {
+                position.y = self.y_min;
+                velocity.y = -velocity.y * self.restitution;
+            } else if position.y > self.y_max {
+                position.y = self.y_max;
+                velocity.y = -velocity.y * self.restitution;
             }
         }
     }
@@ -112,20 +109,18 @@ pub struct Loop {
 }
 
 impl System for Loop {
-    fn update(&mut self, particles: &mut Vec<Particle>, _dt: f32) {
-        for particle in particles.iter_mut() {
-            let p_pos = &mut particle.position;
-
-            if p_pos.x < self.x_min {
-                p_pos.x = self.x_max;
-            } else if p_pos.x > self.x_max {
-                p_pos.x = self.x_min;
+    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+        for position in particles.positions.iter_mut() {
+            if position.x < self.x_min {
+                position.x = self.x_max;
+            } else if position.x > self.x_max {
+                position.x = self.x_min;
             }
 
-            if p_pos.y < self.y_min {
-                p_pos.y = self.y_max;
-            } else if p_pos.y > self.y_max {
-                p_pos.y = self.y_min;
+            if position.y < self.y_min {
+                position.y = self.y_max;
+            } else if position.y > self.y_max {
+                position.y = self.y_min;
             }
         }
     }
@@ -136,10 +131,10 @@ pub struct Void {
 }
 
 impl System for Void {
-    fn update(&mut self, particles: &mut Vec<Particle>, _dt: f32) {
+    fn update(&mut self, particles: &mut Particles, _dt: f32) {
         let mut to_remove = Vec::new();
-        for (i, particle) in particles.iter_mut().enumerate() {
-            if !self.area.contains(particle.position) {
+        for (i, position) in particles.positions.iter().enumerate() {
+            if !self.area.contains(*position) {
                 to_remove.push(i);
             }
         }
