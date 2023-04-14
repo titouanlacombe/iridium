@@ -19,7 +19,7 @@ impl Particle {
 }
 
 pub trait ParticleFactory {
-    fn create(&self, n: usize) -> Vec<Particle>;
+    fn create(&self, n: usize, particles: &mut Vec<Particle>);
 }
 
 pub struct GeneratorFactory {
@@ -43,16 +43,17 @@ impl GeneratorFactory {
 }
 
 impl ParticleFactory for GeneratorFactory {
-    fn create(&self, n: usize) -> Vec<Particle> {
-        let positions = self.position_generator.generate(n);
-        let velocities = self.velocity_generator.generate(n);
-        let masses = self.mass_generator.generate(n);
+    fn create(&self, n: usize, particles: &mut Vec<Particle>) {
+        let mut positions = Vec::new();
+        let mut velocities = Vec::new();
+        let mut masses = Vec::new();
 
-        positions
-            .into_iter()
-            .zip(velocities.into_iter())
-            .zip(masses.into_iter())
-            .map(|((position, velocity), mass)| Particle::new(position, velocity, mass))
-            .collect()
+        self.position_generator.generate(n, &mut positions);
+        self.velocity_generator.generate(n, &mut velocities);
+        self.mass_generator.generate(n, &mut masses);
+
+        for i in 0..n {
+            particles.push(Particle::new(positions[i], velocities[i], masses[i]));
+        }
     }
 }

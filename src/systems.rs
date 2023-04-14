@@ -67,7 +67,7 @@ impl ConstantEmitter {
 impl System for ConstantEmitter {
     fn update(&mut self, particles: &mut Vec<Particle>, dt: f32) {
         let quotient = smooth_rate(self.rate, dt);
-        particles.extend(self.p_factory.create(quotient));
+        self.p_factory.create(quotient, particles);
     }
 }
 

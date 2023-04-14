@@ -72,8 +72,11 @@ pub fn benchmark1() -> IridiumMain {
         restitution: 0.8,
     });
 
+    let mut particles = Vec::new();
+    factory.create(500_000, &mut particles);
+
     let sim = Simulation::new(
-        factory.create(500_000),
+        particles,
         vec![limit_cond],
         Some(UniformGravity::new(Vector2::new(0., -0.003))),
         None,
@@ -134,8 +137,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
                 Box::new(ConstantGenerator::new(1.)),
             );
 
-            let new = pfactory.create(1_000);
-            m_sim.particles.extend(new);
+            pfactory.create(1_000, &mut m_sim.particles);
         }
         _ => default_event_handler(m_renderer, m_sim, running, &event),
     };
