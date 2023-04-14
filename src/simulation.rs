@@ -1,34 +1,15 @@
 use log::debug;
-use nalgebra::Vector2;
 
-use crate::{
-    forces::{UniformDrag, UniformGravity},
-    particle::Particles,
-    systems::System,
-    timer::Timer,
-};
+use crate::{particle::Particles, systems::System, timer::Timer};
 
 pub struct Simulation {
     pub particles: Particles,
     pub systems: Vec<Box<dyn System>>,
-
-    uniform_gravity: Option<UniformGravity>,
-    uniform_drag: Option<UniformDrag>,
 }
 
 impl Simulation {
-    pub fn new(
-        particles: Particles,
-        systems: Vec<Box<dyn System>>,
-        uniform_gravity: Option<UniformGravity>,
-        uniform_drag: Option<UniformDrag>,
-    ) -> Self {
-        Self {
-            particles,
-            systems,
-            uniform_gravity,
-            uniform_drag,
-        }
+    pub fn new(particles: Particles, systems: Vec<Box<dyn System>>) -> Self {
+        Self { particles, systems }
     }
 
     pub fn step(&mut self, dt: f32) {
@@ -42,24 +23,6 @@ impl Simulation {
                 i,
                 timer.lap().as_secs_f64() * 1000.,
             );
-        }
-
-        // Update particles
-        for (pos, vel, mass) in self.particles.iter_mut() {
-            let mut forces: Vector2<f32> = Vector2::new(0., 0.);
-
-            // Apply forces
-            if let Some(gravity) = &self.uniform_gravity {
-                gravity.apply(pos, vel, mass, &mut forces);
-            }
-
-            if let Some(drag) = &self.uniform_drag {
-                drag.apply(pos, vel, mass, &mut forces);
-            }
-
-            // Update particle
-            *vel += forces * dt / *mass;
-            *pos += *vel * dt;
         }
     }
 }

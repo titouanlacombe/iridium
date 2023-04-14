@@ -15,7 +15,7 @@ use crate::{
     particle::{GeneratorFactory, ParticleFactory, Particles},
     renderer::BasicRenderer,
     simulation::{ContinuousSimulationRunner, Simulation},
-    systems::{ConstantConsumer, ConstantEmitter, Wall},
+    systems::{ConstantConsumer, ConstantEmitter, GaussianIntegrator, Physics, Wall},
 };
 
 pub fn get_window(width: u32, height: u32) -> RenderWindow {
@@ -72,15 +72,17 @@ pub fn benchmark1() -> IridiumMain {
         restitution: 0.8,
     });
 
+    let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.003)));
+
+    let physics = Box::new(Physics::new(
+        vec![gravity],
+        Box::new(GaussianIntegrator::new()),
+    ));
+
     let mut particles = Particles::new_empty();
     factory.create(500_000, &mut particles);
 
-    let sim = Simulation::new(
-        particles,
-        vec![limit_cond],
-        Some(UniformGravity::new(Vector2::new(0., -0.003))),
-        None,
-    );
+    let sim = Simulation::new(particles, vec![limit_cond, physics]);
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
@@ -107,12 +109,14 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         restitution: 0.8,
     });
 
-    let sim = Simulation::new(
-        Particles::new_empty(),
-        vec![limit_cond],
-        Some(UniformGravity::new(Vector2::new(0., -0.001))),
-        None,
-    );
+    let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.001)));
+
+    let physics = Box::new(Physics::new(
+        vec![gravity],
+        Box::new(GaussianIntegrator::new()),
+    ));
+
+    let sim = Simulation::new(Particles::new_empty(), vec![limit_cond, physics]);
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
@@ -200,11 +204,16 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         restitution: 0.8,
     });
 
+    let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.001)));
+
+    let physics = Box::new(Physics::new(
+        vec![gravity],
+        Box::new(GaussianIntegrator::new()),
+    ));
+
     let sim = Simulation::new(
         Particles::new_empty(),
-        vec![emitter, consumer, events_handler, limit_cond],
-        Some(UniformGravity::new(Vector2::new(0., -0.001))),
-        None,
+        vec![emitter, consumer, events_handler, limit_cond, physics],
     );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));

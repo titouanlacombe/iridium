@@ -1,3 +1,5 @@
+use nalgebra::Vector2;
+
 use crate::{
     areas::Area,
     particle::{ParticleFactory, Particles},
@@ -141,6 +143,62 @@ impl System for Void {
 
         for i in to_remove {
             particles.swap_remove(i);
+        }
+    }
+}
+
+pub trait Force {
+    fn apply(&self, particles: &Particles, forces: &mut Vec<Vector2<f32>>);
+}
+
+pub trait Integrator {
+    fn integrate(&self, particles: &mut Particles, forces: &Vec<Vector2<f32>>, dt: f32);
+}
+
+pub struct Physics {
+    forces: Vec<Box<dyn Force>>,
+    integrator: Box<dyn Integrator>,
+    forces_buffer: Vec<Vector2<f32>>,
+}
+
+impl Physics {
+    pub fn new(forces: Vec<Box<dyn Force>>, integrator: Box<dyn Integrator>) -> Self {
+        Self {
+            forces,
+            integrator,
+            forces_buffer: Vec::new(),
+        }
+    }
+}
+
+impl System for Physics {
+    fn update(&mut self, particles: &mut Particles, dt: f32) {
+        self.forces_buffer.clear();
+        self.forces_buffer.resize(particles.len(), Vector2::zeros());
+
+        for force in self.forces.iter() {
+            force.apply(particles, &mut self.forces_buffer);
+        }
+
+        self.integrator
+            .integrate(particles, &self.forces_buffer, dt);
+    }
+}
+
+pub struct GaussianIntegrator;
+
+impl GaussianIntegrator {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Integrator for GaussianIntegrator {
+    fn integrate(&self, particles: &mut Particles, forces: &Vec<Vector2<f32>>, dt: f32) {
+        for (i, particle) in particles.iter_mut().enumerate() {
+            let (position, velocity, mass) = particle;
+            *velocity += ((*forces)[i] / *mass) * dt;
+            *position += *velocity * dt;
         }
     }
 }
