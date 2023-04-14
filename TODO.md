@@ -1,4 +1,5 @@
 trait for renderers
+provide random seed to generators to be deterministic
 particles multithreaded iterator (hold thread pool & cluster size)
 fix Simulation events: taking more than just particles (hopefully also systems)
 
