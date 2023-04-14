@@ -1,6 +1,6 @@
-provide random seed to generators to be deterministic
+improve handling of rand seed
+improve handling of events handlers (taking more than just particles (hopefully also systems))
 particles multithreaded iterator (hold thread pool & cluster size)
-fix Simulation events: taking more than just particles (hopefully also systems)
 
 add particle color
 more integrators option (euler, verlet, etc) & test smallest dt possible?
