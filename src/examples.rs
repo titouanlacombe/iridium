@@ -175,7 +175,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
             position: Vector2::new(width as f32 / 2., height as f32 / 2.),
             radius: width as f32 / 10.,
         }),
-        3.,
+        35.,
     ));
 
     let mut events = SortedVec::new();
