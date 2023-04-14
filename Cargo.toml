@@ -2,15 +2,15 @@
 [package]
 name = "iridium"
 version = "0.1.0"
-rust-version = "1.68"
 edition = "2021"
 
 [dependencies]
-env_logger = "0.10.0"
-log = "0.4.17"
+env_logger = "*"
+log = "*"
 nalgebra = "*"
 rand = "*"
-sfml = "0.20.*"
+sfml = "*"
+uom = "*"
 
 [profile.dev]
 opt-level = 1

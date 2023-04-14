@@ -1,4 +1,3 @@
-pass vec as param for factories & generators
 type defs for position, vel, time, etc... (look at best practices)
 class particles => store buffers for pos, vel, mass interact with them like there were individual particles
 create physics system (forces are part of that system, use internal force buffer + integrator)
