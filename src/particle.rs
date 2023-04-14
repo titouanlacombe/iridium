@@ -59,7 +59,7 @@ impl Particles {
 }
 
 pub trait ParticleFactory {
-    fn create(&self, n: usize, particles: &mut Particles);
+    fn create(&mut self, n: usize, particles: &mut Particles);
 }
 
 pub struct GeneratorFactory {
@@ -83,7 +83,7 @@ impl GeneratorFactory {
 }
 
 impl ParticleFactory for GeneratorFactory {
-    fn create(&self, n: usize, particles: &mut Particles) {
+    fn create(&mut self, n: usize, particles: &mut Particles) {
         self.position_generator
             .generate(n, &mut particles.positions);
         self.velocity_generator

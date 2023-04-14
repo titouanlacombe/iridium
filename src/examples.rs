@@ -1,4 +1,6 @@
 use nalgebra::Vector2;
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use sfml::{
     graphics::RenderWindow,
     system::Vector2f,
@@ -51,15 +53,24 @@ fn default_event_handler(
 pub fn benchmark1() -> IridiumMain {
     let width = 500;
     let height = 500;
+    let seed: u64 = 0;
 
-    let factory = GeneratorFactory::new(
+    let mut factory = GeneratorFactory::new(
         Box::new(Disk {
             position: Vector2::new(200., 300.),
             radius: 100.,
         }),
         Box::new(Vector2PolarGenerator::new(
-            Box::new(UniformGenerator::new(1.2, 1.5)),
-            Box::new(UniformGenerator::new(-0.2 * std::f32::consts::PI, 0.)),
+            Box::new(UniformGenerator::new(
+                XorShiftRng::seed_from_u64(seed),
+                1.2,
+                1.5,
+            )),
+            Box::new(UniformGenerator::new(
+                XorShiftRng::seed_from_u64(seed),
+                -0.2 * std::f32::consts::PI,
+                0.,
+            )),
         )),
         Box::new(ConstantGenerator::new(1.)),
     );
@@ -130,13 +141,22 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
             y,
             ..
         } => {
-            let pfactory = GeneratorFactory::new(
+            let seed: u64 = 0;
+            let mut pfactory = GeneratorFactory::new(
                 Box::new(Point {
                     position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
                 }),
                 Box::new(Vector2PolarGenerator::new(
-                    Box::new(UniformGenerator::new(0., 1.)),
-                    Box::new(UniformGenerator::new(0., 2. * std::f32::consts::PI)),
+                    Box::new(UniformGenerator::new(
+                        XorShiftRng::seed_from_u64(seed),
+                        0.,
+                        1.,
+                    )),
+                    Box::new(UniformGenerator::new(
+                        XorShiftRng::seed_from_u64(seed),
+                        0.,
+                        2. * std::f32::consts::PI,
+                    )),
                 )),
                 Box::new(ConstantGenerator::new(1.)),
             );
@@ -161,6 +181,8 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 }
 
 pub fn flow(width: u32, height: u32) -> IridiumMain {
+    let seed: u64 = 0;
+
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
             Box::new(Disk {
@@ -168,8 +190,16 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
                 radius: width as f32 / 10.,
             }),
             Box::new(Vector2PolarGenerator::new(
-                Box::new(UniformGenerator::new(0.4, 0.4)),
-                Box::new(UniformGenerator::new(0., 0.2 * std::f32::consts::PI)),
+                Box::new(UniformGenerator::new(
+                    XorShiftRng::seed_from_u64(seed),
+                    0.4,
+                    0.4,
+                )),
+                Box::new(UniformGenerator::new(
+                    XorShiftRng::seed_from_u64(seed),
+                    0.,
+                    0.2 * std::f32::consts::PI,
+                )),
             )),
             Box::new(ConstantGenerator::new(1.)),
         )),

@@ -9,6 +9,7 @@ env_logger = "*"
 log = "*"
 nalgebra = "*"
 rand = "*"
+rand_xorshift = "0.3.0"
 sfml = "*"
 
 [profile.dev]
