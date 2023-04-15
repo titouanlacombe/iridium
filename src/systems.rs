@@ -36,21 +36,17 @@ fn smooth_rate(rate: f32, dt: f32) -> usize {
 
 impl System for ConstantConsumer {
     fn update(&mut self, particles: &mut Particles, dt: f32) {
-        let quotient = smooth_rate(self.rate, dt);
+        let mut quotient = smooth_rate(self.rate, dt);
 
         let mut to_remove = Vec::new();
-        for (i, position) in particles.positions.iter().enumerate() {
-            if self.area.contains(*position) {
-                to_remove.push(i);
-
-                if to_remove.len() >= quotient {
-                    break;
-                }
-            }
-        }
+        self.area.contains(&particles.positions, &mut to_remove);
 
         for i in to_remove {
             particles.swap_remove(i);
+            quotient -= 1;
+            if quotient == 0 {
+                break;
+            }
         }
     }
 }
@@ -135,11 +131,7 @@ pub struct Void {
 impl System for Void {
     fn update(&mut self, particles: &mut Particles, _dt: f32) {
         let mut to_remove = Vec::new();
-        for (i, position) in particles.positions.iter().enumerate() {
-            if !self.area.contains(*position) {
-                to_remove.push(i);
-            }
-        }
+        self.area.contains(&particles.positions, &mut to_remove);
 
         for i in to_remove {
             particles.swap_remove(i);
