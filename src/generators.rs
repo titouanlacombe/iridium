@@ -41,8 +41,7 @@ impl UniformGenerator {
 impl Generator<f32> for UniformGenerator {
     fn generate(&mut self, n: usize, vec: &mut Vec<f32>) {
         for _ in 0..n {
-            let value = self.rng.gen::<u32>() as f32 / std::u32::MAX as f32;
-            vec.push(value * (self.max - self.min) + self.min);
+            vec.push(self.rng.gen::<f32>() * (self.max - self.min) + self.min);
         }
     }
 }
@@ -106,34 +105,66 @@ impl Generator<Vector2<f32>> for Vector2PolarGenerator {
     }
 }
 
-impl Generator<Vector2<f32>> for Rect {
+pub struct RectGenerator {
+    rect: Rect,
+    rng: XorShiftRng,
+}
+
+impl RectGenerator {
+    pub fn new(rect: Rect, rng: XorShiftRng) -> Self {
+        Self { rect, rng }
+    }
+}
+
+impl Generator<Vector2<f32>> for RectGenerator {
     fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
         for _ in 0..n {
             vec.push(Vector2::new(
-                rand::random::<f32>() * self.size.x + self.position.x,
-                rand::random::<f32>() * self.size.y + self.position.y,
+                self.rng.gen::<f32>() * self.rect.size.x + self.rect.position.x,
+                self.rng.gen::<f32>() * self.rect.size.y + self.rect.position.y,
             ));
         }
     }
 }
 
-impl Generator<Vector2<f32>> for Disk {
+pub struct DiskGenerator {
+    disk: Disk,
+    rng: XorShiftRng,
+}
+
+impl DiskGenerator {
+    pub fn new(disk: Disk, rng: XorShiftRng) -> Self {
+        Self { disk, rng }
+    }
+}
+
+impl Generator<Vector2<f32>> for DiskGenerator {
     fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
         for _ in 0..n {
-            let angle = rand::random::<f32>() * 2. * std::f32::consts::PI;
-            let radius = rand::random::<f32>().sqrt() * self.radius;
+            let angle = self.rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
+            let radius = self.rng.gen::<f32>().sqrt() * self.disk.radius;
             vec.push(Vector2::new(
-                radius * angle.cos() + self.position.x,
-                radius * angle.sin() + self.position.y,
+                self.disk.position.x + radius * angle.cos(),
+                self.disk.position.y + radius * angle.sin(),
             ));
         }
     }
 }
 
-impl Generator<Vector2<f32>> for Point {
+pub struct PointGenerator {
+    point: Point,
+}
+
+impl PointGenerator {
+    pub fn new(point: Point) -> Self {
+        Self { point }
+    }
+}
+
+impl Generator<Vector2<f32>> for PointGenerator {
     fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
         for _ in 0..n {
-            vec.push(self.position);
+            vec.push(self.point.position);
         }
     }
 }

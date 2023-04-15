@@ -12,7 +12,9 @@ use crate::{
     areas::{Disk, Point},
     events::{Event, EventsHandler, SortedVec},
     forces::UniformGravity,
-    generators::{ConstantGenerator, UniformGenerator, Vector2PolarGenerator},
+    generators::{
+        ConstantGenerator, DiskGenerator, PointGenerator, UniformGenerator, Vector2PolarGenerator,
+    },
     iridium::IridiumMain,
     particle::{GeneratorFactory, ParticleFactory, Particles},
     renderer::{BasicRenderer, Renderer},
@@ -56,10 +58,13 @@ pub fn benchmark1() -> IridiumMain {
     let seed: u64 = 0;
 
     let mut factory = GeneratorFactory::new(
-        Box::new(Disk {
-            position: Vector2::new(200., 300.),
-            radius: 100.,
-        }),
+        Box::new(DiskGenerator::new(
+            Disk {
+                position: Vector2::new(200., 300.),
+                radius: 100.,
+            },
+            XorShiftRng::seed_from_u64(seed),
+        )),
         Box::new(Vector2PolarGenerator::new(
             Box::new(UniformGenerator::new(
                 XorShiftRng::seed_from_u64(seed),
@@ -143,9 +148,9 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         } => {
             let seed: u64 = 0;
             let mut pfactory = GeneratorFactory::new(
-                Box::new(Point {
+                Box::new(PointGenerator::new(Point {
                     position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
-                }),
+                })),
                 Box::new(Vector2PolarGenerator::new(
                     Box::new(UniformGenerator::new(
                         XorShiftRng::seed_from_u64(seed),
@@ -185,10 +190,16 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
-            Box::new(Disk {
-                position: Vector2::new(width as f32 / 10., height as f32 - (height as f32 / 10.)),
-                radius: width as f32 / 10.,
-            }),
+            Box::new(DiskGenerator::new(
+                Disk {
+                    position: Vector2::new(
+                        width as f32 / 10.,
+                        height as f32 - (height as f32 / 10.),
+                    ),
+                    radius: width as f32 / 10.,
+                },
+                XorShiftRng::seed_from_u64(seed),
+            )),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(UniformGenerator::new(
                     XorShiftRng::seed_from_u64(seed),
