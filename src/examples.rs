@@ -11,7 +11,7 @@ use std::time::Duration;
 use crate::{
     areas::{Disk, Point},
     events::{Event, EventsHandler, SortedVec},
-    forces::UniformGravity,
+    forces::{UniformDrag, UniformGravity},
     generators::{
         ConstantGenerator, DiskGenerator, PointGenerator, UniformGenerator, Vector2PolarGenerator,
     },
@@ -196,20 +196,20 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
                         width as f32 / 10.,
                         height as f32 - (height as f32 / 10.),
                     ),
-                    radius: width as f32 / 10.,
+                    radius: width as f32 / 20.,
                 },
                 XorShiftRng::seed_from_u64(seed),
             )),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(UniformGenerator::new(
                     XorShiftRng::seed_from_u64(seed),
-                    0.4,
-                    0.4,
+                    0.5,
+                    0.5,
                 )),
                 Box::new(UniformGenerator::new(
                     XorShiftRng::seed_from_u64(seed),
-                    0.,
-                    0.2 * std::f32::consts::PI,
+                    0.1 * std::f32::consts::PI,
+                    0.1 * std::f32::consts::PI,
                 )),
             )),
             Box::new(ConstantGenerator::new(1.)),
@@ -246,9 +246,10 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     });
 
     let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.001)));
+    let drag = Box::new(UniformDrag::new(0.0005, Vector2::new(-0.4, 0.)));
 
     let physics = Box::new(Physics::new(
-        vec![gravity],
+        vec![gravity, drag],
         Box::new(GaussianIntegrator::new()),
     ));
 
@@ -272,3 +273,5 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     main
 }
+
+// pub fn events() {}

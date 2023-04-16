@@ -1,5 +1,4 @@
 improve handling of rand seed
-add wind speed to drag force
 improve handling of events handlers (taking more than just particles (hopefully also systems))
 particles multithreaded iterator (hold thread pool & cluster size)
 
