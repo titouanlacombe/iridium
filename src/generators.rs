@@ -5,7 +5,13 @@ use rand_xorshift::XorShiftRng;
 use crate::areas::{Disk, Point, Rect};
 
 pub trait Generator<T> {
-    fn generate(&mut self, n: usize, vec: &mut Vec<T>);
+    fn generate(&mut self) -> T;
+
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<T>) {
+        for _ in 0..n {
+            vec.push(self.generate());
+        }
+    }
 }
 
 pub struct ConstantGenerator<T: Clone> {
@@ -19,10 +25,8 @@ impl<T: Clone> ConstantGenerator<T> {
 }
 
 impl<T: Clone> Generator<T> for ConstantGenerator<T> {
-    fn generate(&mut self, n: usize, vec: &mut Vec<T>) {
-        for _ in 0..n {
-            vec.push(self.value.clone());
-        }
+    fn generate(&mut self) -> T {
+        self.value.clone()
     }
 }
 
@@ -34,15 +38,16 @@ pub struct UniformGenerator {
 
 impl UniformGenerator {
     pub fn new(rng: XorShiftRng, min: f32, max: f32) -> Self {
+        if min >= max {
+            panic!("min must be less than max");
+        }
         Self { rng, min, max }
     }
 }
 
 impl Generator<f32> for UniformGenerator {
-    fn generate(&mut self, n: usize, vec: &mut Vec<f32>) {
-        for _ in 0..n {
-            vec.push(self.rng.gen::<f32>() * (self.max - self.min) + self.min);
-        }
+    fn generate(&mut self) -> f32 {
+        self.rng.gen_range(self.min..self.max)
     }
 }
 
@@ -61,16 +66,22 @@ impl Vector2Generator {
 }
 
 impl Generator<Vector2<f32>> for Vector2Generator {
-    fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
         let mut x = Vec::with_capacity(n);
         let mut y = Vec::with_capacity(n);
 
-        self.x_generator.generate(n, &mut x);
-        self.y_generator.generate(n, &mut y);
+        self.x_generator.generate_n(n, &mut x);
+        self.y_generator.generate_n(n, &mut y);
 
         for (x, y) in x.into_iter().zip(y.into_iter()) {
             vec.push(Vector2::new(x, y));
         }
+    }
+
+    fn generate(&mut self) -> Vector2<f32> {
+        let mut vec = Vec::with_capacity(1);
+        self.generate_n(1, &mut vec);
+        vec[0]
     }
 }
 
@@ -92,16 +103,22 @@ impl Vector2PolarGenerator {
 }
 
 impl Generator<Vector2<f32>> for Vector2PolarGenerator {
-    fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
         let mut r = Vec::with_capacity(n);
         let mut theta = Vec::with_capacity(n);
 
-        self.r_generator.generate(n, &mut r);
-        self.theta_generator.generate(n, &mut theta);
+        self.r_generator.generate_n(n, &mut r);
+        self.theta_generator.generate_n(n, &mut theta);
 
         for (r, theta) in r.into_iter().zip(theta.into_iter()) {
             vec.push(Vector2::new(r * theta.cos(), r * theta.sin()));
         }
+    }
+
+    fn generate(&mut self) -> Vector2<f32> {
+        let mut vec = Vec::with_capacity(1);
+        self.generate_n(1, &mut vec);
+        vec[0]
     }
 }
 
@@ -117,13 +134,11 @@ impl RectGenerator {
 }
 
 impl Generator<Vector2<f32>> for RectGenerator {
-    fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
-        for _ in 0..n {
-            vec.push(Vector2::new(
-                self.rng.gen::<f32>() * self.rect.size.x + self.rect.position.x,
-                self.rng.gen::<f32>() * self.rect.size.y + self.rect.position.y,
-            ));
-        }
+    fn generate(&mut self) -> Vector2<f32> {
+        Vector2::new(
+            self.rng.gen::<f32>() * self.rect.size.x + self.rect.position.x,
+            self.rng.gen::<f32>() * self.rect.size.y + self.rect.position.y,
+        )
     }
 }
 
@@ -139,15 +154,13 @@ impl DiskGenerator {
 }
 
 impl Generator<Vector2<f32>> for DiskGenerator {
-    fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
-        for _ in 0..n {
-            let angle = self.rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
-            let radius = self.rng.gen::<f32>().sqrt() * self.disk.radius;
-            vec.push(Vector2::new(
-                self.disk.position.x + radius * angle.cos(),
-                self.disk.position.y + radius * angle.sin(),
-            ));
-        }
+    fn generate(&mut self) -> Vector2<f32> {
+        let angle = self.rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
+        let radius = self.rng.gen::<f32>().sqrt() * self.disk.radius;
+        Vector2::new(
+            self.disk.position.x + radius * angle.cos(),
+            self.disk.position.y + radius * angle.sin(),
+        )
     }
 }
 
@@ -162,9 +175,7 @@ impl PointGenerator {
 }
 
 impl Generator<Vector2<f32>> for PointGenerator {
-    fn generate(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
-        for _ in 0..n {
-            vec.push(self.point.position);
-        }
+    fn generate(&mut self) -> Vector2<f32> {
+        self.point.position
     }
 }

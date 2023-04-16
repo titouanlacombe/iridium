@@ -85,9 +85,9 @@ impl GeneratorFactory {
 impl ParticleFactory for GeneratorFactory {
     fn create(&mut self, n: usize, particles: &mut Particles) {
         self.position_generator
-            .generate(n, &mut particles.positions);
+            .generate_n(n, &mut particles.positions);
         self.velocity_generator
-            .generate(n, &mut particles.velocities);
-        self.mass_generator.generate(n, &mut particles.masses);
+            .generate_n(n, &mut particles.velocities);
+        self.mass_generator.generate_n(n, &mut particles.masses);
     }
 }

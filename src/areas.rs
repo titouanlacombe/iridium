@@ -1,7 +1,15 @@
 use nalgebra::Vector2;
 
 pub trait Area {
-    fn contains(&self, positions: &Vec<Vector2<f32>>, indices: &mut Vec<usize>);
+    fn contain(&self, position: Vector2<f32>) -> bool;
+
+    fn contains(&self, positions: &Vec<Vector2<f32>>, indices: &mut Vec<usize>) {
+        for (i, position) in positions.iter().enumerate() {
+            if self.contain(*position) {
+                indices.push(i);
+            }
+        }
+    }
 }
 
 pub struct Rect {
@@ -10,16 +18,11 @@ pub struct Rect {
 }
 
 impl Area for Rect {
-    fn contains(&self, positions: &Vec<Vector2<f32>>, indices: &mut Vec<usize>) {
-        for (i, position) in positions.iter().enumerate() {
-            if position.x >= self.position.x
-                && position.x <= self.position.x + self.size.x
-                && position.y >= self.position.y
-                && position.y <= self.position.y + self.size.y
-            {
-                indices.push(i);
-            }
-        }
+    fn contain(&self, position: Vector2<f32>) -> bool {
+        position.x >= self.position.x
+            && position.x <= self.position.x + self.size.x
+            && position.y >= self.position.y
+            && position.y <= self.position.y + self.size.y
     }
 }
 
@@ -29,13 +32,8 @@ pub struct Disk {
 }
 
 impl Area for Disk {
-    fn contains(&self, positions: &Vec<Vector2<f32>>, indices: &mut Vec<usize>) {
-        let r_squared = self.radius * self.radius;
-        for (i, position) in positions.iter().enumerate() {
-            if (position - self.position).norm_squared() <= r_squared {
-                indices.push(i);
-            }
-        }
+    fn contain(&self, position: Vector2<f32>) -> bool {
+        (position - self.position).norm_squared() <= self.radius * self.radius
     }
 }
 
@@ -44,11 +42,7 @@ pub struct Point {
 }
 
 impl Area for Point {
-    fn contains(&self, positions: &Vec<Vector2<f32>>, indices: &mut Vec<usize>) {
-        for (i, position) in positions.iter().enumerate() {
-            if position == &self.position {
-                indices.push(i);
-            }
-        }
+    fn contain(&self, position: Vector2<f32>) -> bool {
+        position == self.position
     }
 }
