@@ -9,17 +9,18 @@ use sfml::{
 use std::time::Duration;
 
 use crate::{
-    areas::{Disk, Point},
+    areas::{Disk, Point, Rect},
     events::{Event, EventsHandler, SortedVec},
     forces::{UniformDrag, UniformGravity},
     generators::{
-        ConstantGenerator, DiskGenerator, PointGenerator, UniformGenerator, Vector2PolarGenerator,
+        ConstantGenerator, DiskGenerator, PointGenerator, RectGenerator, UniformGenerator,
+        Vector2PolarGenerator,
     },
     iridium::IridiumMain,
     particle::{GeneratorFactory, ParticleFactory, Particles},
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
-    systems::{ConstantConsumer, ConstantEmitter, GaussianIntegrator, Physics, Wall},
+    systems::{ConstantConsumer, ConstantEmitter, GaussianIntegrator, Physics, System, Wall},
 };
 
 pub fn get_window(width: u32, height: u32) -> RenderWindow {
@@ -249,6 +250,58 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         Particles::new_empty(),
         vec![emitter, consumer, events_handler, limit_cond, physics],
     );
+
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
+
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+
+    let main = IridiumMain::new(
+        sim,
+        renderer,
+        sim_runner,
+        Box::new(default_event_handler),
+        Duration::from_secs(1),
+        4,
+    );
+
+    main
+}
+
+struct SimReset;
+
+impl System for SimReset {
+    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+        particles.positions.clear();
+        particles.velocities.clear();
+        particles.masses.clear();
+    }
+}
+
+pub fn benchmark2() -> IridiumMain {
+    let seed: u64 = 0;
+    let width = 500;
+    let height = 500;
+
+    let area = Rect {
+        position: Vector2::new(0., 0.),
+        size: Vector2::new(width as f32, height as f32),
+    };
+
+    let emitter = Box::new(ConstantEmitter::new(
+        Box::new(GeneratorFactory::new(
+            Box::new(RectGenerator::new(area, XorShiftRng::seed_from_u64(seed))),
+            Box::new(Vector2PolarGenerator::new(
+                Box::new(ConstantGenerator::new(0.5)),
+                Box::new(ConstantGenerator::new(0.1 * std::f32::consts::PI)),
+            )),
+            Box::new(ConstantGenerator::new(1.)),
+        )),
+        5E5,
+    ));
+
+    let sim_reseter = Box::new(SimReset);
+
+    let sim = Simulation::new(Particles::new_empty(), vec![sim_reseter, emitter]);
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
