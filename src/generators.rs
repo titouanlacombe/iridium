@@ -8,6 +8,7 @@ pub trait Generator<T> {
     fn generate(&mut self) -> T;
 
     fn generate_n(&mut self, n: usize, vec: &mut Vec<T>) {
+        vec.reserve(n);
         for _ in 0..n {
             vec.push(self.generate());
         }
@@ -73,6 +74,7 @@ impl Generator<Vector2<f32>> for Vector2Generator {
         self.x_generator.generate_n(n, &mut x);
         self.y_generator.generate_n(n, &mut y);
 
+        vec.reserve(n);
         for (x, y) in x.into_iter().zip(y.into_iter()) {
             vec.push(Vector2::new(x, y));
         }
@@ -110,6 +112,7 @@ impl Generator<Vector2<f32>> for Vector2PolarGenerator {
         self.r_generator.generate_n(n, &mut r);
         self.theta_generator.generate_n(n, &mut theta);
 
+        vec.reserve(n);
         for (r, theta) in r.into_iter().zip(theta.into_iter()) {
             vec.push(Vector2::new(r * theta.cos(), r * theta.sin()));
         }
