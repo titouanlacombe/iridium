@@ -201,16 +201,8 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
                 XorShiftRng::seed_from_u64(seed),
             )),
             Box::new(Vector2PolarGenerator::new(
-                Box::new(UniformGenerator::new(
-                    XorShiftRng::seed_from_u64(seed),
-                    0.5,
-                    0.5,
-                )),
-                Box::new(UniformGenerator::new(
-                    XorShiftRng::seed_from_u64(seed),
-                    0.1 * std::f32::consts::PI,
-                    0.1 * std::f32::consts::PI,
-                )),
+                Box::new(ConstantGenerator::new(0.5)),
+                Box::new(ConstantGenerator::new(0.1 * std::f32::consts::PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
         )),
