@@ -296,7 +296,7 @@ pub fn benchmark2() -> IridiumMain {
             )),
             Box::new(ConstantGenerator::new(1.)),
         )),
-        30.,
+        5E5,
     ));
 
     let sim_reseter = Box::new(SimReset);
