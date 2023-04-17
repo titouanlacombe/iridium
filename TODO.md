@@ -1,7 +1,6 @@
 improve optimisation of systems and generators create default method in the traits
-separate forces from integrator (all forces are systems?)
+separate forces from integrator (all forces are systems? force buffer? remove velocities & mass from particles?)
 improve handling of rand seed
-create type (pos, vel, etc) not for type checking but for documentation and factorisation
 improve handling of events handlers (taking more than just particles (hopefully also systems))
 particles multithreaded iterator (hold thread pool & cluster size)
 add particle color
