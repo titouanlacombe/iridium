@@ -1,9 +1,10 @@
 use nalgebra::Vector2;
 
+use crate::types::{Length, Position};
+
 pub struct QuadTree {
-    pub position: Vector2<f32>,
-    pub width: f32,
-    pub height: f32,
+    pub position: Position,
+    pub size: Vector2<Length>,
 
     pub childs: Option<Box<[QuadTree; 4]>>,
 }

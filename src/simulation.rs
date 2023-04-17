@@ -1,6 +1,6 @@
 use log::debug;
 
-use crate::{particle::Particles, systems::System, timer::Timer};
+use crate::{particle::Particles, systems::System, timer::Timer, types::Time};
 
 pub struct Simulation {
     pub particles: Particles,
@@ -12,7 +12,7 @@ impl Simulation {
         Self { particles, systems }
     }
 
-    pub fn step(&mut self, dt: f32) {
+    pub fn step(&mut self, dt: Time) {
         let mut timer = Timer::new_now();
 
         // Update systems
@@ -32,11 +32,11 @@ pub trait SimulationRunner {
 }
 
 pub struct ContinuousSimulationRunner {
-    dt: f32,
+    dt: Time,
 }
 
 impl ContinuousSimulationRunner {
-    pub fn new(dt: f32) -> Self {
+    pub fn new(dt: Time) -> Self {
         Self { dt }
     }
 }

@@ -3,31 +3,32 @@ use nalgebra::Vector2;
 use crate::{
     areas::Area,
     particle::{ParticleFactory, Particles},
+    types::{Force as TypeForce, Scalar, Time},
 };
 
 pub trait System {
-    fn update(&mut self, particles: &mut Particles, dt: f32);
+    fn update(&mut self, particles: &mut Particles, dt: Time);
 }
 
 pub struct ConstantConsumer {
     pub area: Box<dyn Area>,
-    pub rate: f32,
+    pub rate: Scalar,
 }
 
 impl ConstantConsumer {
-    pub fn new(area: Box<dyn Area>, rate: f32) -> Self {
+    pub fn new(area: Box<dyn Area>, rate: Scalar) -> Self {
         Self { area, rate }
     }
 }
 
 // Handle the case where the rate is not an integer
 // Making the rate smooth & accurate across steps
-fn smooth_rate(rate: f32, dt: f32) -> usize {
+fn smooth_rate(rate: Scalar, dt: Time) -> usize {
     let n = rate * dt;
     let mut quotient = n as usize;
 
     // Remainder
-    if rand::random::<f32>() < n - quotient as f32 {
+    if rand::random::<Scalar>() < n - quotient as Scalar {
         quotient += 1;
     }
 
@@ -35,7 +36,7 @@ fn smooth_rate(rate: f32, dt: f32) -> usize {
 }
 
 impl System for ConstantConsumer {
-    fn update(&mut self, particles: &mut Particles, dt: f32) {
+    fn update(&mut self, particles: &mut Particles, dt: Time) {
         let mut quotient = smooth_rate(self.rate, dt);
 
         let mut to_remove = Vec::new();
@@ -53,32 +54,32 @@ impl System for ConstantConsumer {
 
 pub struct ConstantEmitter {
     pub p_factory: Box<dyn ParticleFactory>,
-    pub rate: f32,
+    pub rate: Scalar,
 }
 
 impl ConstantEmitter {
-    pub fn new(p_factory: Box<dyn ParticleFactory>, rate: f32) -> Self {
+    pub fn new(p_factory: Box<dyn ParticleFactory>, rate: Scalar) -> Self {
         Self { p_factory, rate }
     }
 }
 
 impl System for ConstantEmitter {
-    fn update(&mut self, particles: &mut Particles, dt: f32) {
+    fn update(&mut self, particles: &mut Particles, dt: Time) {
         let quotient = smooth_rate(self.rate, dt);
         self.p_factory.create(quotient, particles);
     }
 }
 
 pub struct Wall {
-    pub x_min: f32,
-    pub y_min: f32,
-    pub x_max: f32,
-    pub y_max: f32,
-    pub restitution: f32,
+    pub x_min: Scalar,
+    pub y_min: Scalar,
+    pub x_max: Scalar,
+    pub y_max: Scalar,
+    pub restitution: Scalar,
 }
 
 impl System for Wall {
-    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+    fn update(&mut self, particles: &mut Particles, _dt: Time) {
         for (position, velocity, _mass) in particles.iter_mut() {
             if position.x < self.x_min {
                 position.x = self.x_min;
@@ -100,14 +101,14 @@ impl System for Wall {
 }
 
 pub struct Loop {
-    pub x_min: f32,
-    pub y_min: f32,
-    pub x_max: f32,
-    pub y_max: f32,
+    pub x_min: Scalar,
+    pub y_min: Scalar,
+    pub x_max: Scalar,
+    pub y_max: Scalar,
 }
 
 impl System for Loop {
-    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+    fn update(&mut self, particles: &mut Particles, _dt: Time) {
         for position in particles.positions.iter_mut() {
             if position.x < self.x_min {
                 position.x = self.x_max;
@@ -129,7 +130,7 @@ pub struct Void {
 }
 
 impl System for Void {
-    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+    fn update(&mut self, particles: &mut Particles, _dt: Time) {
         let mut to_remove = Vec::new();
         self.area.contains(&particles.positions, &mut to_remove);
 
@@ -140,17 +141,17 @@ impl System for Void {
 }
 
 pub trait Force {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<Vector2<f32>>);
+    fn apply(&self, particles: &Particles, forces: &mut Vec<TypeForce>);
 }
 
 pub trait Integrator {
-    fn integrate(&self, particles: &mut Particles, forces: &Vec<Vector2<f32>>, dt: f32);
+    fn integrate(&self, particles: &mut Particles, forces: &Vec<TypeForce>, dt: Time);
 }
 
 pub struct Physics {
     forces: Vec<Box<dyn Force>>,
     integrator: Box<dyn Integrator>,
-    forces_buffer: Vec<Vector2<f32>>,
+    forces_buffer: Vec<TypeForce>,
 }
 
 impl Physics {
@@ -164,7 +165,7 @@ impl Physics {
 }
 
 impl System for Physics {
-    fn update(&mut self, particles: &mut Particles, dt: f32) {
+    fn update(&mut self, particles: &mut Particles, dt: Time) {
         self.forces_buffer.clear();
         self.forces_buffer.resize(particles.len(), Vector2::zeros());
 
@@ -186,7 +187,7 @@ impl GaussianIntegrator {
 }
 
 impl Integrator for GaussianIntegrator {
-    fn integrate(&self, particles: &mut Particles, forces: &Vec<Vector2<f32>>, dt: f32) {
+    fn integrate(&self, particles: &mut Particles, forces: &Vec<TypeForce>, dt: Time) {
         for (i, particle) in particles.iter_mut().enumerate() {
             let (position, velocity, mass) = particle;
             *velocity += ((*forces)[i] / *mass) * dt;

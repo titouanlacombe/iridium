@@ -10,3 +10,4 @@ pub mod renderer;
 pub mod simulation;
 pub mod systems;
 pub mod timer;
+pub mod types;

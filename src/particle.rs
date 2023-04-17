@@ -1,19 +1,16 @@
-use nalgebra::Vector2;
-
-use crate::generators::Generator;
+use crate::{
+    generators::Generator,
+    types::{Mass, Position, Velocity},
+};
 
 pub struct Particles {
-    pub positions: Vec<Vector2<f32>>,
-    pub velocities: Vec<Vector2<f32>>,
-    pub masses: Vec<f32>,
+    pub positions: Vec<Position>,
+    pub velocities: Vec<Velocity>,
+    pub masses: Vec<Mass>,
 }
 
 impl Particles {
-    pub fn new(
-        positions: Vec<Vector2<f32>>,
-        velocities: Vec<Vector2<f32>>,
-        masses: Vec<f32>,
-    ) -> Self {
+    pub fn new(positions: Vec<Position>, velocities: Vec<Velocity>, masses: Vec<Mass>) -> Self {
         Self {
             positions,
             velocities,
@@ -33,7 +30,7 @@ impl Particles {
         self.positions.len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&Vector2<f32>, &Vector2<f32>, &f32)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Position, &Velocity, &Mass)> {
         self.positions
             .iter()
             .zip(self.velocities.iter())
@@ -41,9 +38,7 @@ impl Particles {
             .map(|((p, v), m)| (p, v, m))
     }
 
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = (&mut Vector2<f32>, &mut Vector2<f32>, &mut f32)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&mut Position, &mut Velocity, &mut Mass)> {
         self.positions
             .iter_mut()
             .zip(self.velocities.iter_mut())
@@ -75,16 +70,16 @@ pub trait ParticleFactory {
 }
 
 pub struct GeneratorFactory {
-    pub position_generator: Box<dyn Generator<Vector2<f32>>>,
-    pub velocity_generator: Box<dyn Generator<Vector2<f32>>>,
-    pub mass_generator: Box<dyn Generator<f32>>,
+    pub position_generator: Box<dyn Generator<Position>>,
+    pub velocity_generator: Box<dyn Generator<Velocity>>,
+    pub mass_generator: Box<dyn Generator<Mass>>,
 }
 
 impl GeneratorFactory {
     pub fn new(
-        position_generator: Box<dyn Generator<Vector2<f32>>>,
-        velocity_generator: Box<dyn Generator<Vector2<f32>>>,
-        mass_generator: Box<dyn Generator<f32>>,
+        position_generator: Box<dyn Generator<Position>>,
+        velocity_generator: Box<dyn Generator<Velocity>>,
+        mass_generator: Box<dyn Generator<Mass>>,
     ) -> Self {
         Self {
             position_generator,

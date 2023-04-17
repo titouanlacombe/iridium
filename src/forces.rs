@@ -1,19 +1,21 @@
-use nalgebra::Vector2;
-
-use crate::{particle::Particles, systems::Force};
+use crate::{
+    particle::Particles,
+    systems::Force as PhysForce,
+    types::{Acceleration, Force, Scalar, Velocity},
+};
 
 pub struct UniformGravity {
-    pub acceleration: Vector2<f32>,
+    pub acceleration: Acceleration,
 }
 
 impl UniformGravity {
-    pub fn new(acceleration: Vector2<f32>) -> Self {
+    pub fn new(acceleration: Acceleration) -> Self {
         Self { acceleration }
     }
 }
 
-impl Force for UniformGravity {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<Vector2<f32>>) {
+impl PhysForce for UniformGravity {
+    fn apply(&self, particles: &Particles, forces: &mut Vec<Force>) {
         for (i, mass) in particles.masses.iter().enumerate() {
             forces[i] += self.acceleration * *mass;
         }
@@ -21,18 +23,18 @@ impl Force for UniformGravity {
 }
 
 pub struct UniformDrag {
-    pub coef: f32,
-    pub velocity: Vector2<f32>,
+    pub coef: Scalar,
+    pub velocity: Velocity,
 }
 
 impl UniformDrag {
-    pub fn new(coef: f32, velocity: Vector2<f32>) -> Self {
+    pub fn new(coef: Scalar, velocity: Velocity) -> Self {
         Self { coef, velocity }
     }
 }
 
-impl Force for UniformDrag {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<Vector2<f32>>) {
+impl PhysForce for UniformDrag {
+    fn apply(&self, particles: &Particles, forces: &mut Vec<Force>) {
         for (i, velocity) in particles.velocities.iter().enumerate() {
             forces[i] -= self.coef * (velocity - &self.velocity);
         }

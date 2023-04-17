@@ -6,10 +6,11 @@ use sfml::window::Event;
 use std::time::{Duration, Instant};
 
 use crate::particle::Particles;
+use crate::types::{Position, Scalar};
 
 pub trait Renderer {
-    fn sim2screen(&self, position: Vector2<f32>) -> Vector2f;
-    fn screen2sim(&self, position: Vector2f) -> Vector2<f32>;
+    fn sim2screen(&self, position: Position) -> Vector2f;
+    fn screen2sim(&self, position: Vector2f) -> Position;
     fn render(&mut self, particles: &Particles);
     fn events(&mut self) -> Vec<Event>;
 }
@@ -43,12 +44,18 @@ impl BasicRenderer {
 }
 
 impl Renderer for BasicRenderer {
-    fn sim2screen(&self, position: Vector2<f32>) -> Vector2f {
-        Vector2f::new(position.x, self.screen_size.y as f32 - position.y)
+    fn sim2screen(&self, position: Position) -> Vector2f {
+        Vector2f::new(
+            position.x as f32,
+            self.screen_size.y as f32 - position.y as f32,
+        )
     }
 
-    fn screen2sim(&self, position: Vector2f) -> Vector2<f32> {
-        Vector2::new(position.x, self.screen_size.y as f32 - position.y)
+    fn screen2sim(&self, position: Vector2f) -> Position {
+        Vector2::new(
+            position.x as Scalar,
+            self.screen_size.y as Scalar - position.y as Scalar,
+        )
     }
 
     fn render(&mut self, particles: &Particles) {

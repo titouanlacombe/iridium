@@ -1,8 +1,13 @@
+use std::f64::consts::PI;
+
 use nalgebra::Vector2;
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 
-use crate::areas::{Disk, Point, Rect};
+use crate::{
+    areas::{Disk, Point, Rect},
+    types::Scalar,
+};
 
 pub trait Generator<T> {
     fn generate(&mut self) -> T;
@@ -33,12 +38,12 @@ impl<T: Clone> Generator<T> for ConstantGenerator<T> {
 
 pub struct UniformGenerator {
     rng: XorShiftRng,
-    min: f32,
-    max: f32,
+    min: Scalar,
+    max: Scalar,
 }
 
 impl UniformGenerator {
-    pub fn new(rng: XorShiftRng, min: f32, max: f32) -> Self {
+    pub fn new(rng: XorShiftRng, min: Scalar, max: Scalar) -> Self {
         if min >= max {
             panic!("min must be less than max");
         }
@@ -46,19 +51,22 @@ impl UniformGenerator {
     }
 }
 
-impl Generator<f32> for UniformGenerator {
-    fn generate(&mut self) -> f32 {
+impl Generator<Scalar> for UniformGenerator {
+    fn generate(&mut self) -> Scalar {
         self.rng.gen_range(self.min..self.max)
     }
 }
 
 pub struct Vector2Generator {
-    pub x_generator: Box<dyn Generator<f32>>,
-    pub y_generator: Box<dyn Generator<f32>>,
+    pub x_generator: Box<dyn Generator<Scalar>>,
+    pub y_generator: Box<dyn Generator<Scalar>>,
 }
 
 impl Vector2Generator {
-    pub fn new(x_generator: Box<dyn Generator<f32>>, y_generator: Box<dyn Generator<f32>>) -> Self {
+    pub fn new(
+        x_generator: Box<dyn Generator<Scalar>>,
+        y_generator: Box<dyn Generator<Scalar>>,
+    ) -> Self {
         Self {
             x_generator,
             y_generator,
@@ -66,8 +74,8 @@ impl Vector2Generator {
     }
 }
 
-impl Generator<Vector2<f32>> for Vector2Generator {
-    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
+impl Generator<Vector2<Scalar>> for Vector2Generator {
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<Scalar>>) {
         let mut x = Vec::with_capacity(n);
         let mut y = Vec::with_capacity(n);
 
@@ -80,7 +88,7 @@ impl Generator<Vector2<f32>> for Vector2Generator {
         }
     }
 
-    fn generate(&mut self) -> Vector2<f32> {
+    fn generate(&mut self) -> Vector2<Scalar> {
         let mut vec = Vec::with_capacity(1);
         self.generate_n(1, &mut vec);
         vec[0]
@@ -88,14 +96,14 @@ impl Generator<Vector2<f32>> for Vector2Generator {
 }
 
 pub struct Vector2PolarGenerator {
-    pub r_generator: Box<dyn Generator<f32>>,
-    pub theta_generator: Box<dyn Generator<f32>>,
+    pub r_generator: Box<dyn Generator<Scalar>>,
+    pub theta_generator: Box<dyn Generator<Scalar>>,
 }
 
 impl Vector2PolarGenerator {
     pub fn new(
-        r_generator: Box<dyn Generator<f32>>,
-        theta_generator: Box<dyn Generator<f32>>,
+        r_generator: Box<dyn Generator<Scalar>>,
+        theta_generator: Box<dyn Generator<Scalar>>,
     ) -> Self {
         Self {
             r_generator,
@@ -104,8 +112,8 @@ impl Vector2PolarGenerator {
     }
 }
 
-impl Generator<Vector2<f32>> for Vector2PolarGenerator {
-    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<f32>>) {
+impl Generator<Vector2<Scalar>> for Vector2PolarGenerator {
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<Scalar>>) {
         let mut r = Vec::with_capacity(n);
         let mut theta = Vec::with_capacity(n);
 
@@ -118,7 +126,7 @@ impl Generator<Vector2<f32>> for Vector2PolarGenerator {
         }
     }
 
-    fn generate(&mut self) -> Vector2<f32> {
+    fn generate(&mut self) -> Vector2<Scalar> {
         let mut vec = Vec::with_capacity(1);
         self.generate_n(1, &mut vec);
         vec[0]
@@ -136,11 +144,11 @@ impl RectGenerator {
     }
 }
 
-impl Generator<Vector2<f32>> for RectGenerator {
-    fn generate(&mut self) -> Vector2<f32> {
+impl Generator<Vector2<Scalar>> for RectGenerator {
+    fn generate(&mut self) -> Vector2<Scalar> {
         Vector2::new(
-            self.rng.gen::<f32>() * self.rect.size.x + self.rect.position.x,
-            self.rng.gen::<f32>() * self.rect.size.y + self.rect.position.y,
+            self.rng.gen::<Scalar>() * self.rect.size.x + self.rect.position.x,
+            self.rng.gen::<Scalar>() * self.rect.size.y + self.rect.position.y,
         )
     }
 }
@@ -156,10 +164,10 @@ impl DiskGenerator {
     }
 }
 
-impl Generator<Vector2<f32>> for DiskGenerator {
-    fn generate(&mut self) -> Vector2<f32> {
-        let angle = self.rng.gen::<f32>() * 2.0 * std::f32::consts::PI;
-        let radius = self.rng.gen::<f32>().sqrt() * self.disk.radius;
+impl Generator<Vector2<Scalar>> for DiskGenerator {
+    fn generate(&mut self) -> Vector2<Scalar> {
+        let angle = self.rng.gen::<Scalar>() * 2.0 * PI;
+        let radius = self.rng.gen::<Scalar>().sqrt() * self.disk.radius;
         Vector2::new(
             self.disk.position.x + radius * angle.cos(),
             self.disk.position.y + radius * angle.sin(),
@@ -177,8 +185,8 @@ impl PointGenerator {
     }
 }
 
-impl Generator<Vector2<f32>> for PointGenerator {
-    fn generate(&mut self) -> Vector2<f32> {
+impl Generator<Vector2<Scalar>> for PointGenerator {
+    fn generate(&mut self) -> Vector2<Scalar> {
         self.point.position
     }
 }

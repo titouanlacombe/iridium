@@ -6,7 +6,7 @@ use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
-use std::time::Duration;
+use std::{f64::consts::PI, time::Duration};
 
 use crate::{
     areas::{Disk, Point, Rect},
@@ -21,6 +21,7 @@ use crate::{
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, GaussianIntegrator, Physics, System, Wall},
+    types::Scalar,
 };
 
 pub fn get_window(width: u32, height: u32) -> RenderWindow {
@@ -74,7 +75,7 @@ pub fn benchmark1() -> IridiumMain {
             )),
             Box::new(UniformGenerator::new(
                 XorShiftRng::seed_from_u64(seed),
-                -0.2 * std::f32::consts::PI,
+                -0.2 * PI,
                 0.,
             )),
         )),
@@ -84,8 +85,8 @@ pub fn benchmark1() -> IridiumMain {
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
-        x_max: width as f32,
-        y_max: height as f32,
+        x_max: width as Scalar,
+        y_max: height as Scalar,
         restitution: 0.8,
     });
 
@@ -121,8 +122,8 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
-        x_max: width as f32,
-        y_max: height as f32,
+        x_max: width as Scalar,
+        y_max: height as Scalar,
         restitution: 0.8,
     });
 
@@ -161,7 +162,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
                     Box::new(UniformGenerator::new(
                         XorShiftRng::seed_from_u64(seed),
                         0.,
-                        2. * std::f32::consts::PI,
+                        2. * PI,
                     )),
                 )),
                 Box::new(ConstantGenerator::new(1.)),
@@ -194,16 +195,16 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
             Box::new(DiskGenerator::new(
                 Disk {
                     position: Vector2::new(
-                        width as f32 / 10.,
-                        height as f32 - (height as f32 / 10.),
+                        width as Scalar / 10.,
+                        height as Scalar - (height as Scalar / 10.),
                     ),
-                    radius: width as f32 / 20.,
+                    radius: width as Scalar / 20.,
                 },
                 XorShiftRng::seed_from_u64(seed),
             )),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(ConstantGenerator::new(0.5)),
-                Box::new(ConstantGenerator::new(0.1 * std::f32::consts::PI)),
+                Box::new(ConstantGenerator::new(0.1 * PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
         )),
@@ -212,8 +213,8 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let consumer = Box::new(ConstantConsumer::new(
         Box::new(Disk {
-            position: Vector2::new(width as f32 / 2., height as f32 / 2.),
-            radius: width as f32 / 10.,
+            position: Vector2::new(width as Scalar / 2., height as Scalar / 2.),
+            radius: width as Scalar / 10.,
         }),
         35.,
     ));
@@ -233,8 +234,8 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
-        x_max: width as f32,
-        y_max: height as f32,
+        x_max: width as Scalar,
+        y_max: height as Scalar,
         restitution: 0.8,
     });
 
@@ -270,7 +271,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 struct SimReset;
 
 impl System for SimReset {
-    fn update(&mut self, particles: &mut Particles, _dt: f32) {
+    fn update(&mut self, particles: &mut Particles, _dt: Scalar) {
         particles.clear();
     }
 }
@@ -282,7 +283,7 @@ pub fn benchmark2() -> IridiumMain {
 
     let area = Rect {
         position: Vector2::new(0., 0.),
-        size: Vector2::new(width as f32, height as f32),
+        size: Vector2::new(width as Scalar, height as Scalar),
     };
 
     let emitter = Box::new(ConstantEmitter::new(
@@ -290,7 +291,7 @@ pub fn benchmark2() -> IridiumMain {
             Box::new(RectGenerator::new(area, XorShiftRng::seed_from_u64(seed))),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(ConstantGenerator::new(0.5)),
-                Box::new(ConstantGenerator::new(0.1 * std::f32::consts::PI)),
+                Box::new(ConstantGenerator::new(0.1 * PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
         )),

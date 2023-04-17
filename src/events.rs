@@ -1,4 +1,4 @@
-use crate::{particle::Particles, systems::System};
+use crate::{particle::Particles, systems::System, types::Time};
 
 pub struct SortedVec<T> {
     pub vec: Vec<T>,
@@ -37,12 +37,12 @@ impl<T: PartialOrd> SortedVec<T> {
 
 type EventCallback = Box<dyn Fn(&mut Particles)>;
 pub struct Event {
-    pub time: f32,
+    pub time: Time,
     pub callback: EventCallback,
 }
 
 impl Event {
-    pub fn new(time: f32, callback: EventCallback) -> Self {
+    pub fn new(time: Time, callback: EventCallback) -> Self {
         Self { time, callback }
     }
 }
@@ -62,11 +62,11 @@ impl PartialOrd for Event {
 
 pub struct EventsHandler {
     pub events: SortedVec<Event>,
-    pub current_time: f32,
+    pub current_time: Time,
 }
 
 impl EventsHandler {
-    pub fn new(events: SortedVec<Event>, current_time: f32) -> Self {
+    pub fn new(events: SortedVec<Event>, current_time: Time) -> Self {
         Self {
             events,
             current_time,
@@ -75,7 +75,7 @@ impl EventsHandler {
 }
 
 impl System for EventsHandler {
-    fn update(&mut self, particles: &mut Particles, dt: f32) {
+    fn update(&mut self, particles: &mut Particles, dt: Time) {
         self.current_time += dt;
 
         while let Some(event) = self.events.first() {
