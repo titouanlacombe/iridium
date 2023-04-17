@@ -271,9 +271,7 @@ struct SimReset;
 
 impl System for SimReset {
     fn update(&mut self, particles: &mut Particles, _dt: f32) {
-        particles.positions.clear();
-        particles.velocities.clear();
-        particles.masses.clear();
+        particles.clear();
     }
 }
 

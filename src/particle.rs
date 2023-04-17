@@ -56,6 +56,18 @@ impl Particles {
         self.velocities.swap_remove(i);
         self.masses.swap_remove(i);
     }
+
+    pub fn clear(&mut self) {
+        self.positions.clear();
+        self.velocities.clear();
+        self.masses.clear();
+    }
+
+    pub fn reserve(&mut self, n: usize) {
+        self.positions.reserve(n);
+        self.velocities.reserve(n);
+        self.masses.reserve(n);
+    }
 }
 
 pub trait ParticleFactory {
