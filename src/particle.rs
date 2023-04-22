@@ -19,11 +19,7 @@ impl Particles {
     }
 
     pub fn new_empty() -> Self {
-        Self {
-            positions: Vec::new(),
-            velocities: Vec::new(),
-            masses: Vec::new(),
-        }
+        Self::new(Vec::new(), Vec::new(), Vec::new())
     }
 
     pub fn len(&self) -> usize {
