@@ -35,7 +35,7 @@ impl<T: PartialOrd> SortedVec<T> {
     }
 }
 
-type EventCallback = Box<dyn Fn(&mut Particles)>;
+type EventCallback = Box<dyn Fn(&mut Particles, &mut Vec<Box<dyn System>>)>;
 pub struct Event {
     pub time: Time,
     pub callback: EventCallback,
@@ -60,12 +60,16 @@ impl PartialOrd for Event {
     }
 }
 
-pub struct EventsHandler {
+pub trait EventsHandler {
+    fn update(&mut self, particles: &mut Particles, systems: &mut Vec<Box<dyn System>>, dt: Time);
+}
+
+pub struct DefaultEventsHandler {
     pub events: SortedVec<Event>,
     pub current_time: Time,
 }
 
-impl EventsHandler {
+impl DefaultEventsHandler {
     pub fn new(events: SortedVec<Event>, current_time: Time) -> Self {
         Self {
             events,
@@ -74,8 +78,8 @@ impl EventsHandler {
     }
 }
 
-impl System for EventsHandler {
-    fn update(&mut self, particles: &mut Particles, dt: Time) {
+impl EventsHandler for DefaultEventsHandler {
+    fn update(&mut self, particles: &mut Particles, systems: &mut Vec<Box<dyn System>>, dt: Time) {
         self.current_time += dt;
 
         while let Some(event) = self.events.first() {
@@ -83,7 +87,7 @@ impl System for EventsHandler {
                 break;
             }
 
-            (event.callback)(particles);
+            (event.callback)(particles, systems);
             self.events.pop();
         }
     }

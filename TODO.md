@@ -1,5 +1,4 @@
 improve handling of rand seed
-improve handling of events handlers (taking also systems)
 particles multithreaded iterator (hold thread pool & cluster size)
 add particle color
 more integrators option (euler, verlet, etc) & test smallest dt possible?

@@ -10,7 +10,7 @@ use std::{f64::consts::PI, time::Duration};
 
 use crate::{
     areas::{Disk, Point, Rect},
-    events::{Event, EventsHandler, SortedVec},
+    events::{DefaultEventsHandler, Event, SortedVec},
     forces::{UniformDrag, UniformGravity},
     generators::{
         ConstantGenerator, DiskGenerator, PointGenerator, RectGenerator, UniformGenerator,
@@ -97,7 +97,7 @@ pub fn benchmark1() -> IridiumMain {
     let mut particles = Particles::new_empty();
     factory.create(500_000, &mut particles);
 
-    let sim = Simulation::new(particles, vec![limit_cond, velocity_integrator]);
+    let sim = Simulation::new(particles, vec![limit_cond, velocity_integrator], None);
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
@@ -137,6 +137,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     let sim = Simulation::new(
         Particles::new_empty(),
         vec![limit_cond, physics, velocity_integrator],
+        None,
     );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
@@ -222,18 +223,6 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         35.,
     ));
 
-    let mut events = SortedVec::new();
-    events.add(Event::new(
-        5000.,
-        Box::new(|particles| {
-            for vel in particles.velocities.iter_mut() {
-                *vel *= 0.5;
-            }
-        }),
-    ));
-
-    let events_handler = Box::new(EventsHandler::new(events, 0.));
-
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
@@ -253,17 +242,23 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     let velocity_integrator =
         Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
 
-    let sim = Simulation::new(
-        Particles::new_empty(),
-        vec![
-            emitter,
-            consumer,
-            events_handler,
-            limit_cond,
-            physics,
-            velocity_integrator,
-        ],
-    );
+    let systems: Vec<Box<dyn System>> =
+        vec![emitter, consumer, limit_cond, physics, velocity_integrator];
+
+    let mut events = SortedVec::new();
+    events.add(Event::new(
+        5000.,
+        Box::new(|particles, systems| {
+            for vel in particles.velocities.iter_mut() {
+                *vel *= 0.5;
+            }
+            systems.remove(0);
+        }),
+    ));
+
+    let events_handler = Box::new(DefaultEventsHandler::new(events, 0.));
+
+    let sim = Simulation::new(Particles::new_empty(), systems, Some(events_handler));
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
@@ -313,7 +308,7 @@ pub fn benchmark2() -> IridiumMain {
 
     let sim_reseter = Box::new(SimReset);
 
-    let sim = Simulation::new(Particles::new_empty(), vec![sim_reseter, emitter]);
+    let sim = Simulation::new(Particles::new_empty(), vec![sim_reseter, emitter], None);
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
