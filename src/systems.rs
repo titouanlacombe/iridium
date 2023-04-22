@@ -43,8 +43,8 @@ impl System for ConstantConsumer {
         let mut to_remove = Vec::new();
         self.area.contains(&particles.positions, &mut to_remove);
 
-        for i in to_remove {
-            particles.swap_remove(i);
+        for i in to_remove.iter().rev() {
+            particles.swap_remove(*i);
             quotient -= 1;
             if quotient == 0 {
                 break;
