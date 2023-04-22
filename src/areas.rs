@@ -5,6 +5,7 @@ use crate::types::{Length, Position};
 pub trait Area {
     fn contain(&self, position: Position) -> bool;
 
+    // WARNING: indices should always be in ascending order
     fn contains(&self, positions: &Vec<Position>, indices: &mut Vec<usize>) {
         for (i, position) in positions.iter().enumerate() {
             if self.contain(*position) {
