@@ -1,4 +1,4 @@
-use iridium::examples::benchmark2;
+use iridium::examples::flow;
 
 fn main() {
     // Configure logging
@@ -8,5 +8,5 @@ fn main() {
         .init();
 
     // Run simulation with renderer loop
-    benchmark2().run();
+    flow(500, 500).run();
 }

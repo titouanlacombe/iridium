@@ -16,11 +16,12 @@ use crate::{
         ConstantGenerator, DiskGenerator, PointGenerator, RectGenerator, UniformGenerator,
         Vector2PolarGenerator,
     },
+    integrator::GaussianIntegrator,
     iridium::IridiumMain,
     particle::{GeneratorFactory, ParticleFactory, Particles},
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
-    systems::{ConstantConsumer, ConstantEmitter, GaussianIntegrator, Physics, System, Wall},
+    systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
 };
 
@@ -90,17 +91,13 @@ pub fn benchmark1() -> IridiumMain {
         restitution: 0.8,
     });
 
-    let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.003)));
-
-    let physics = Box::new(Physics::new(
-        vec![gravity],
-        Box::new(GaussianIntegrator::new()),
-    ));
+    let velocity_integrator =
+        Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
 
     let mut particles = Particles::new_empty();
     factory.create(500_000, &mut particles);
 
-    let sim = Simulation::new(particles, vec![limit_cond, physics]);
+    let sim = Simulation::new(particles, vec![limit_cond, velocity_integrator]);
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
@@ -134,7 +131,13 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         Box::new(GaussianIntegrator::new()),
     ));
 
-    let sim = Simulation::new(Particles::new_empty(), vec![limit_cond, physics]);
+    let velocity_integrator =
+        Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
+
+    let sim = Simulation::new(
+        Particles::new_empty(),
+        vec![limit_cond, physics, velocity_integrator],
+    );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
@@ -247,9 +250,19 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         Box::new(GaussianIntegrator::new()),
     ));
 
+    let velocity_integrator =
+        Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
+
     let sim = Simulation::new(
         Particles::new_empty(),
-        vec![emitter, consumer, events_handler, limit_cond, physics],
+        vec![
+            emitter,
+            consumer,
+            events_handler,
+            limit_cond,
+            physics,
+            velocity_integrator,
+        ],
     );
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));

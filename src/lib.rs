@@ -3,6 +3,7 @@ pub mod events;
 pub mod examples;
 pub mod forces;
 pub mod generators;
+pub mod integrator;
 pub mod iridium;
 pub mod particle;
 pub mod quadtree;

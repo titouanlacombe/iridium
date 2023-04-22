@@ -2,6 +2,7 @@ use nalgebra::Vector2;
 
 use crate::{
     areas::Area,
+    integrator::Integrator,
     particle::{ParticleFactory, Particles},
     types::{Force as TypeForce, Scalar, Time},
 };
@@ -144,18 +145,17 @@ pub trait Force {
     fn apply(&self, particles: &Particles, forces: &mut Vec<TypeForce>);
 }
 
-pub trait Integrator {
-    fn integrate(&self, particles: &mut Particles, forces: &Vec<TypeForce>, dt: Time);
-}
-
 pub struct Physics {
     forces: Vec<Box<dyn Force>>,
-    integrator: Box<dyn Integrator>,
+    integrator: Box<dyn Integrator<Vector2<Scalar>>>,
     forces_buffer: Vec<TypeForce>,
 }
 
 impl Physics {
-    pub fn new(forces: Vec<Box<dyn Force>>, integrator: Box<dyn Integrator>) -> Self {
+    pub fn new(
+        forces: Vec<Box<dyn Force>>,
+        integrator: Box<dyn Integrator<Vector2<Scalar>>>,
+    ) -> Self {
         Self {
             forces,
             integrator,
@@ -174,24 +174,23 @@ impl System for Physics {
         }
 
         self.integrator
-            .integrate(particles, &self.forces_buffer, dt);
+            .integrate_vec(&self.forces_buffer, &mut particles.velocities, dt);
     }
 }
 
-pub struct GaussianIntegrator;
+pub struct VelocityIntegrator {
+    pub integrator: Box<dyn Integrator<Vector2<Scalar>>>,
+}
 
-impl GaussianIntegrator {
-    pub fn new() -> Self {
-        Self
+impl VelocityIntegrator {
+    pub fn new(integrator: Box<dyn Integrator<Vector2<Scalar>>>) -> Self {
+        Self { integrator }
     }
 }
 
-impl Integrator for GaussianIntegrator {
-    fn integrate(&self, particles: &mut Particles, forces: &Vec<TypeForce>, dt: Time) {
-        for (i, particle) in particles.iter_mut().enumerate() {
-            let (position, velocity, mass) = particle;
-            *velocity += ((*forces)[i] / *mass) * dt;
-            *position += *velocity * dt;
-        }
+impl System for VelocityIntegrator {
+    fn update(&mut self, particles: &mut Particles, dt: Time) {
+        self.integrator
+            .integrate_vec(&particles.velocities, &mut particles.positions, dt);
     }
 }

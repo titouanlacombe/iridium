@@ -1,7 +1,5 @@
-improve optimisation of systems and generators create default method in the traits
-separate forces from integrator (all forces are systems? force buffer? remove velocities & mass from particles?)
 improve handling of rand seed
-improve handling of events handlers (taking more than just particles (hopefully also systems))
+improve handling of events handlers (taking also systems)
 particles multithreaded iterator (hold thread pool & cluster size)
 add particle color
 more integrators option (euler, verlet, etc) & test smallest dt possible?
