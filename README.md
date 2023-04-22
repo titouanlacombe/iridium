@@ -50,5 +50,5 @@ Forces:
 ## Development
 
 ```sh
-RUST_BACKTRACE=1 RUST_LOG=info cargo run --release
+RUST_BACKTRACE=full RUST_LOG=info cargo run --release
 ```
