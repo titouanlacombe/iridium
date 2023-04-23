@@ -5,7 +5,7 @@ use sfml::system::Vector2f;
 use sfml::window::Event;
 use std::time::{Duration, Instant};
 
-use crate::particle::Particles;
+use crate::particles::Particles;
 use crate::types::{Position, Scalar};
 
 pub trait Renderer {
@@ -21,7 +21,7 @@ pub struct BasicRenderer {
 
     // Cache
     screen_size: Vector2<u32>,
-    pos_buffer: Vec<Vertex>,
+    vertex_buffer: Vec<Vertex>,
 }
 
 impl BasicRenderer {
@@ -30,7 +30,7 @@ impl BasicRenderer {
             window,
             min_frame_time,
             screen_size: Vector2::new(0, 0),
-            pos_buffer: Vec::new(),
+            vertex_buffer: Vec::new(),
         };
         obj.update_screen_size();
         obj
@@ -64,15 +64,21 @@ impl Renderer for BasicRenderer {
         // Cache current screen size
         self.update_screen_size();
 
-        // Resize particle buffer
-        let vertex = Vertex::new(Vector2f::new(0., 0.), Color::WHITE, Vector2f::new(0., 0.));
-        self.pos_buffer.resize(particles.len(), vertex);
+        // Allocate buffers
+        self.vertex_buffer.clear();
+        self.vertex_buffer.reserve(particles.positions.len());
 
         // Update position buffer
-        let mut i = 0;
-        for position in particles.positions.iter() {
-            self.pos_buffer[i].position = self.sim2screen(*position);
-            i += 1;
+        for (position, color) in particles.positions.iter().zip(particles.colors.iter()) {
+            self.vertex_buffer.push(Vertex::with_pos_color(
+                self.sim2screen(*position),
+                Color::rgba(
+                    (color.0 * 255.) as u8,
+                    (color.1 * 255.) as u8,
+                    (color.2 * 255.) as u8,
+                    (color.3 * 255.) as u8,
+                ),
+            ));
         }
 
         // Clear screen
@@ -80,7 +86,7 @@ impl Renderer for BasicRenderer {
 
         // Draw buffer
         self.window.draw_primitives(
-            &self.pos_buffer,
+            &self.vertex_buffer,
             PrimitiveType::POINTS,
             &RenderStates::default(),
         );

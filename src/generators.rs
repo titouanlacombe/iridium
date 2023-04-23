@@ -6,7 +6,7 @@ use rand_xorshift::XorShiftRng;
 
 use crate::{
     areas::{Disk, Point, Rect},
-    types::Scalar,
+    types::{Color, Scalar},
 };
 
 pub trait Generator<T> {
@@ -188,5 +188,127 @@ impl PointGenerator {
 impl Generator<Vector2<Scalar>> for PointGenerator {
     fn generate(&mut self) -> Vector2<Scalar> {
         self.point.position
+    }
+}
+
+pub struct RGBAGenerator {
+    pub r_generator: Box<dyn Generator<Scalar>>,
+    pub g_generator: Box<dyn Generator<Scalar>>,
+    pub b_generator: Box<dyn Generator<Scalar>>,
+    pub a_generator: Box<dyn Generator<Scalar>>,
+}
+
+impl RGBAGenerator {
+    pub fn new(
+        r_generator: Box<dyn Generator<Scalar>>,
+        g_generator: Box<dyn Generator<Scalar>>,
+        b_generator: Box<dyn Generator<Scalar>>,
+        a_generator: Box<dyn Generator<Scalar>>,
+    ) -> Self {
+        Self {
+            r_generator,
+            g_generator,
+            b_generator,
+            a_generator,
+        }
+    }
+}
+
+impl Generator<Color> for RGBAGenerator {
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Color>) {
+        let mut r = Vec::with_capacity(n);
+        let mut g = Vec::with_capacity(n);
+        let mut b = Vec::with_capacity(n);
+        let mut a = Vec::with_capacity(n);
+
+        self.r_generator.generate_n(n, &mut r);
+        self.g_generator.generate_n(n, &mut g);
+        self.b_generator.generate_n(n, &mut b);
+        self.a_generator.generate_n(n, &mut a);
+
+        vec.reserve(n);
+        for ((r, g), (b, a)) in r
+            .into_iter()
+            .zip(g.into_iter())
+            .zip(b.into_iter().zip(a.into_iter()))
+        {
+            vec.push((r, g, b, a));
+        }
+    }
+
+    fn generate(&mut self) -> Color {
+        let mut vec = Vec::with_capacity(1);
+        self.generate_n(1, &mut vec);
+        vec[0]
+    }
+}
+
+pub struct HSVAGenerator {
+    pub h_generator: Box<dyn Generator<Scalar>>,
+    pub s_generator: Box<dyn Generator<Scalar>>,
+    pub v_generator: Box<dyn Generator<Scalar>>,
+    pub a_generator: Box<dyn Generator<Scalar>>,
+}
+
+impl HSVAGenerator {
+    pub fn new(
+        h_generator: Box<dyn Generator<Scalar>>,
+        s_generator: Box<dyn Generator<Scalar>>,
+        v_generator: Box<dyn Generator<Scalar>>,
+        a_generator: Box<dyn Generator<Scalar>>,
+    ) -> Self {
+        Self {
+            h_generator,
+            s_generator,
+            v_generator,
+            a_generator,
+        }
+    }
+
+    pub fn hsv2rgb(h: Scalar, s: Scalar, v: Scalar) -> (Scalar, Scalar, Scalar) {
+        let c = v * s;
+        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+        let m = v - c;
+
+        let (r, g, b) = match h {
+            h if h < 60.0 => (c, x, 0.0),
+            h if h < 120.0 => (x, c, 0.0),
+            h if h < 180.0 => (0.0, c, x),
+            h if h < 240.0 => (0.0, x, c),
+            h if h < 300.0 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+
+        (r + m, g + m, b + m)
+    }
+}
+
+impl Generator<Color> for HSVAGenerator {
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Color>) {
+        let mut h = Vec::with_capacity(n);
+        let mut s = Vec::with_capacity(n);
+        let mut v = Vec::with_capacity(n);
+        let mut a = Vec::with_capacity(n);
+
+        self.h_generator.generate_n(n, &mut h);
+        self.s_generator.generate_n(n, &mut s);
+        self.v_generator.generate_n(n, &mut v);
+        self.a_generator.generate_n(n, &mut a);
+
+        vec.reserve(n);
+        for ((h, s), (v, a)) in h
+            .into_iter()
+            .zip(s.into_iter())
+            .zip(v.into_iter().zip(a.into_iter()))
+        {
+            let (r, g, b) = Self::hsv2rgb(h, s, v);
+            vec.push((r, g, b, a));
+        }
+    }
+
+    fn generate(&mut self) -> Color {
+        let mut vec = Vec::with_capacity(1);
+        self.generate_n(1, &mut vec);
+        vec[0]
     }
 }

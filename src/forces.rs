@@ -1,5 +1,5 @@
 use crate::{
-    particle::Particles,
+    particles::Particles,
     systems::Force as PhysForce,
     types::{Acceleration, Force, Scalar, Velocity},
 };

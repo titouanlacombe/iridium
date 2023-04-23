@@ -11,12 +11,12 @@ use crate::{
     events::{DefaultEventsHandler, Event, SortedVec},
     forces::{UniformDrag, UniformGravity},
     generators::{
-        ConstantGenerator, DiskGenerator, PointGenerator, RectGenerator, UniformGenerator,
-        Vector2PolarGenerator,
+        ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
+        RectGenerator, UniformGenerator, Vector2PolarGenerator,
     },
     integrator::GaussianIntegrator,
     iridium::{max_fps, IridiumMain},
-    particle::{GeneratorFactory, ParticleFactory, Particles},
+    particles::{GeneratorFactory, ParticleFactory, Particles},
     random::RngGenerator,
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
@@ -72,6 +72,12 @@ pub fn benchmark1() -> IridiumMain {
             Box::new(UniformGenerator::new(rng_gen.next(), -0.2 * PI, 0.)),
         )),
         Box::new(ConstantGenerator::new(1.)),
+        Box::new(RGBAGenerator::new(
+            Box::new(ConstantGenerator::new(1.)),
+            Box::new(ConstantGenerator::new(1.)),
+            Box::new(ConstantGenerator::new(1.)),
+            Box::new(ConstantGenerator::new(1.)),
+        )),
     );
 
     let limit_cond = Box::new(Wall {
@@ -155,6 +161,12 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
                     Box::new(UniformGenerator::new(rng_gen.next(), 0., 2. * PI)),
                 )),
                 Box::new(ConstantGenerator::new(1.)),
+                Box::new(HSVAGenerator::new(
+                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 360.)),
+                    Box::new(ConstantGenerator::new(1.)),
+                    Box::new(ConstantGenerator::new(1.)),
+                    Box::new(ConstantGenerator::new(1.)),
+                )),
             );
 
             pfactory.create(1_000, &mut m_sim.particles);
@@ -196,6 +208,12 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
                 Box::new(ConstantGenerator::new(0.1 * PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
+            Box::new(RGBAGenerator::new(
+                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(1.)),
+            )),
         )),
         30.,
     ));
@@ -287,6 +305,12 @@ pub fn benchmark2() -> IridiumMain {
                 Box::new(ConstantGenerator::new(0.1 * PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
+            Box::new(RGBAGenerator::new(
+                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(1.)),
+            )),
         )),
         5E5,
     ));

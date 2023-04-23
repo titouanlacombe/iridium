@@ -3,7 +3,7 @@ use nalgebra::Vector2;
 use crate::{
     areas::Area,
     integrator::Integrator,
-    particle::{ParticleFactory, Particles},
+    particles::{ParticleFactory, Particles},
     types::{Force as TypeForce, Scalar, Time},
 };
 
@@ -81,7 +81,11 @@ pub struct Wall {
 
 impl System for Wall {
     fn update(&mut self, particles: &mut Particles, _dt: Time) {
-        for (position, velocity, _mass) in particles.iter_mut() {
+        for (position, velocity) in particles
+            .positions
+            .iter_mut()
+            .zip(particles.velocities.iter_mut())
+        {
             if position.x < self.x_min {
                 position.x = self.x_min;
                 velocity.x = -velocity.x * self.restitution;

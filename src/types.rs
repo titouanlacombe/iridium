@@ -12,3 +12,5 @@ pub type Position = Vector2<Scalar>;
 pub type Velocity = Vector2<Scalar>;
 pub type Acceleration = Vector2<Scalar>;
 pub type Force = Vector2<Scalar>;
+
+pub type Color = (Scalar, Scalar, Scalar, Scalar);

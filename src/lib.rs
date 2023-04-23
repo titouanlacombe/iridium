@@ -5,7 +5,7 @@ pub mod forces;
 pub mod generators;
 pub mod integrator;
 pub mod iridium;
-pub mod particle;
+pub mod particles;
 pub mod quadtree;
 pub mod random;
 pub mod renderer;
