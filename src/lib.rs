@@ -7,6 +7,7 @@ pub mod integrator;
 pub mod iridium;
 pub mod particle;
 pub mod quadtree;
+pub mod random;
 pub mod renderer;
 pub mod simulation;
 pub mod systems;

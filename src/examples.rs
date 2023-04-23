@@ -1,6 +1,4 @@
 use nalgebra::Vector2;
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
 use sfml::{
     graphics::RenderWindow,
     system::Vector2f,
@@ -17,8 +15,9 @@ use crate::{
         Vector2PolarGenerator,
     },
     integrator::GaussianIntegrator,
-    iridium::IridiumMain,
+    iridium::{max_fps, IridiumMain},
     particle::{GeneratorFactory, ParticleFactory, Particles},
+    random::RngGenerator,
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
@@ -55,14 +54,10 @@ fn default_event_handler(
     }
 }
 
-fn get_seed(seed: u128) -> [u8; 16] {
-    seed.to_le_bytes()
-}
-
 pub fn benchmark1() -> IridiumMain {
     let width = 500;
     let height = 500;
-    let seed = get_seed(0);
+    let mut rng_gen = RngGenerator::new(0);
 
     let mut factory = GeneratorFactory::new(
         Box::new(DiskGenerator::new(
@@ -70,19 +65,11 @@ pub fn benchmark1() -> IridiumMain {
                 position: Vector2::new(200., 300.),
                 radius: 100.,
             },
-            XorShiftRng::from_seed(seed),
+            rng_gen.next(),
         )),
         Box::new(Vector2PolarGenerator::new(
-            Box::new(UniformGenerator::new(
-                XorShiftRng::from_seed(seed),
-                1.2,
-                1.5,
-            )),
-            Box::new(UniformGenerator::new(
-                XorShiftRng::from_seed(seed),
-                -0.2 * PI,
-                0.,
-            )),
+            Box::new(UniformGenerator::new(rng_gen.next(), 1.2, 1.5)),
+            Box::new(UniformGenerator::new(rng_gen.next(), -0.2 * PI, 0.)),
         )),
         Box::new(ConstantGenerator::new(1.)),
     );
@@ -120,6 +107,8 @@ pub fn benchmark1() -> IridiumMain {
 }
 
 pub fn fireworks(width: u32, height: u32) -> IridiumMain {
+    let mut rng_gen = RngGenerator::new(146515645);
+
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
@@ -129,9 +118,10 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     });
 
     let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.001)));
+    let drag = Box::new(UniformDrag::new(0.0005, Vector2::new(-4., 0.)));
 
     let physics = Box::new(Physics::new(
-        vec![gravity],
+        vec![gravity, drag],
         Box::new(GaussianIntegrator::new()),
     ));
 
@@ -146,28 +136,23 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let event_handler = |m_renderer: &mut Box<dyn Renderer>,
-                         m_sim: &mut Simulation,
-                         running: &mut bool,
-                         &event: &SfmlEvent| match event {
+    let event_handler = move |m_renderer: &mut Box<dyn Renderer>,
+                              m_sim: &mut Simulation,
+                              running: &mut bool,
+                              &event: &SfmlEvent| match event {
         SfmlEvent::MouseButtonPressed {
             button: sfml::window::mouse::Button::Left,
             x,
             y,
             ..
         } => {
-            let seed = get_seed(0);
             let mut pfactory = GeneratorFactory::new(
                 Box::new(PointGenerator::new(Point {
                     position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
                 })),
                 Box::new(Vector2PolarGenerator::new(
-                    Box::new(UniformGenerator::new(XorShiftRng::from_seed(seed), 0., 1.)),
-                    Box::new(UniformGenerator::new(
-                        XorShiftRng::from_seed(seed),
-                        0.,
-                        2. * PI,
-                    )),
+                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
+                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 2. * PI)),
                 )),
                 Box::new(ConstantGenerator::new(1.)),
             );
@@ -177,7 +162,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         _ => default_event_handler(m_renderer, m_sim, running, &event),
     };
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height), max_fps(144)));
 
     let main = IridiumMain::new(
         sim,
@@ -185,14 +170,14 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         Box::new(event_handler),
         Duration::from_secs(1),
-        1,
+        4,
     );
 
     main
 }
 
 pub fn flow(width: u32, height: u32) -> IridiumMain {
-    let seed = get_seed(0);
+    let mut rng_gen = RngGenerator::new(0);
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
@@ -204,7 +189,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
                     ),
                     radius: width as Scalar / 20.,
                 },
-                XorShiftRng::from_seed(seed),
+                rng_gen.next(),
             )),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(ConstantGenerator::new(0.5)),
@@ -285,7 +270,7 @@ impl System for SimReset {
 }
 
 pub fn benchmark2() -> IridiumMain {
-    let seed = get_seed(0);
+    let mut rng_gen = RngGenerator::new(0);
     let width = 500;
     let height = 500;
 
@@ -296,7 +281,7 @@ pub fn benchmark2() -> IridiumMain {
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
-            Box::new(RectGenerator::new(area, XorShiftRng::from_seed(seed))),
+            Box::new(RectGenerator::new(area, rng_gen.next())),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(ConstantGenerator::new(0.5)),
                 Box::new(ConstantGenerator::new(0.1 * PI)),
