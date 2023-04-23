@@ -1,6 +1,6 @@
 improve handling of rand seed
 test https://www.reddit.com/r/rust/comments/cyde9f/how_would_one_go_about_building_a_linebyline/
-particles multithreaded iterator (hold thread pool & cluster size)
+particles multithreaded iterator (hold thread pool & cluster size, static thread pool class/facade ?)
 add particle color
 more integrators option (euler, verlet, etc) & test smallest dt possible?
 is it posible to implement particles lifetimes ?
