@@ -1,4 +1,3 @@
-add particle color
 experiment with multithreading {
 	objects hold thread pool & cluster size?
 	custom object to create iterators?
