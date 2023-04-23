@@ -107,7 +107,7 @@ pub fn benchmark1() -> IridiumMain {
 }
 
 pub fn fireworks(width: u32, height: u32) -> IridiumMain {
-    let mut rng_gen = RngGenerator::new(146515645);
+    let mut rng_gen = RngGenerator::new(0);
 
     let limit_cond = Box::new(Wall {
         x_min: 0.,
