@@ -1,7 +1,5 @@
 experiment with multithreading {
-	objects hold thread pool & cluster size?
-	custom object to create iterators?
-	static thread pool class/facade ?
+	render thread (need to duplicate position & color buffers?)
 }
 
 trait spatial partitioning

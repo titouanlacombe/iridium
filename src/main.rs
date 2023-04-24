@@ -1,4 +1,4 @@
-use iridium::examples::fireworks;
+use iridium::examples::benchmark1;
 
 fn main() {
     // Configure logging
@@ -8,5 +8,5 @@ fn main() {
         .init();
 
     // Run simulation with renderer loop
-    fireworks(500, 500).run();
+    benchmark1().run();
 }

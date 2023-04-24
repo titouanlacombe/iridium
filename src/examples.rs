@@ -92,7 +92,7 @@ pub fn benchmark1() -> IridiumMain {
         Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
 
     let mut particles = Particles::new_empty();
-    factory.create(500_000, &mut particles);
+    factory.create(1_000_000, &mut particles);
 
     let sim = Simulation::new(particles, vec![limit_cond, velocity_integrator], None);
 
@@ -106,7 +106,7 @@ pub fn benchmark1() -> IridiumMain {
         sim_runner,
         Box::new(default_event_handler),
         Duration::from_secs(1),
-        1,
+        4,
     );
 
     main
