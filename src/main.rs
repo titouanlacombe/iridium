@@ -3,24 +3,27 @@ use iridium::examples::benchmark1;
 // Multi-threading experiment
 use rayon::prelude::*;
 fn mt_exp() {
+    // Heavy computation for f64
     fn heavy_compute(value: &mut f64) {
         for _ in 0..1000 {
             *value += *value * *value;
         }
     }
 
-    let mut array = vec![0.; 1_000_000];
     // Initialize array with random values
+    let mut array = vec![0.; 1_000_000];
     for i in 0..array.len() {
         array[i] = rand::random::<f64>();
     }
 
+    // Single-threaded implementation
     let mut timer = std::time::Instant::now();
     array.iter_mut().for_each(|value| {
         heavy_compute(value);
     });
     let single_thread_time = timer.elapsed().as_micros();
 
+    // Multi-threaded implementation
     timer = std::time::Instant::now();
     array.par_iter_mut().for_each(|value| {
         heavy_compute(value);
@@ -43,7 +46,7 @@ fn main() {
         .init();
 
     // Run simulation with renderer loop
-    // benchmark1().run();
+    benchmark1().run();
 
     // mt_exp();
 }
