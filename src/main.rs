@@ -2,7 +2,7 @@ use iridium::examples::benchmark1;
 
 // Multi-threading experiment
 use rayon::prelude::*;
-fn mt_exp() {
+fn _mt_exp() {
     // Heavy computation for f64
     fn heavy_compute(value: &mut f64) {
         for _ in 0..1000 {
