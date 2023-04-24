@@ -48,5 +48,5 @@ fn main() {
     // Run simulation with renderer loop
     benchmark1().run();
 
-    // mt_exp();
+    // _mt_exp();
 }
