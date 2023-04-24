@@ -1,6 +1,8 @@
-use log::info;
-use sfml::window::Event;
 use std::time::{Duration, Instant};
+
+use log::info;
+use psutil::process::Process;
+use sfml::window::Event;
 
 use crate::{
     renderer::Renderer,
@@ -74,21 +76,36 @@ impl IridiumMain {
                 let frame_time_av = log_elapsed_sec / frame_count as f64;
                 let particle_count = self.sim.particles.len();
 
+                // Process info
+                let mut process = Process::new(std::process::id()).unwrap();
+                let cpu_percent = process.cpu_percent().unwrap();
+                let memory = process.memory_info().unwrap();
+
+                let s = "-";
+                info!("{}", s.repeat(80));
                 info!(
-                    "\n{} steps in {:.2} s (~{:.2} fps)\n\
-					{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)\n\
-					{:.2e} particles ({:.2} µs/particle)\n\
-					{} systems",
+                    "{} steps in {:.3} s (~{:.1} fps)",
                     frame_count,
                     log_elapsed_sec,
-                    1. / frame_time_av,
+                    1. / frame_time_av
+                );
+                info!(
+                    "{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)",
                     frame_time_av * 1000.,
                     sim_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     render_elapsed.as_secs_f64() * 1000. / frame_count as f64,
-                    events_elapsed.as_secs_f64() * 1000. / frame_count as f64,
+                    events_elapsed.as_secs_f64() * 1000. / frame_count as f64
+                );
+                info!(
+                    "{:.2e} particles ({:.3} µs/particle), {} systems",
                     particle_count,
                     ((log_elapsed_sec * 1e6) / frame_count as f64) / particle_count as f64,
                     self.sim.systems.len()
+                );
+                info!(
+                    "CPU: {:.1}%\tMEM: {:.1} MB",
+                    cpu_percent,
+                    memory.rss() as f64 / 1e6
                 );
 
                 last_log = Instant::now();
