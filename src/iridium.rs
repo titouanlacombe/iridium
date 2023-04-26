@@ -85,12 +85,12 @@ impl IridiumMain {
                 info!("{}", s.repeat(80));
                 info!(
                     "{} steps in {:.3} s (~{:.1} fps)",
-                    frame_count,
+                    frame_count * self.steps_per_frame,
                     log_elapsed_sec,
-                    1. / frame_time_av
+                    frame_count as f64 / log_elapsed_sec
                 );
                 info!(
-                    "{:.2} ms/step ({:.2} ms/sim, {:.2} ms/render, {:.2} ms/events)",
+                    "{:.2} ms/frame ({:.2} ms/sim steps, {:.2} ms/render, {:.2} ms/events)",
                     frame_time_av * 1000.,
                     sim_elapsed.as_secs_f64() * 1000. / frame_count as f64,
                     render_elapsed.as_secs_f64() * 1000. / frame_count as f64,
