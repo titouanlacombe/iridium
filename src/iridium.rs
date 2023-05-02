@@ -72,51 +72,12 @@ impl IridiumMain {
 
             let log_elapsed = last_log.elapsed();
             if log_elapsed >= self.log_interval {
-                // Separator
-                let s = "-";
-                info!("{}", s.repeat(80));
-
-                // Frames
-                let log_elapsed_sec = log_elapsed.as_secs_f64();
-                info!(
-                    "{} frames in {:.3} s (~{:.1} fps)",
+                self.report(
                     frame_count,
-                    log_elapsed_sec,
-                    frame_count as f64 / log_elapsed_sec
-                );
-
-                // Timings
-                let sim_elapsed_sec = sim_elapsed.as_secs_f64();
-                let sim_steps = self.steps_per_frame * frame_count;
-                let render_elapsed_sec = render_elapsed.as_secs_f64();
-                let events_elapsed_sec = events_elapsed.as_secs_f64();
-                info!(
-                    "{:.2} ms/frame ({:.2} ms/sim step (x{}), {:.2} ms/render, {:.2} ms/window events)",
-                    log_elapsed_sec * 1000. / frame_count as f64,
-                    sim_elapsed_sec * 1000. / sim_steps as f64,
-                    self.steps_per_frame,
-                    render_elapsed_sec * 1000. / frame_count as f64,
-                    events_elapsed_sec * 1000. / frame_count as f64
-                );
-
-                // Particles
-                let particle_count = self.sim.particles.len();
-                let system_count = self.sim.systems.len();
-                info!(
-                    "{:.2e} particles ({:.2} ns/particle), {} systems",
-                    particle_count,
-                    sim_elapsed_sec * 1E9 / (sim_steps as f64 * particle_count as f64),
-                    system_count
-                );
-
-                // Process info
-                let mut process = Process::new(std::process::id()).unwrap();
-                let cpu_percent = process.cpu_percent().unwrap();
-                let memory = process.memory_info().unwrap();
-                info!(
-                    "CPU: {:.1}%\tMEM: {:.1} MB",
-                    cpu_percent,
-                    memory.rss() as f64 / 1e6
+                    log_elapsed,
+                    sim_elapsed,
+                    render_elapsed,
+                    events_elapsed,
                 );
 
                 // Reset counters
@@ -127,6 +88,62 @@ impl IridiumMain {
                 frame_count = 0;
             }
         }
+    }
+
+    fn report(
+        &self,
+        frame_count: usize,
+        log_elapsed: Duration,
+        sim_elapsed: Duration,
+        render_elapsed: Duration,
+        events_elapsed: Duration,
+    ) {
+        // Separator
+        let s = "-";
+        info!("{}", s.repeat(80));
+
+        // Frames
+        let log_elapsed_sec = log_elapsed.as_secs_f64();
+        info!(
+            "{} frames in {:.3} s (~{:.1} fps)",
+            frame_count,
+            log_elapsed_sec,
+            frame_count as f64 / log_elapsed_sec
+        );
+
+        // Timings
+        let sim_elapsed_sec = sim_elapsed.as_secs_f64();
+        let sim_steps = self.steps_per_frame * frame_count;
+        let render_elapsed_sec = render_elapsed.as_secs_f64();
+        let events_elapsed_sec = events_elapsed.as_secs_f64();
+        info!(
+            "{:.2} ms/frame ({:.2} ms/sim step (x{}), {:.2} ms/render, {:.2} ms/window events)",
+            log_elapsed_sec * 1000. / frame_count as f64,
+            sim_elapsed_sec * 1000. / sim_steps as f64,
+            self.steps_per_frame,
+            render_elapsed_sec * 1000. / frame_count as f64,
+            events_elapsed_sec * 1000. / frame_count as f64
+        );
+
+        // Particles
+        let particle_count = self.sim.particles.len();
+        let system_count = self.sim.systems.len();
+        info!(
+            "{:.2e} particles ({:.2} ns/particle), {} systems",
+            particle_count,
+            sim_elapsed_sec * 1E9 / (sim_steps as f64 * particle_count as f64),
+            system_count
+        );
+
+        // Process info
+        let mut process = Process::new(std::process::id()).unwrap();
+        let cpu_percent = process.cpu_percent().unwrap();
+        let memory = process.memory_info().unwrap();
+        info!(
+            "CPU: {:.1}%\tMEM: {:.1} MB",
+            cpu_percent,
+            memory.rss() as f64 / 1e6
+        );
     }
 }
 
