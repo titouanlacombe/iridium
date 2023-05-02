@@ -18,9 +18,11 @@ pub struct IridiumMain {
     pub sim_runner: Box<dyn SimulationRunner>,
     pub event_handler: EventHandler,
 
-    pub log_interval: Duration,
     pub steps_per_frame: usize,
     pub running: bool,
+
+    pub log_interval: Duration,
+    pub log_separator: String,
 }
 
 impl IridiumMain {
@@ -29,17 +31,18 @@ impl IridiumMain {
         renderer: Box<dyn Renderer>,
         sim_runner: Box<dyn SimulationRunner>,
         event_handler: EventHandler,
-        log_interval: Duration,
         steps_per_frame: usize,
+        log_interval: Duration,
     ) -> Self {
         Self {
             sim,
             renderer,
             sim_runner,
             event_handler,
-            log_interval,
             steps_per_frame,
             running: true,
+            log_interval,
+            log_separator: "-".repeat(80),
         }
     }
 
@@ -99,8 +102,7 @@ impl IridiumMain {
         events_elapsed: Duration,
     ) {
         // Separator
-        let s = "-";
-        info!("{}", s.repeat(80));
+        info!("{}", self.log_separator);
 
         // Frames
         let log_elapsed_sec = log_elapsed.as_secs_f64();
