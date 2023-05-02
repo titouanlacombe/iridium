@@ -88,8 +88,7 @@ pub fn benchmark1() -> IridiumMain {
         restitution: 0.8,
     });
 
-    let velocity_integrator =
-        Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
+    let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
     let mut particles = Particles::new_empty();
     factory.create(1_000_000, &mut particles);
@@ -128,11 +127,10 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let physics = Box::new(Physics::new(
         vec![gravity, drag],
-        Box::new(GaussianIntegrator::new()),
+        Box::new(GaussianIntegrator),
     ));
 
-    let velocity_integrator =
-        Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
+    let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
     let sim = Simulation::new(
         Particles::new_empty(),
@@ -239,11 +237,10 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let physics = Box::new(Physics::new(
         vec![gravity, drag],
-        Box::new(GaussianIntegrator::new()),
+        Box::new(GaussianIntegrator),
     ));
 
-    let velocity_integrator =
-        Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator::new())));
+    let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
     let systems: Vec<Box<dyn System>> =
         vec![emitter, consumer, limit_cond, physics, velocity_integrator];
