@@ -1,34 +1,39 @@
 use iridium::examples::benchmark1;
 
 // Multi-threading experiment
+use rand::Rng;
 use rayon::prelude::*;
 fn _mt_exp() {
     // Heavy computation for f64
     fn heavy_compute(value: &mut f64) {
-        for _ in 0..1000 {
+        for _ in 0..1 {
             *value += *value * *value;
         }
     }
 
-    // Initialize array with random values
     let mut array = vec![0.; 1_000_000];
+    let mut rng = rand::thread_rng();
     for i in 0..array.len() {
-        array[i] = rand::random::<f64>();
+        array[i] = rng.gen_range(0. ..1.);
     }
 
-    // Single-threaded implementation
-    let mut timer = std::time::Instant::now();
+    let pool = rayon::ThreadPoolBuilder::new().build().unwrap();
+
+    let single_thread_time = std::time::Instant::now();
     array.iter_mut().for_each(|value| {
         heavy_compute(value);
     });
-    let single_thread_time = timer.elapsed().as_micros();
+    let single_thread_time = single_thread_time.elapsed().as_micros();
 
-    // Multi-threaded implementation
-    timer = std::time::Instant::now();
-    array.par_iter_mut().for_each(|value| {
-        heavy_compute(value);
+    let multi_thread_time = std::time::Instant::now();
+    pool.install(|| {
+        array.par_chunks_mut(10_000).for_each(|chunk| {
+            chunk.iter_mut().for_each(|value| {
+                heavy_compute(value);
+            });
+        });
     });
-    let multi_thread_time = timer.elapsed().as_micros();
+    let multi_thread_time = multi_thread_time.elapsed().as_micros();
 
     println!(
         "Ratio: {}/{} = {}",
