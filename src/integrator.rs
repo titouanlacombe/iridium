@@ -8,12 +8,6 @@ pub trait Integrator<T> {
 
 pub struct GaussianIntegrator;
 
-impl GaussianIntegrator {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl<T: AddAssign<T> + Mul<Time, Output = T> + Copy> Integrator<T> for GaussianIntegrator {
     fn integrate_vec(&self, values: &Vec<T>, result: &mut Vec<T>, dt: Time) {
         for (value, result) in values.iter().zip(result.iter_mut()) {
