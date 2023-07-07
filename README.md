@@ -1,6 +1,6 @@
 # Iridium
 
-An easy to use and fast 2D particle simulator.
+An easy-to-use and fast 2D particle simulator.
 
 ## Setup for development
 
@@ -31,7 +31,7 @@ perf record --call-graph dwarf ./target/release/iridium
 perf script -F +pid > iridium.perf 
 ```
 
-See result with firefox profiler:
+See the result with the Firefox profiler:
 https://profiler.firefox.com/
 
 ## Features
@@ -42,10 +42,10 @@ Fast: written in Rust
 
 Forces:
 - Gravity (uniform) 
-- Gravity (particle to particle)
-- Coulomb (particle to particle)
 - Drag (uniform)
-- Drag (particle to particle)
+- Gravity (particle to particle) (not yet implemented)
+- Coulomb (particle to particle) (not yet implemented)
+- Drag (particle to particle) (not yet implemented)
 
 ## Development
 
