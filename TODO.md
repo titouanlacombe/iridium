@@ -1,4 +1,6 @@
 multithreading {
+	test C++ version of test (parallel iterate over buffer)
+	
 	multithreading simulation (learned that only worth when there is a lot of computation for small amount of data)
 	render thread (need to duplicate position & color buffers?)
 }
