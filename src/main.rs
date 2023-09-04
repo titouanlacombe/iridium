@@ -1,4 +1,4 @@
-use iridium::examples::benchmark1;
+use iridium::examples::benchmark2;
 
 // Multi-threading experiment
 use rand::Rng;
@@ -49,7 +49,7 @@ fn main() {
         .init();
 
     // Run simulation with renderer loop
-    benchmark1().run();
+    benchmark2().run();
 
     // _mt_exp();
 }

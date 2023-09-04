@@ -1,38 +1,20 @@
-use std::ops::{AddAssign, Mul};
+use rayon::prelude::*;
 
-use crate::types::Time;
-
-pub trait Integrator<T> {
-    fn integrate_vec(&self, values: &Vec<T>, result: &mut Vec<T>, dt: Time);
+pub trait Integrator<T: Clone + Send + Sync> {
+    fn integrate_vec(&self, values: &Vec<T>, result: &mut Vec<T>, dt: f64);
 }
 
 pub struct GaussianIntegrator;
 
-impl<T: AddAssign<T> + Mul<Time, Output = T> + Copy> Integrator<T> for GaussianIntegrator {
-    fn integrate_vec(&self, values: &Vec<T>, result: &mut Vec<T>, dt: Time) {
-        for (value, result) in values.iter().zip(result.iter_mut()) {
-            *result += *value * dt;
-        }
+impl<T: Clone + Send + Sync + std::ops::AddAssign + std::ops::Mul<f64, Output = T>> Integrator<T>
+    for GaussianIntegrator
+{
+    fn integrate_vec(&self, values: &Vec<T>, result: &mut Vec<T>, dt: f64) {
+        values
+            .par_iter()
+            .zip(result.par_iter_mut())
+            .for_each(|(value, result)| {
+                *result += (*value).clone() * dt;
+            });
     }
 }
-
-// Multithreading experiment
-// impl Integrator<Vector2<Scalar>> for GaussianIntegrator {
-//     fn integrate_vec(
-//         &self,
-//         values: &Vec<Vector2<Scalar>>,
-//         result: &mut Vec<Vector2<Scalar>>,
-//         dt: Time,
-//     ) {
-//         let iterator = values.par_iter().zip(result.par_iter_mut());
-//         // println!("Number of threads: {}", rayon::current_num_threads());
-//         let timer = Instant::now();
-//         // iterator.for_each(|(value, result)| {
-//         //     *result += *value * dt;
-//         // });
-//         for (value, result) in values.iter().zip(result.iter_mut()) {
-//             *result += *value * dt;
-//         }
-//         println!("Time: {} µs", timer.elapsed().as_micros());
-//     }
-// }

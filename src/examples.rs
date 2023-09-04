@@ -111,6 +111,75 @@ pub fn benchmark1() -> IridiumMain {
     main
 }
 
+pub fn benchmark2() -> IridiumMain {
+    let width = 500;
+    let height = 500;
+    let mut rng_gen = RngGenerator::new(0);
+
+    let mut factory = GeneratorFactory::new(
+        Box::new(DiskGenerator::new(
+            Disk {
+                position: Vector2::new(200., 300.),
+                radius: 100.,
+            },
+            rng_gen.next(),
+        )),
+        Box::new(Vector2PolarGenerator::new(
+            Box::new(UniformGenerator::new(rng_gen.next(), 1.2, 1.5)),
+            Box::new(UniformGenerator::new(rng_gen.next(), -0.2 * PI, 0.)),
+        )),
+        Box::new(ConstantGenerator::new(1.)),
+        Box::new(RGBAGenerator::new(
+            Box::new(ConstantGenerator::new(1.)),
+            Box::new(ConstantGenerator::new(1.)),
+            Box::new(ConstantGenerator::new(1.)),
+            Box::new(ConstantGenerator::new(1.)),
+        )),
+    );
+
+    let limit_cond = Box::new(Wall {
+        x_min: 0.,
+        y_min: 0.,
+        x_max: width as Scalar,
+        y_max: height as Scalar,
+        restitution: 0.8,
+    });
+
+    let mut particles = Particles::new_empty();
+    factory.create(1_000_000, &mut particles);
+
+    let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.001)));
+    let drag = Box::new(UniformDrag::new(0.0005, Vector2::new(-4., 0.)));
+
+    let physics = Box::new(Physics::new(
+        vec![gravity, drag],
+        Box::new(GaussianIntegrator),
+    ));
+
+    let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
+
+    let sim = Simulation::new(
+        particles,
+        vec![limit_cond, physics, velocity_integrator],
+        None,
+    );
+
+    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
+
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+
+    let main = IridiumMain::new(
+        sim,
+        renderer,
+        sim_runner,
+        Box::new(default_event_handler),
+        4,
+        Duration::from_secs(1),
+    );
+
+    main
+}
+
 pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     let mut rng_gen = RngGenerator::new(0);
 
@@ -284,7 +353,7 @@ impl System for SimReset {
     }
 }
 
-pub fn benchmark2() -> IridiumMain {
+pub fn benchmark3() -> IridiumMain {
     let mut rng_gen = RngGenerator::new(0);
     let width = 500;
     let height = 500;
