@@ -1,8 +1,7 @@
 multithreading {
-	test C++ version of test (parallel iterate over buffer)
-	
-	multithreading simulation (learned that only worth when there is a lot of computation for small amount of data)
-	render thread (need to duplicate position & color buffers?)
+	multithread systems (barely worth, don't bother in some cases, test if faster with prints)
+
+	async draw call (simulate, wait draw thread/call, prepare draw call (create buffer directly on GPU? test if faster), async draw call, loop)
 }
 
 trait spatial partitioning
