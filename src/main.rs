@@ -4,17 +4,17 @@ use iridium::examples::benchmark1;
 use rand::Rng;
 use rayon::prelude::*;
 fn _mt_exp() {
-    // Heavy computation for f64
-    fn heavy_compute(value: &mut f64) {
+    // Heavy computation
+    fn heavy_compute(value: &mut u128) {
         for _ in 0..1 {
             *value += *value * *value;
         }
     }
 
-    let mut array = vec![0.; 1_000_000];
+    let mut array = vec![0; 1_000_000];
     let mut rng = rand::thread_rng();
-    for i in 0..array.len() {
-        array[i] = rng.gen_range(0. ..1.);
+    for value in array.iter_mut() {
+        *value = rng.gen();
     }
 
     let pool = rayon::ThreadPoolBuilder::new().build().unwrap();
@@ -36,10 +36,8 @@ fn _mt_exp() {
     let multi_thread_time = multi_thread_time.elapsed().as_micros();
 
     println!(
-        "Ratio: {}/{} = {}",
-        single_thread_time,
-        multi_thread_time,
-        single_thread_time as f64 / multi_thread_time as f64
+        "Single thread: {} us\nMulti thread: {} us",
+        single_thread_time, multi_thread_time
     );
 }
 
