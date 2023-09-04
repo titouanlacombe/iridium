@@ -1,7 +1,11 @@
 multithreading {
-	multithread systems (barely worth, don't bother in some cases, test if faster with prints)
+	async draw call (channels)
 
-	async draw call (simulate, wait draw thread/call, prepare draw call (create buffer directly on GPU? test if faster), async draw call, loop)
+	Create separate event handler struct (share Arc of sfml window?)
+	get rid of sim2screen and screen2sim (events should be converted to sim coordinates by the renderer)
+	https://stackoverflow.com/questions/18860243/sdl-pollevent-vs-sdl-waitevent/18862404#18862404
+
+	multithread systems (barely worth, don't bother in some cases, test if faster with prints)
 }
 
 trait spatial partitioning
