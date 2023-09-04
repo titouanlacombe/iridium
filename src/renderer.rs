@@ -1,4 +1,6 @@
 use nalgebra::Vector2;
+use rayon::iter::IndexedParallelIterator;
+use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
 use sfml::system::Vector2f;
 use sfml::window::Event;
@@ -17,12 +19,38 @@ pub trait Renderer {
     fn events(&mut self) -> Vec<Event>;
 }
 
+pub struct CoordinateSystem {
+    // pub origin: Position,
+    // pub scale: Scalar,
+    screen_size: Vector2<u32>,
+}
+
+impl CoordinateSystem {
+    pub fn new(screen_size: Vector2<u32>) -> Self {
+        Self { screen_size }
+    }
+
+    pub fn sim2screen(&self, position: Position) -> Vector2f {
+        Vector2f::new(
+            position.x as f32,
+            self.screen_size.y as f32 - position.y as f32,
+        )
+    }
+
+    pub fn screen2sim(&self, position: Vector2f) -> Position {
+        Vector2::new(
+            position.x as Scalar,
+            self.screen_size.y as Scalar - position.y as Scalar,
+        )
+    }
+}
+
 pub struct BasicRenderer {
-    render_thread: std::thread::JoinHandle<()>,
+    render_thread: Option<std::thread::JoinHandle<()>>,
     render_thread_channel: mpsc::Sender<Command>,
     draw_result: Option<mpsc::Receiver<()>>,
     vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
-    screen_size: Vector2<u32>,
+    coord_system: CoordinateSystem,
 }
 
 impl BasicRenderer {
@@ -31,48 +59,46 @@ impl BasicRenderer {
         let vertex_buffer = Arc::new(Mutex::new(Vec::new()));
 
         let mut obj = Self {
-            render_thread: RenderThread::start(window, min_frame_time, vertex_buffer.clone(), rx),
+            render_thread: Some(RenderThread::start(
+                window,
+                min_frame_time,
+                vertex_buffer.clone(),
+                rx,
+            )),
             render_thread_channel: tx,
             draw_result: None,
             vertex_buffer: vertex_buffer,
-            screen_size: Vector2::zeros(),
+            coord_system: CoordinateSystem::new(Vector2::zeros()),
         };
         obj.cache_screen_size();
         obj
     }
 
     fn cache_screen_size(&mut self) {
-        let tmp = commands::GetScreenSize
+        self.coord_system.screen_size = commands::GetScreenSize
             .send(&self.render_thread_channel)
             .recv()
             .unwrap();
-        self.screen_size.x = tmp.x;
-        self.screen_size.y = tmp.y;
     }
+}
 
-    // TODO add to interface?
-    pub fn stop(self) {
+impl Drop for BasicRenderer {
+    fn drop(&mut self) {
         commands::Stop
             .send(&self.render_thread_channel)
             .recv()
             .unwrap();
-        self.render_thread.join().unwrap();
+        self.render_thread.take().unwrap().join().unwrap();
     }
 }
 
 impl Renderer for BasicRenderer {
     fn sim2screen(&self, position: Position) -> Vector2f {
-        Vector2f::new(
-            position.x as f32,
-            self.screen_size.y as f32 - position.y as f32,
-        )
+        self.coord_system.sim2screen(position)
     }
 
     fn screen2sim(&self, position: Vector2f) -> Position {
-        Vector2::new(
-            position.x as Scalar,
-            self.screen_size.y as Scalar - position.y as Scalar,
-        )
+        self.coord_system.screen2sim(position)
     }
 
     fn render(&mut self, particles: &Particles) {
@@ -81,21 +107,23 @@ impl Renderer for BasicRenderer {
 
         // Lock & reserve buffer
         let mut buffer = self.vertex_buffer.lock().unwrap();
-        buffer.clear();
-        buffer.reserve(particles.positions.len());
+        buffer.resize(particles.positions.len(), Vertex::default());
 
-        // Update position buffer
-        for (position, color) in particles.positions.iter().zip(particles.colors.iter()) {
-            buffer.push(Vertex::with_pos_color(
-                self.sim2screen(*position),
-                Color::rgba(
+        // Build vertex buffer (par iter on positions and colors)
+        particles
+            .positions
+            .par_iter()
+            .zip(particles.colors.par_iter())
+            .zip(buffer.par_iter_mut())
+            .for_each(|((position, color), vertex)| {
+                vertex.position = self.coord_system.sim2screen(*position);
+                vertex.color = Color::rgba(
                     (color.0 * 255.) as u8,
                     (color.1 * 255.) as u8,
                     (color.2 * 255.) as u8,
                     (color.3 * 255.) as u8,
-                ),
-            ));
-        }
+                );
+            });
 
         // Unlock buffer
         drop(buffer);
