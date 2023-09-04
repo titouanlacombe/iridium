@@ -1,3 +1,5 @@
+use rayon::prelude::*;
+
 use crate::{
     particles::Particles,
     systems::Force as PhysForce,
@@ -16,9 +18,13 @@ impl UniformGravity {
 
 impl PhysForce for UniformGravity {
     fn apply(&self, particles: &Particles, forces: &mut Vec<Force>) {
-        for (i, mass) in particles.masses.iter().enumerate() {
-            forces[i] += self.acceleration * *mass;
-        }
+        particles
+            .masses
+            .par_iter()
+            .zip(forces.par_iter_mut())
+            .for_each(|(mass, force)| {
+                *force += *mass * self.acceleration;
+            });
     }
 }
 
@@ -35,8 +41,12 @@ impl UniformDrag {
 
 impl PhysForce for UniformDrag {
     fn apply(&self, particles: &Particles, forces: &mut Vec<Force>) {
-        for (i, velocity) in particles.velocities.iter().enumerate() {
-            forces[i] -= self.coef * (velocity - &self.velocity);
-        }
+        particles
+            .velocities
+            .par_iter()
+            .zip(forces.par_iter_mut())
+            .for_each(|(velocity, force)| {
+                *force -= self.coef * (velocity - &self.velocity);
+            });
     }
 }
