@@ -43,6 +43,7 @@ impl System for ConstantConsumer {
         let mut to_remove = Vec::new();
         self.area.contains(&particles.positions, &mut to_remove);
 
+        // TODO parallelize????????
         for i in to_remove.iter().rev() {
             particles.swap_remove(*i);
             quotient -= 1;
@@ -81,6 +82,7 @@ pub struct Wall {
 
 impl System for Wall {
     fn update(&mut self, particles: &mut Particles, _dt: Time) {
+        // TODO: parallelize
         for (position, velocity) in particles
             .positions
             .iter_mut()
@@ -114,6 +116,7 @@ pub struct Loop {
 
 impl System for Loop {
     fn update(&mut self, particles: &mut Particles, _dt: Time) {
+        // TODO: parallelize
         for position in particles.positions.iter_mut() {
             if position.x < self.x_min {
                 position.x = self.x_max;
@@ -139,6 +142,7 @@ impl System for Void {
         let mut to_remove = Vec::new();
         self.area.contains(&particles.positions, &mut to_remove);
 
+        // TODO parallelize????????
         for i in to_remove {
             particles.swap_remove(i);
         }

@@ -318,6 +318,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     events.add(Event::new(
         5000.,
         Box::new(|particles, systems| {
+            // TODO parallelize
             for vel in particles.velocities.iter_mut() {
                 *vel *= 0.5;
             }

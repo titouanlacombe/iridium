@@ -7,6 +7,7 @@ pub trait Area {
 
     // WARNING: indices should always be in ascending order
     fn contains(&self, positions: &Vec<Position>, indices: &mut Vec<usize>) {
+        // TODO parallelize
         for (i, position) in positions.iter().enumerate() {
             if self.contain(*position) {
                 indices.push(i);
