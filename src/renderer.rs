@@ -1,13 +1,13 @@
-use log::debug;
 use nalgebra::Vector2;
-use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
+use sfml::graphics::{Color, Vertex};
 use sfml::system::Vector2f;
 use sfml::window::Event;
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 
 use crate::particles::Particles;
+use crate::render_thread::commands::{self, Command};
+use crate::render_thread::{MockRenderWindow, RenderThread};
 use crate::types::{Position, Scalar};
 
 pub trait Renderer {
@@ -18,81 +18,45 @@ pub trait Renderer {
 }
 
 pub struct BasicRenderer {
-    window: RenderWindow,
-    min_frame_time: Option<Duration>,
-
-    // Variables
+    render_thread: std::thread::JoinHandle<()>,
+    render_thread_channel: mpsc::Sender<Command>,
+    draw_result: Option<mpsc::Receiver<()>>,
     vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
-    buffer_ready: Arc<Mutex<bool>>,
     screen_size: Vector2<u32>,
-    last_frame: Option<Instant>,
 }
 
 impl BasicRenderer {
-    pub fn new(window: RenderWindow, min_frame_time: Option<Duration>) -> Self {
+    pub fn new(window: MockRenderWindow, min_frame_time: Option<Duration>) -> Self {
+        let (tx, rx) = mpsc::channel();
+        let vertex_buffer = Arc::new(Mutex::new(Vec::new()));
+
         let mut obj = Self {
-            window,
-            min_frame_time,
-            vertex_buffer: Arc::new(Mutex::new(Vec::new())),
-            buffer_ready: Arc::new(Mutex::new(false)),
+            render_thread: RenderThread::start(window, min_frame_time, vertex_buffer.clone(), rx),
+            render_thread_channel: tx,
+            draw_result: None,
+            vertex_buffer: vertex_buffer,
             screen_size: Vector2::zeros(),
-            last_frame: None,
         };
         obj.cache_screen_size();
         obj
     }
 
     fn cache_screen_size(&mut self) {
-        let tmp = self.window.size();
-        self.screen_size.x = tmp.x as u32;
-        self.screen_size.y = tmp.y as u32;
+        let tmp = commands::GetScreenSize
+            .send(&self.render_thread_channel)
+            .recv()
+            .unwrap();
+        self.screen_size.x = tmp.x;
+        self.screen_size.y = tmp.y;
     }
 
-    fn draw(&mut self) {
-        // Clear screen
-        self.window.clear(Color::BLACK);
-
-        // Wait for buffer ready
-        loop {
-            let mut buffer_ready = self.buffer_ready.lock().unwrap();
-            if *buffer_ready {
-                *buffer_ready = false;
-                drop(buffer_ready);
-                break;
-            }
-        }
-
-        // Lock buffer
-        let vertices = self.vertex_buffer.lock().unwrap();
-
-        // Draw buffer
-        self.window.draw_primitives(
-            vertices.deref(),
-            PrimitiveType::POINTS,
-            &RenderStates::default(),
-        );
-
-        // Release buffer
-        drop(vertices);
-
-        // Handle frame rate limiting
-        if self.min_frame_time.is_some() && self.last_frame.is_some() {
-            let min_frame_time = self.min_frame_time.unwrap();
-            let frame_time = self.last_frame.unwrap().elapsed();
-
-            if frame_time < min_frame_time {
-                let sleep_time = min_frame_time - frame_time;
-                debug!(
-                    "Frame time too short, sleeping for {:.2} ms",
-                    sleep_time.as_secs_f64() * 1000.
-                );
-                std::thread::sleep(sleep_time);
-            }
-        }
-
-        // Display
-        self.last_frame = Some(Instant::now());
-        self.window.display();
+    // TODO add to interface?
+    pub fn stop(self) {
+        commands::Stop
+            .send(&self.render_thread_channel)
+            .recv()
+            .unwrap();
+        self.render_thread.join().unwrap();
     }
 }
 
@@ -136,25 +100,19 @@ impl Renderer for BasicRenderer {
         // Unlock buffer
         drop(buffer);
 
-        // Wait for not buffer ready
-        loop {
-            let mut buffer_ready = self.buffer_ready.lock().unwrap();
-            if !*buffer_ready {
-                *buffer_ready = true;
-                drop(buffer_ready);
-                break;
-            }
+        // Wait end of previous draw
+        if let Some(draw_result) = self.draw_result.take() {
+            draw_result.recv().unwrap();
         }
 
-        // Draw
-        self.draw();
+        // Send next draw command to render thread
+        self.draw_result = Some(commands::Draw.send(&self.render_thread_channel));
     }
 
     fn events(&mut self) -> Vec<Event> {
-        let mut events = Vec::new();
-        while let Some(event) = self.window.poll_event() {
-            events.push(event);
-        }
-        events
+        commands::GetEvents
+            .send(&self.render_thread_channel)
+            .recv()
+            .unwrap()
     }
 }

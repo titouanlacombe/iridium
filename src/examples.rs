@@ -1,6 +1,5 @@
 use nalgebra::Vector2;
 use sfml::{
-    graphics::RenderWindow,
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
@@ -18,18 +17,19 @@ use crate::{
     iridium::{max_fps, IridiumMain},
     particles::{GeneratorFactory, ParticleFactory, Particles},
     random::RngGenerator,
+    render_thread::MockRenderWindow,
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
 };
 
-pub fn get_window(width: u32, height: u32) -> RenderWindow {
-    let window = RenderWindow::new(
+pub fn get_window(width: u32, height: u32) -> MockRenderWindow {
+    let window = MockRenderWindow::new(
         (width, height),
-        "Iridium",
+        "Iridium".to_string(),
         sfml::window::Style::CLOSE,
-        &Default::default(),
+        sfml::window::ContextSettings::default(),
     );
 
     window

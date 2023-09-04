@@ -8,6 +8,7 @@ pub mod iridium;
 pub mod particles;
 pub mod quadtree;
 pub mod random;
+pub mod render_thread;
 pub mod renderer;
 pub mod simulation;
 pub mod systems;
