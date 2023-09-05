@@ -25,10 +25,10 @@ use crate::{
     types::Scalar,
 };
 
-pub fn get_window(width: u32, height: u32) -> MockRenderWindow {
+pub fn get_window(width: u32, height: u32, name: &str) -> MockRenderWindow {
     let window = MockRenderWindow::new(
         (width, height),
-        "Iridium".to_string(),
+        format!("Iridium - {}", name),
         sfml::window::Style::CLOSE,
         sfml::window::ContextSettings::default(),
     );
@@ -98,7 +98,10 @@ pub fn benchmark1() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+    let renderer = Box::new(BasicRenderer::new(
+        get_window(width, height, "Benchmark 1"),
+        None,
+    ));
 
     let main = IridiumMain::new(
         sim,
@@ -176,7 +179,10 @@ pub fn benchmark2() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+    let renderer = Box::new(BasicRenderer::new(
+        get_window(width, height, "Benchmark 2"),
+        None,
+    ));
 
     let main = IridiumMain::new(
         sim,
@@ -251,7 +257,10 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         _ => default_event_handler(m_renderer, m_sim, running, &event),
     };
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height), max_fps(144)));
+    let renderer = Box::new(BasicRenderer::new(
+        get_window(width, height, "Fireworks"),
+        max_fps(144),
+    ));
 
     let main = IridiumMain::new(
         sim,
@@ -345,7 +354,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+    let renderer = Box::new(BasicRenderer::new(get_window(width, height, "Flow"), None));
 
     let main = IridiumMain::new(
         sim,
@@ -401,7 +410,10 @@ pub fn benchmark3() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height), None));
+    let renderer = Box::new(BasicRenderer::new(
+        get_window(width, height, "Benchmark 3"),
+        None,
+    ));
 
     let main = IridiumMain::new(
         sim,
