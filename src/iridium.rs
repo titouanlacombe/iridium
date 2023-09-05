@@ -13,16 +13,19 @@ use crate::{
 type EventHandler = Box<dyn FnMut(&mut Box<dyn Renderer>, &mut Simulation, &mut bool, &Event)>;
 
 pub struct IridiumMain {
-    pub sim: Simulation,
-    pub renderer: Box<dyn Renderer>,
-    pub sim_runner: Box<dyn SimulationRunner>,
-    pub event_handler: EventHandler,
+    sim: Simulation,
+    renderer: Box<dyn Renderer>,
+    sim_runner: Box<dyn SimulationRunner>,
+    event_handler: EventHandler,
 
-    pub steps_per_frame: usize,
-    pub running: bool,
+    steps_per_frame: usize,
+    running: bool,
 
-    pub log_interval: Duration,
-    pub log_separator: String,
+    log_interval: Duration,
+    log_separator: String,
+
+    process: Process,
+    num_cpus: u64,
 }
 
 impl IridiumMain {
@@ -43,6 +46,8 @@ impl IridiumMain {
             running: true,
             log_interval,
             log_separator: "-".repeat(80),
+            process: Process::new(std::process::id()).unwrap(),
+            num_cpus: psutil::cpu::cpu_count(),
         }
     }
 
@@ -94,7 +99,7 @@ impl IridiumMain {
     }
 
     fn report(
-        &self,
+        &mut self,
         frame_count: usize,
         log_elapsed: Duration,
         sim_elapsed: Duration,
@@ -138,12 +143,12 @@ impl IridiumMain {
         );
 
         // Process info
-        let mut process = Process::new(std::process::id()).unwrap();
-        let cpu_percent = process.cpu_percent().unwrap();
-        let memory = process.memory_info().unwrap();
+        let cpu_percent = self.process.cpu_percent().unwrap();
+        let memory = self.process.memory_info().unwrap();
         info!(
-            "CPU: {:.1}%\tMEM: {:.1} MB",
-            cpu_percent,
+            "CPU: {:.1}% ({} CPUs), Memory: {:.1} MB",
+            cpu_percent / self.num_cpus as f32,
+            self.num_cpus,
             memory.rss() as f64 / 1e6
         );
     }
