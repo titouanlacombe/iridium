@@ -1,4 +1,5 @@
 use nalgebra::Vector2;
+use rayon::prelude::*;
 use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
@@ -327,10 +328,13 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     events.add(Event::new(
         5000.,
         Box::new(|particles, systems| {
-            // TODO parallelize
-            for vel in particles.velocities.iter_mut() {
-                *vel *= 0.5;
-            }
+            // Slow down particles
+            particles
+                .velocities
+                .par_iter_mut()
+                .for_each(|vel| *vel *= 0.5);
+
+            // Remove emitter
             systems.remove(0);
         }),
     ));
