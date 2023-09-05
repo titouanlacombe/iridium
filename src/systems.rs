@@ -29,6 +29,7 @@ fn smooth_rate(rate: Scalar, dt: Time) -> usize {
     let mut quotient = n as usize;
 
     // Remainder
+    // TODO make deterministic (keep track of remainder)
     if rand::random::<Scalar>() < n - quotient as Scalar {
         quotient += 1;
     }

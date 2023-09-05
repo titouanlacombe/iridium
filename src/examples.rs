@@ -158,9 +158,18 @@ pub fn benchmark2() -> IridiumMain {
 
     let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
+    let consumer = Box::new(ConstantConsumer::new(
+        Box::new(Disk {
+            // Outside of the simulation
+            position: Vector2::new(width as Scalar * 2., height as Scalar * 2.),
+            radius: width as Scalar / 10.,
+        }),
+        100.,
+    ));
+
     let sim = Simulation::new(
         particles,
-        vec![limit_cond, physics, velocity_integrator],
+        vec![limit_cond, consumer, physics, velocity_integrator],
         None,
     );
 

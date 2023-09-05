@@ -1,4 +1,6 @@
 multithreading {
+	ask gpt if there is a way to create an iterator from particles to iterate on wanted buffers
+	
 	async draw call (channels)
 
 	Create separate event handler struct (share Arc of sfml window?)
