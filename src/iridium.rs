@@ -154,7 +154,7 @@ impl IridiumMain {
     }
 }
 
-// TODO move to facade
+// TODO in the future move to builder pattern (set_max_fps -> optional<u64>, set_min_duration -> optional<Duration>)
 pub fn max_fps(fps: u64) -> Option<Duration> {
     Some(Duration::from_micros(1_000_000 / fps))
 }

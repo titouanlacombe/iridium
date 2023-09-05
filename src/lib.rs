@@ -1,4 +1,5 @@
 pub mod areas;
+pub mod coordinates;
 pub mod events;
 pub mod examples;
 pub mod forces;
