@@ -17,6 +17,7 @@ sfml = "*"
 [profile.dev]
 opt-level = 1
 
-[profile.bench]
-opt-level = 0
+# Profile for profiling (max optimization, all debug symbols)
+[profile.release]
+opt-level = 3
 debug = true
