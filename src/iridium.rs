@@ -124,7 +124,7 @@ impl IridiumMain {
         let render_elapsed_sec = render_elapsed.as_secs_f64();
         let events_elapsed_sec = events_elapsed.as_secs_f64();
         info!(
-            "{:.2} ms/frame ({:.2} ms/sim step ({} it), {:.2} ms/render, {:.2} ms/window events)",
+            "{:.2} ms/frame ({:.2} ms/sim step (x{} it), {:.2} ms/render, {:.2} ms/window events)",
             log_elapsed_sec * 1000. / frame_count as f64,
             sim_elapsed_sec * 1000. / sim_steps as f64,
             self.steps_per_frame,

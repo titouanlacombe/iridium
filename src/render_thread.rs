@@ -174,14 +174,17 @@ impl RenderThread {
         rx: mpsc::Receiver<Command>,
     ) -> std::thread::JoinHandle<()> {
         std::thread::spawn(move || {
-            let window = RenderWindow::new(
-                mock_window.size,
-                mock_window.title.as_str(),
-                mock_window.style,
-                &mock_window.settings,
-            );
-            let mut render_thread = RenderThread::new(window, vertex_buffer, min_frame_time);
-            render_thread.main_loop(rx);
+            RenderThread::new(
+                RenderWindow::new(
+                    mock_window.size,
+                    mock_window.title.as_str(),
+                    mock_window.style,
+                    &mock_window.settings,
+                ),
+                vertex_buffer,
+                min_frame_time,
+            )
+            .main_loop(rx);
         })
     }
 }

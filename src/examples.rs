@@ -259,7 +259,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let renderer = Box::new(BasicRenderer::new(
         get_window(width, height, "Fireworks"),
-        max_fps(144),
+        max_fps(60),
     ));
 
     let main = IridiumMain::new(
