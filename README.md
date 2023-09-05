@@ -26,13 +26,12 @@ sudo apt install -y perf
 
 Run:
 ```sh
-cargo build --profile bench
-perf record --call-graph dwarf ./target/release/iridium
-perf script -F +pid > iridium.perf 
+cargo build --release
+perf record -g ./target/release/iridium
+perf script > profile.linux-perf.txt
 ```
 
-See result with firefox profiler:
-https://profiler.firefox.com/
+See result with [Speedscope](https://www.speedscope.app/).
 
 ## Features
 
