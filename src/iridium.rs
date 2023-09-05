@@ -1,21 +1,26 @@
-use std::time::{Duration, Instant};
+use std::{
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 use log::info;
 use psutil::process::Process;
 use sfml::window::Event;
 
 use crate::{
-    renderer::Renderer,
+    renderer::{Renderer, UserEventHandler},
     simulation::{Simulation, SimulationRunner},
     timer::Timer,
 };
 
-type EventHandler = Box<dyn FnMut(&mut Box<dyn Renderer>, &mut Simulation, &mut bool, &Event)>;
+type EventHandler =
+    Box<dyn FnMut(&mut Arc<Mutex<dyn Renderer>>, &mut Simulation, &mut bool, &Event)>;
 
 pub struct IridiumMain {
     sim: Simulation,
-    renderer: Box<dyn Renderer>,
+    renderer: Arc<Mutex<dyn Renderer>>,
     sim_runner: Box<dyn SimulationRunner>,
+    user_event_handler: Arc<Mutex<dyn UserEventHandler>>,
     event_handler: EventHandler,
 
     steps_per_frame: usize,
@@ -31,8 +36,9 @@ pub struct IridiumMain {
 impl IridiumMain {
     pub fn new(
         sim: Simulation,
-        renderer: Box<dyn Renderer>,
+        renderer: Arc<Mutex<dyn Renderer>>,
         sim_runner: Box<dyn SimulationRunner>,
+        user_event_handler: Arc<Mutex<dyn UserEventHandler>>,
         event_handler: EventHandler,
         steps_per_frame: usize,
         log_interval: Duration,
@@ -41,6 +47,7 @@ impl IridiumMain {
             sim,
             renderer,
             sim_runner,
+            user_event_handler,
             event_handler,
             steps_per_frame,
             running: true,
@@ -69,13 +76,14 @@ impl IridiumMain {
             }
             sim_elapsed += timer.lap();
 
-            let events = self.renderer.events();
+            // TODO merge user_event_handler and event_handler
+            let events = self.user_event_handler.lock().unwrap().get_events();
             for event in events {
                 (self.event_handler)(&mut self.renderer, &mut self.sim, &mut self.running, &event);
             }
             events_elapsed += timer.lap();
 
-            self.renderer.render(&self.sim.particles);
+            self.renderer.lock().unwrap().render(&self.sim.particles);
             render_elapsed += timer.lap();
 
             let log_elapsed = last_log.elapsed();

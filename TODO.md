@@ -1,4 +1,7 @@
 multithreading {
+	user event vs sim event
+	RwLock (optimize read access)
+	
 	Create separate event handler struct (share Arc of sfml window?)
 	get rid of sim2screen and screen2sim (events should be converted to sim coordinates by the renderer, coordinate system module)
 	https://stackoverflow.com/questions/18860243/sdl-pollevent-vs-sdl-waitevent/18862404#18862404

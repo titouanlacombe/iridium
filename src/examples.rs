@@ -4,7 +4,11 @@ use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
-use std::{f64::consts::PI, time::Duration};
+use std::{
+    f64::consts::PI,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use crate::{
     areas::{Disk, Point, Rect},
@@ -37,7 +41,7 @@ pub fn get_window(width: u32, height: u32, name: &str) -> MockRenderWindow {
 }
 
 fn default_event_handler(
-    _renderer: &mut Box<dyn Renderer>,
+    _renderer: &mut Arc<Mutex<dyn Renderer>>,
     _sim: &mut Simulation,
     running: &mut bool,
     &event: &SfmlEvent,
@@ -98,15 +102,16 @@ pub fn benchmark1() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(
+    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
         get_window(width, height, "Benchmark 1"),
         None,
-    ));
+    )));
 
     let main = IridiumMain::new(
         sim,
-        renderer,
+        renderer.clone(),
         sim_runner,
+        renderer,
         Box::new(default_event_handler),
         4,
         Duration::from_secs(1),
@@ -179,15 +184,16 @@ pub fn benchmark2() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(
+    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
         get_window(width, height, "Benchmark 2"),
         None,
-    ));
+    )));
 
     let main = IridiumMain::new(
         sim,
-        renderer,
+        renderer.clone(),
         sim_runner,
+        renderer,
         Box::new(default_event_handler),
         4,
         Duration::from_secs(1),
@@ -225,48 +231,54 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let event_handler = move |m_renderer: &mut Box<dyn Renderer>,
-                              m_sim: &mut Simulation,
-                              running: &mut bool,
-                              &event: &SfmlEvent| match event {
-        SfmlEvent::MouseButtonPressed {
-            button: sfml::window::mouse::Button::Left,
-            x,
-            y,
-            ..
-        } => {
-            let mut pfactory = GeneratorFactory::new(
-                Box::new(PointGenerator::new(Point {
-                    position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
-                })),
-                Box::new(Vector2PolarGenerator::new(
-                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
-                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 2. * PI)),
-                )),
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(HSVAGenerator::new(
-                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 360.)),
+    let event_handler = Box::new(
+        move |m_renderer: &mut Arc<Mutex<dyn Renderer>>,
+              m_sim: &mut Simulation,
+              running: &mut bool,
+              &event: &SfmlEvent| match event {
+            SfmlEvent::MouseButtonPressed {
+                button: sfml::window::mouse::Button::Left,
+                x,
+                y,
+                ..
+            } => {
+                let mut pfactory = GeneratorFactory::new(
+                    Box::new(PointGenerator::new(Point {
+                        position: m_renderer
+                            .lock()
+                            .unwrap()
+                            .screen2sim(Vector2f::new(x as f32, y as f32)),
+                    })),
+                    Box::new(Vector2PolarGenerator::new(
+                        Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
+                        Box::new(UniformGenerator::new(rng_gen.next(), 0., 2. * PI)),
+                    )),
                     Box::new(ConstantGenerator::new(1.)),
-                    Box::new(ConstantGenerator::new(1.)),
-                    Box::new(ConstantGenerator::new(1.)),
-                )),
-            );
+                    Box::new(HSVAGenerator::new(
+                        Box::new(UniformGenerator::new(rng_gen.next(), 0., 360.)),
+                        Box::new(ConstantGenerator::new(1.)),
+                        Box::new(ConstantGenerator::new(1.)),
+                        Box::new(ConstantGenerator::new(1.)),
+                    )),
+                );
 
-            pfactory.create(1_000, &mut m_sim.particles);
-        }
-        _ => default_event_handler(m_renderer, m_sim, running, &event),
-    };
+                pfactory.create(1_000, &mut m_sim.particles);
+            }
+            _ => default_event_handler(m_renderer, m_sim, running, &event),
+        },
+    );
 
-    let renderer = Box::new(BasicRenderer::new(
+    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
         get_window(width, height, "Fireworks"),
         max_fps(60),
-    ));
+    )));
 
     let main = IridiumMain::new(
         sim,
-        renderer,
+        renderer.clone(),
         sim_runner,
-        Box::new(event_handler),
+        renderer,
+        event_handler,
         4,
         Duration::from_secs(1),
     );
@@ -354,12 +366,16 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(get_window(width, height, "Flow"), None));
+    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
+        get_window(width, height, "Flow"),
+        None,
+    )));
 
     let main = IridiumMain::new(
         sim,
-        renderer,
+        renderer.clone(),
         sim_runner,
+        renderer,
         Box::new(default_event_handler),
         4,
         Duration::from_secs(1),
@@ -410,15 +426,16 @@ pub fn benchmark3() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Box::new(BasicRenderer::new(
+    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
         get_window(width, height, "Benchmark 3"),
         None,
-    ));
+    )));
 
     let main = IridiumMain::new(
         sim,
-        renderer,
+        renderer.clone(),
         sim_runner,
+        renderer,
         Box::new(default_event_handler),
         4,
         Duration::from_secs(1),
