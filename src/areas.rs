@@ -1,18 +1,39 @@
 use nalgebra::Vector2;
+use rayon::prelude::*;
 
 use crate::types::{Length, Position};
 
-pub trait Area {
+pub trait Area: Sync {
     fn contain(&self, position: Position) -> bool;
 
     // WARNING: indices should always be in ascending order
     fn contains(&self, positions: &Vec<Position>, indices: &mut Vec<usize>) {
-        // TODO parallelize
-        for (i, position) in positions.iter().enumerate() {
-            if self.contain(*position) {
-                indices.push(i);
-            }
-        }
+        let mut result_indices: Vec<usize> = positions
+            .par_iter()
+            .enumerate()
+            .filter_map(|(i, position)| {
+                if self.contain(*position) {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .fold(
+                || Vec::new(),
+                |mut acc, i| {
+                    acc.push(i);
+                    acc
+                },
+            )
+            .reduce(
+                || Vec::new(),
+                |mut acc, mut other| {
+                    acc.append(&mut other);
+                    acc
+                },
+            );
+
+        indices.append(&mut result_indices);
     }
 }
 
