@@ -64,14 +64,14 @@ impl IridiumMain {
             }
             sim_elapsed += timer.lap();
 
-            self.renderer.render(&self.sim.particles);
-            render_elapsed += timer.lap();
-
             let events = self.renderer.events();
             for event in events {
                 (self.event_handler)(&mut self.renderer, &mut self.sim, &mut self.running, &event);
             }
             events_elapsed += timer.lap();
+
+            self.renderer.render(&self.sim.particles);
+            render_elapsed += timer.lap();
 
             let log_elapsed = last_log.elapsed();
             if log_elapsed >= self.log_interval {
