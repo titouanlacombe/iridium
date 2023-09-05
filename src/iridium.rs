@@ -1,27 +1,19 @@
-use std::{
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
-
 use log::info;
 use psutil::process::Process;
-use sfml::window::Event;
+use std::time::{Duration, Instant};
 
 use crate::{
-    renderer::{Renderer, UserEventHandler},
+    renderer::Renderer,
     simulation::{Simulation, SimulationRunner},
     timer::Timer,
+    user_events::UserEventHandler,
 };
-
-type EventHandler =
-    Box<dyn FnMut(&mut Arc<Mutex<dyn Renderer>>, &mut Simulation, &mut bool, &Event)>;
 
 pub struct IridiumMain {
     sim: Simulation,
-    renderer: Arc<Mutex<dyn Renderer>>,
+    renderer: Box<dyn Renderer>,
     sim_runner: Box<dyn SimulationRunner>,
-    user_event_handler: Arc<Mutex<dyn UserEventHandler>>,
-    event_handler: EventHandler,
+    user_event_handler: Box<dyn UserEventHandler>,
 
     steps_per_frame: usize,
     running: bool,
@@ -36,10 +28,9 @@ pub struct IridiumMain {
 impl IridiumMain {
     pub fn new(
         sim: Simulation,
-        renderer: Arc<Mutex<dyn Renderer>>,
+        renderer: Box<dyn Renderer>,
         sim_runner: Box<dyn SimulationRunner>,
-        user_event_handler: Arc<Mutex<dyn UserEventHandler>>,
-        event_handler: EventHandler,
+        user_event_handler: Box<dyn UserEventHandler>,
         steps_per_frame: usize,
         log_interval: Duration,
     ) -> Self {
@@ -48,7 +39,6 @@ impl IridiumMain {
             renderer,
             sim_runner,
             user_event_handler,
-            event_handler,
             steps_per_frame,
             running: true,
             log_interval,
@@ -76,14 +66,14 @@ impl IridiumMain {
             }
             sim_elapsed += timer.lap();
 
-            // TODO merge user_event_handler and event_handler
-            let events = self.user_event_handler.lock().unwrap().get_events();
-            for event in events {
-                (self.event_handler)(&mut self.renderer, &mut self.sim, &mut self.running, &event);
-            }
+            self.user_event_handler.handle_events(
+                &mut self.renderer,
+                &mut self.sim,
+                &mut self.running,
+            );
             events_elapsed += timer.lap();
 
-            self.renderer.lock().unwrap().render(&self.sim.particles);
+            self.renderer.render(&self.sim.particles);
             render_elapsed += timer.lap();
 
             let log_elapsed = last_log.elapsed();

@@ -23,25 +23,42 @@ use crate::{
     particles::{GeneratorFactory, ParticleFactory, Particles},
     random::RngGenerator,
     render_thread::MockRenderWindow,
-    renderer::{BasicRenderer, Renderer},
+    renderer::{BasicRenderer, RenderThreadHandle, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
+    user_events::{BasicUserEventHandler, EventCallback, UserEventHandler},
 };
 
-pub fn get_window(width: u32, height: u32, name: &str) -> MockRenderWindow {
-    let window = MockRenderWindow::new(
-        (width, height),
-        format!("Iridium - {}", name),
-        sfml::window::Style::CLOSE,
-        sfml::window::ContextSettings::default(),
-    );
+// Basically a facade before i implement the real one
+pub fn sfml_init(
+    width: u32,
+    height: u32,
+    name: &str,
+    min_frame_time: Option<Duration>,
+    event_callback: EventCallback,
+) -> (Box<dyn Renderer>, Box<dyn UserEventHandler>) {
+    let vertex_buffer = Arc::new(Mutex::new(Vec::new()));
 
-    window
+    let render_thread = Arc::new(Mutex::new(RenderThreadHandle::new(
+        MockRenderWindow::new(
+            (width, height),
+            format!("Iridium - {}", name),
+            sfml::window::Style::CLOSE,
+            sfml::window::ContextSettings::default(),
+        ),
+        min_frame_time,
+        vertex_buffer.clone(),
+    )));
+
+    (
+        Box::new(BasicRenderer::new(render_thread.clone(), vertex_buffer)),
+        Box::new(BasicUserEventHandler::new(render_thread, event_callback)),
+    )
 }
 
 fn default_event_handler(
-    _renderer: &mut Arc<Mutex<dyn Renderer>>,
+    _renderer: &mut Box<dyn Renderer>,
     _sim: &mut Simulation,
     running: &mut bool,
     &event: &SfmlEvent,
@@ -102,17 +119,19 @@ pub fn benchmark1() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
-        get_window(width, height, "Benchmark 1"),
+    let (renderer, user_event_handler) = sfml_init(
+        width,
+        height,
+        "Benchmark 1",
         None,
-    )));
+        Box::new(default_event_handler),
+    );
 
     let main = IridiumMain::new(
         sim,
-        renderer.clone(),
-        sim_runner,
         renderer,
-        Box::new(default_event_handler),
+        sim_runner,
+        user_event_handler,
         4,
         Duration::from_secs(1),
     );
@@ -184,17 +203,19 @@ pub fn benchmark2() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
-        get_window(width, height, "Benchmark 2"),
+    let (renderer, user_event_handler) = sfml_init(
+        width,
+        height,
+        "Benchmark 2",
         None,
-    )));
+        Box::new(default_event_handler),
+    );
 
     let main = IridiumMain::new(
         sim,
-        renderer.clone(),
-        sim_runner,
         renderer,
-        Box::new(default_event_handler),
+        sim_runner,
+        user_event_handler,
         4,
         Duration::from_secs(1),
     );
@@ -232,7 +253,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
     let event_handler = Box::new(
-        move |m_renderer: &mut Arc<Mutex<dyn Renderer>>,
+        move |m_renderer: &mut Box<dyn Renderer>,
               m_sim: &mut Simulation,
               running: &mut bool,
               &event: &SfmlEvent| match event {
@@ -244,10 +265,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
             } => {
                 let mut pfactory = GeneratorFactory::new(
                     Box::new(PointGenerator::new(Point {
-                        position: m_renderer
-                            .lock()
-                            .unwrap()
-                            .screen2sim(Vector2f::new(x as f32, y as f32)),
+                        position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
                     })),
                     Box::new(Vector2PolarGenerator::new(
                         Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
@@ -268,17 +286,14 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         },
     );
 
-    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
-        get_window(width, height, "Fireworks"),
-        max_fps(60),
-    )));
+    let (renderer, user_event_handler) =
+        sfml_init(width, height, "Fireworks", max_fps(60), event_handler);
 
     let main = IridiumMain::new(
         sim,
-        renderer.clone(),
-        sim_runner,
         renderer,
-        event_handler,
+        sim_runner,
+        user_event_handler,
         4,
         Duration::from_secs(1),
     );
@@ -366,17 +381,19 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
-        get_window(width, height, "Flow"),
-        None,
-    )));
+    let (renderer, user_event_handler) = sfml_init(
+        width,
+        height,
+        "Flow",
+        max_fps(60),
+        Box::new(default_event_handler),
+    );
 
     let main = IridiumMain::new(
         sim,
-        renderer.clone(),
-        sim_runner,
         renderer,
-        Box::new(default_event_handler),
+        sim_runner,
+        user_event_handler,
         4,
         Duration::from_secs(1),
     );
@@ -426,17 +443,19 @@ pub fn benchmark3() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let renderer = Arc::new(Mutex::new(BasicRenderer::new(
-        get_window(width, height, "Benchmark 3"),
+    let (renderer, user_event_handler) = sfml_init(
+        width,
+        height,
+        "Benchmark 3",
         None,
-    )));
+        Box::new(default_event_handler),
+    );
 
     let main = IridiumMain::new(
         sim,
-        renderer.clone(),
-        sim_runner,
         renderer,
-        Box::new(default_event_handler),
+        sim_runner,
+        user_event_handler,
         4,
         Duration::from_secs(1),
     );

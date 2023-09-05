@@ -11,42 +11,36 @@ use sfml::{
     window::Event as SFMLEvent,
 };
 
-pub mod commands {
-    use super::*;
-
-    macro_rules! DefineCommands {
-		($($name:ident($res:ty)),+ $(,)?) => {
-			// Define the Command enum
-			pub enum Command {
-				$(
-					$name(mpsc::Sender<$res>),
-				)+
-			}
-
-			// Define individual command structs
+macro_rules! DefineCommands {
+	($($name:ident($res:ty)),+ $(,)?) => {
+		// Define the Command enum
+		pub enum CommandEnum {
 			$(
-				pub struct $name;
-
-				impl $name {
-					pub fn send(self, sender: &mpsc::Sender<Command>) -> mpsc::Receiver<$res> {
-						let (tx, rx) = mpsc::channel();
-						sender.send(Command::$name(tx)).unwrap();
-						rx
-					}
-				}
+				$name(mpsc::Sender<$res>),
 			)+
-		};
-	}
+		}
 
-    DefineCommands! {
-        Draw(()),
-        GetScreenSize(Vector2<u32>),
-        GetEvents(Vec<SFMLEvent>),
-        Stop(()),
-    }
+		// Define individual command structs
+		$(
+			pub struct $name;
+
+			impl $name {
+				pub fn send(self, sender: &mpsc::Sender<CommandEnum>) -> mpsc::Receiver<$res> {
+					let (tx, rx) = mpsc::channel();
+					sender.send(CommandEnum::$name(tx)).unwrap();
+					rx
+				}
+			}
+		)+
+	};
 }
 
-use commands::Command;
+DefineCommands! {
+    Draw(()),
+    GetScreenSize(Vector2<u32>),
+    GetEvents(Vec<SFMLEvent>),
+    Stop(()),
+}
 
 pub struct MockRenderWindow {
     pub size: (u32, u32),
@@ -144,22 +138,22 @@ impl RenderThread {
         events
     }
 
-    pub fn main_loop(&mut self, rx: mpsc::Receiver<Command>) {
+    pub fn main_loop(&mut self, rx: mpsc::Receiver<CommandEnum>) {
         loop {
             // Receive and handle command
             let command = rx.recv().unwrap();
             match command {
-                Command::Draw(tx) => {
+                CommandEnum::Draw(tx) => {
                     self.draw();
                     tx.send(()).unwrap();
                 }
-                Command::GetScreenSize(tx) => {
+                CommandEnum::GetScreenSize(tx) => {
                     tx.send(self.get_screen_size()).unwrap();
                 }
-                Command::GetEvents(tx) => {
+                CommandEnum::GetEvents(tx) => {
                     tx.send(self.events()).unwrap();
                 }
-                Command::Stop(tx) => {
+                CommandEnum::Stop(tx) => {
                     tx.send(()).unwrap();
                     break;
                 }
@@ -171,7 +165,7 @@ impl RenderThread {
         mock_window: MockRenderWindow,
         min_frame_time: Option<Duration>,
         vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
-        rx: mpsc::Receiver<Command>,
+        rx: mpsc::Receiver<CommandEnum>,
     ) -> std::thread::JoinHandle<()> {
         std::thread::spawn(move || {
             RenderThread::new(

@@ -3,14 +3,14 @@ use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
 use sfml::system::Vector2f;
-use sfml::window::Event;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
 use crate::coordinates::{CoordinateSystem, FlippedCoordinateSystem};
 use crate::particles::Particles;
-use crate::render_thread::commands::{self, Command};
-use crate::render_thread::{MockRenderWindow, RenderThread};
+use crate::render_thread::{
+    CommandEnum, Draw, GetScreenSize, MockRenderWindow, RenderThread, Stop,
+};
 use crate::types::Position;
 
 pub trait Renderer {
@@ -19,35 +19,63 @@ pub trait Renderer {
     fn render(&mut self, particles: &Particles);
 }
 
-pub trait UserEventHandler {
-    fn get_events(&self) -> Vec<Event>;
+pub struct RenderThreadHandle {
+    pub channel: mpsc::Sender<CommandEnum>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl RenderThreadHandle {
+    pub fn new(
+        window: MockRenderWindow,
+        min_frame_time: Option<Duration>,
+        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+    ) -> Self {
+        let (tx, rx) = mpsc::channel();
+        Self {
+            channel: tx,
+            handle: Some(RenderThread::start(
+                window,
+                min_frame_time,
+                vertex_buffer,
+                rx,
+            )),
+        }
+    }
+
+    // TODO fix this
+    // pub fn command<T: CommandEnum>(&self, command: T) -> mpsc::Receiver<T::Response> {
+    //     let (tx, rx) = mpsc::channel();
+    //     self.channel.send(command).unwrap();
+    //     rx
+    // }
+}
+
+impl Drop for RenderThreadHandle {
+    fn drop(&mut self) {
+        Stop.send(&self.channel).recv().unwrap();
+        self.handle.take().unwrap().join().unwrap();
+    }
 }
 
 pub struct BasicRenderer {
-    render_thread: Option<std::thread::JoinHandle<()>>,
-    render_thread_channel: mpsc::Sender<Command>,
-    draw_result: Option<mpsc::Receiver<()>>,
+    render_thread: Arc<Mutex<RenderThreadHandle>>,
     vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
     coord_system: Arc<Mutex<FlippedCoordinateSystem>>,
+    draw_result: Option<mpsc::Receiver<()>>,
 }
 
 impl BasicRenderer {
-    pub fn new(window: MockRenderWindow, min_frame_time: Option<Duration>) -> Self {
-        let (tx, rx) = mpsc::channel();
-        let vertex_buffer = Arc::new(Mutex::new(Vec::new()));
+    pub fn new(
+        render_thread: Arc<Mutex<RenderThreadHandle>>,
+        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+    ) -> Self {
         let coord_system = Arc::new(Mutex::new(FlippedCoordinateSystem::new(Vector2::zeros())));
 
         let obj = Self {
-            render_thread: Some(RenderThread::start(
-                window,
-                min_frame_time,
-                vertex_buffer.clone(),
-                rx,
-            )),
-            render_thread_channel: tx,
-            draw_result: None,
-            vertex_buffer: vertex_buffer,
+            render_thread,
+            vertex_buffer,
             coord_system,
+            draw_result: None,
         };
         obj.cache_screen_size();
         obj
@@ -55,21 +83,11 @@ impl BasicRenderer {
 
     fn cache_screen_size(&self) {
         self.coord_system.lock().unwrap().set_screen_size(
-            commands::GetScreenSize
-                .send(&self.render_thread_channel)
+            GetScreenSize
+                .send(&self.render_thread.lock().unwrap().channel)
                 .recv()
                 .unwrap(),
         );
-    }
-}
-
-impl Drop for BasicRenderer {
-    fn drop(&mut self) {
-        commands::Stop
-            .send(&self.render_thread_channel)
-            .recv()
-            .unwrap();
-        self.render_thread.take().unwrap().join().unwrap();
     }
 }
 
@@ -117,15 +135,6 @@ impl Renderer for BasicRenderer {
         }
 
         // Send next draw command to render thread
-        self.draw_result = Some(commands::Draw.send(&self.render_thread_channel));
-    }
-}
-
-impl UserEventHandler for BasicRenderer {
-    fn get_events(&self) -> Vec<Event> {
-        commands::GetEvents
-            .send(&self.render_thread_channel)
-            .recv()
-            .unwrap()
+        self.draw_result = Some(Draw.send(&self.render_thread.lock().unwrap().channel));
     }
 }
