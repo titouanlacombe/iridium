@@ -147,7 +147,8 @@ impl RenderThread {
     pub fn main_loop(&mut self, rx: mpsc::Receiver<Command>) {
         loop {
             // Receive and handle command
-            match rx.recv().unwrap() {
+            let command = rx.recv().unwrap();
+            match command {
                 Command::Draw(tx) => {
                     self.draw();
                     tx.send(()).unwrap();
