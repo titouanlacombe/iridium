@@ -1,4 +1,5 @@
 use nalgebra::Vector2;
+use rayon::prelude::*;
 
 use crate::{
     areas::Area,
@@ -83,28 +84,27 @@ pub struct Wall {
 
 impl System for Wall {
     fn update(&mut self, particles: &mut Particles, _dt: Time) {
-        // TODO: parallelize
-        for (position, velocity) in particles
+        particles
             .positions
-            .iter_mut()
-            .zip(particles.velocities.iter_mut())
-        {
-            if position.x < self.x_min {
-                position.x = self.x_min;
-                velocity.x = -velocity.x * self.restitution;
-            } else if position.x > self.x_max {
-                position.x = self.x_max;
-                velocity.x = -velocity.x * self.restitution;
-            }
+            .par_iter_mut()
+            .zip(particles.velocities.par_iter_mut())
+            .for_each(|(position, velocity)| {
+                if position.x < self.x_min {
+                    position.x = self.x_min;
+                    velocity.x = -velocity.x * self.restitution;
+                } else if position.x > self.x_max {
+                    position.x = self.x_max;
+                    velocity.x = -velocity.x * self.restitution;
+                }
 
-            if position.y < self.y_min {
-                position.y = self.y_min;
-                velocity.y = -velocity.y * self.restitution;
-            } else if position.y > self.y_max {
-                position.y = self.y_max;
-                velocity.y = -velocity.y * self.restitution;
-            }
-        }
+                if position.y < self.y_min {
+                    position.y = self.y_min;
+                    velocity.y = -velocity.y * self.restitution;
+                } else if position.y > self.y_max {
+                    position.y = self.y_max;
+                    velocity.y = -velocity.y * self.restitution;
+                }
+            });
     }
 }
 
@@ -117,8 +117,7 @@ pub struct Loop {
 
 impl System for Loop {
     fn update(&mut self, particles: &mut Particles, _dt: Time) {
-        // TODO: parallelize
-        for position in particles.positions.iter_mut() {
+        particles.positions.par_iter_mut().for_each(|position| {
             if position.x < self.x_min {
                 position.x = self.x_max;
             } else if position.x > self.x_max {
@@ -130,7 +129,7 @@ impl System for Loop {
             } else if position.y > self.y_max {
                 position.y = self.y_min;
             }
-        }
+        });
     }
 }
 
