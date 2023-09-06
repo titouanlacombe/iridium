@@ -1,7 +1,4 @@
 multithreading {
-	Arc to Rc (& remove mutex)
-	left Mutex to RwLock (optimize read access) or alternative to arc for single thread
-	
 	refactor commands
 
 	go through code & note fixes & improvements (performance, readability, etc)
