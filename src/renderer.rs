@@ -2,46 +2,15 @@ use log::debug;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::coordinates::{CoordinateSystem, FlippedCoordinateSystem};
 use crate::particles::Particles;
-use crate::render_thread::{
-    CommandEnum, CommandTrait, Draw, GetScreenSize, MockRenderWindow, RenderThread, Stop,
-};
+use crate::render_thread::{CommandTrait, Draw, GetScreenSize, RenderThreadHandle};
 
 pub trait Renderer {
     fn render(&mut self, particles: &Particles);
-}
-
-pub struct RenderThreadHandle {
-    pub channel: mpsc::Sender<CommandEnum>,
-    handle: Option<std::thread::JoinHandle<()>>,
-}
-
-impl RenderThreadHandle {
-    pub fn new(window: MockRenderWindow, vertex_buffer: Arc<Mutex<Vec<Vertex>>>) -> Self {
-        let (tx, rx) = mpsc::channel();
-        Self {
-            channel: tx,
-            handle: Some(RenderThread::start(window, vertex_buffer, rx)),
-        }
-    }
-
-    // TODO fix this
-    // pub fn command<T: CommandEnum>(&self, command: T) -> mpsc::Receiver<T::Response> {
-    //     let (tx, rx) = mpsc::channel();
-    //     self.channel.send(command).unwrap();
-    //     rx
-    // }
-}
-
-impl Drop for RenderThreadHandle {
-    fn drop(&mut self) {
-        Stop.send(&self.channel).recv().unwrap();
-        self.handle.take().unwrap().join().unwrap();
-    }
 }
 
 pub struct BasicRenderer {
@@ -83,6 +52,7 @@ impl BasicRenderer {
         );
     }
 
+    // Wait for render thread to finish drawing
     fn wait_for_draw(&mut self) {
         if let Some(draw_result) = self.draw_result.take() {
             draw_result.recv().unwrap();
@@ -145,6 +115,7 @@ impl Renderer for BasicRenderer {
 
 impl Drop for BasicRenderer {
     fn drop(&mut self) {
+        // Wait for last draw to finish for graceful shutdown
         self.wait_for_draw();
     }
 }

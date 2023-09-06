@@ -3,6 +3,8 @@ multithreading {
 	
 	https://stackoverflow.com/questions/18860243/sdl-pollevent-vs-sdl-waitevent/18862404#18862404
 
+	refactor commands: self.command<T: Command>(Command::Draw::new()) -> Command::Draw::Result
+
 	fix false random (pattern repeats each click)
 
 	multithread systems (barely worth, don't bother in some cases, test if faster with prints)

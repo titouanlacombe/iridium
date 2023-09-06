@@ -158,3 +158,32 @@ impl RenderThread {
         })
     }
 }
+
+pub struct RenderThreadHandle {
+    pub channel: mpsc::Sender<CommandEnum>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl RenderThreadHandle {
+    pub fn new(window: MockRenderWindow, vertex_buffer: Arc<Mutex<Vec<Vertex>>>) -> Self {
+        let (tx, rx) = mpsc::channel();
+        Self {
+            channel: tx,
+            handle: Some(RenderThread::start(window, vertex_buffer, rx)),
+        }
+    }
+
+    // TODO fix this
+    // pub fn command<T: CommandEnum>(&self, command: T) -> mpsc::Receiver<T::Response> {
+    //     let (tx, rx) = mpsc::channel();
+    //     self.channel.send(command).unwrap();
+    //     rx
+    // }
+}
+
+impl Drop for RenderThreadHandle {
+    fn drop(&mut self) {
+        Stop.send(&self.channel).recv().unwrap();
+        self.handle.take().unwrap().join().unwrap();
+    }
+}
