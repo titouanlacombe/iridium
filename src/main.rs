@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use iridium::examples::{benchmark1, benchmark2};
+use iridium::examples::benchmark2;
 use log::info;
 
 fn main() {
