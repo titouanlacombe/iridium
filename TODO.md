@@ -1,5 +1,4 @@
 multithreading {
-	get rid of sim2screen and screen2sim (events should be converted to sim coordinates by the renderer, coordinate system module)
 	max fps sleep is should be handled when sending the draw command (less accurate but main thread wont block at weird places)
 
 	Mutex to RwLock (optimize read access) or alternative to arc for single thread

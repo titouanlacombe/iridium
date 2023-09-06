@@ -1,9 +1,6 @@
 use nalgebra::Vector2;
 use rayon::prelude::*;
-use sfml::{
-    system::Vector2f,
-    window::{Event as SfmlEvent, Key},
-};
+use sfml::window::{Event as SfmlEvent, Key};
 use std::{
     f64::consts::PI,
     sync::{Arc, Mutex},
@@ -12,6 +9,7 @@ use std::{
 
 use crate::{
     areas::{Disk, Point, Rect},
+    coordinates::FlippedCoordinateSystem,
     events::{DefaultEventsHandler, SimEvent, SortedVec},
     forces::{UniformDrag, UniformGravity},
     generators::{
@@ -27,7 +25,7 @@ use crate::{
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
-    user_events::{BasicUserEventHandler, UserEventCallback, UserEventHandler},
+    user_events::{BasicUserEventHandler, UserEvent, UserEventCallback, UserEventHandler},
 };
 
 // Basically a facade before i implement the real one
@@ -51,9 +49,19 @@ pub fn sfml_init(
         vertex_buffer.clone(),
     )));
 
+    let coord_system = Arc::new(Mutex::new(FlippedCoordinateSystem::new(Vector2::zeros())));
+
     (
-        Box::new(BasicRenderer::new(render_thread.clone(), vertex_buffer)),
-        Box::new(BasicUserEventHandler::new(render_thread, event_callback)),
+        Box::new(BasicRenderer::new(
+            render_thread.clone(),
+            vertex_buffer,
+            coord_system.clone(),
+        )),
+        Box::new(BasicUserEventHandler::new(
+            render_thread,
+            event_callback,
+            coord_system,
+        )),
     )
 }
 
@@ -61,17 +69,20 @@ fn default_event_handler(
     _renderer: &mut Box<dyn Renderer>,
     _sim: &mut Simulation,
     running: &mut bool,
-    &event: &SfmlEvent,
+    event: &UserEvent,
 ) {
     match event {
-        SfmlEvent::Closed => {
-            *running = false;
-        }
-        SfmlEvent::KeyPressed { code, .. } => {
-            if code == Key::Escape {
+        UserEvent::Event(event) => match event {
+            SfmlEvent::Closed => {
                 *running = false;
             }
-        }
+            SfmlEvent::KeyPressed { code, .. } => {
+                if *code == Key::Escape {
+                    *running = false;
+                }
+            }
+            _ => {}
+        },
         _ => {}
     }
 }
@@ -252,20 +263,19 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let event_handler = Box::new(
+    let event_callback = Box::new(
         move |m_renderer: &mut Box<dyn Renderer>,
               m_sim: &mut Simulation,
               running: &mut bool,
-              &event: &SfmlEvent| match event {
-            SfmlEvent::MouseButtonPressed {
+              event: &UserEvent| match event {
+            UserEvent::MouseButtonPressed {
                 button: sfml::window::mouse::Button::Left,
-                x,
-                y,
+                position,
                 ..
             } => {
                 let mut pfactory = GeneratorFactory::new(
                     Box::new(PointGenerator::new(Point {
-                        position: m_renderer.screen2sim(Vector2f::new(x as f32, y as f32)),
+                        position: *position,
                     })),
                     Box::new(Vector2PolarGenerator::new(
                         Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
@@ -287,7 +297,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
     );
 
     let (renderer, user_event_handler) =
-        sfml_init(width, height, "Fireworks", max_fps(60), event_handler);
+        sfml_init(width, height, "Fireworks", max_fps(60), event_callback);
 
     let main = IridiumMain::new(
         sim,

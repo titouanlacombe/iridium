@@ -1,11 +1,11 @@
 use nalgebra::Vector2;
-use sfml::system::Vector2f;
+use sfml::system::{Vector2f, Vector2i};
 
 use crate::types::{Position, Scalar};
 
 pub trait CoordinateSystem {
     fn sim2screen(&self, position: Position) -> Vector2f;
-    fn screen2sim(&self, position: Vector2f) -> Position;
+    fn screen2sim(&self, position: Vector2i) -> Position;
     fn set_screen_size(&mut self, screen_size: Vector2<u32>);
     fn set_sim_size(&mut self, sim_size: Vector2<Scalar>);
 }
@@ -36,7 +36,7 @@ impl CoordinateSystem for FlippedCoordinateSystem {
         )
     }
 
-    fn screen2sim(&self, position: Vector2f) -> Position {
+    fn screen2sim(&self, position: Vector2i) -> Position {
         Vector2::new(
             position.x as Scalar,
             self.screen_size.y as Scalar - position.y as Scalar,

@@ -1,8 +1,6 @@
-use nalgebra::Vector2;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
-use sfml::system::Vector2f;
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
@@ -11,11 +9,8 @@ use crate::particles::Particles;
 use crate::render_thread::{
     CommandEnum, Draw, GetScreenSize, MockRenderWindow, RenderThread, Stop,
 };
-use crate::types::Position;
 
 pub trait Renderer {
-    fn sim2screen(&self, position: Position) -> Vector2f;
-    fn screen2sim(&self, position: Vector2f) -> Position;
     fn render(&mut self, particles: &Particles);
 }
 
@@ -68,9 +63,8 @@ impl BasicRenderer {
     pub fn new(
         render_thread: Arc<Mutex<RenderThreadHandle>>,
         vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+        coord_system: Arc<Mutex<FlippedCoordinateSystem>>,
     ) -> Self {
-        let coord_system = Arc::new(Mutex::new(FlippedCoordinateSystem::new(Vector2::zeros())));
-
         let obj = Self {
             render_thread,
             vertex_buffer,
@@ -89,17 +83,15 @@ impl BasicRenderer {
                 .unwrap(),
         );
     }
+
+    fn wait_for_draw(&mut self) {
+        if let Some(draw_result) = self.draw_result.take() {
+            draw_result.recv().unwrap();
+        }
+    }
 }
 
 impl Renderer for BasicRenderer {
-    fn sim2screen(&self, position: Position) -> Vector2f {
-        self.coord_system.lock().unwrap().sim2screen(position)
-    }
-
-    fn screen2sim(&self, position: Vector2f) -> Position {
-        self.coord_system.lock().unwrap().screen2sim(position)
-    }
-
     fn render(&mut self, particles: &Particles) {
         // Cache current screen size
         self.cache_screen_size();
@@ -129,12 +121,15 @@ impl Renderer for BasicRenderer {
         drop(coord_system);
         drop(buffer);
 
-        // Wait end of previous draw
-        if let Some(draw_result) = self.draw_result.take() {
-            draw_result.recv().unwrap();
-        }
+        self.wait_for_draw();
 
         // Send next draw command to render thread
         self.draw_result = Some(Draw.send(&self.render_thread.lock().unwrap().channel));
+    }
+}
+
+impl Drop for BasicRenderer {
+    fn drop(&mut self) {
+        self.wait_for_draw();
     }
 }
