@@ -1,13 +1,14 @@
+use log::debug;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
 use std::sync::{mpsc, Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::coordinates::{CoordinateSystem, FlippedCoordinateSystem};
 use crate::particles::Particles;
 use crate::render_thread::{
-    CommandEnum, Draw, GetScreenSize, MockRenderWindow, RenderThread, Stop,
+    CommandEnum, CommandTrait, Draw, GetScreenSize, MockRenderWindow, RenderThread, Stop,
 };
 
 pub trait Renderer {
@@ -20,20 +21,11 @@ pub struct RenderThreadHandle {
 }
 
 impl RenderThreadHandle {
-    pub fn new(
-        window: MockRenderWindow,
-        min_frame_time: Option<Duration>,
-        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
-    ) -> Self {
+    pub fn new(window: MockRenderWindow, vertex_buffer: Arc<Mutex<Vec<Vertex>>>) -> Self {
         let (tx, rx) = mpsc::channel();
         Self {
             channel: tx,
-            handle: Some(RenderThread::start(
-                window,
-                min_frame_time,
-                vertex_buffer,
-                rx,
-            )),
+            handle: Some(RenderThread::start(window, vertex_buffer, rx)),
         }
     }
 
@@ -54,21 +46,28 @@ impl Drop for RenderThreadHandle {
 
 pub struct BasicRenderer {
     render_thread: Arc<Mutex<RenderThreadHandle>>,
-    vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
     coord_system: Arc<Mutex<FlippedCoordinateSystem>>,
-    draw_result: Option<mpsc::Receiver<()>>,
+    vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+    min_frame_time: Option<Duration>,
+
+    // Variables
+    last_frame: Option<Instant>,
+    draw_result: Option<<Draw as CommandTrait>::Response>,
 }
 
 impl BasicRenderer {
     pub fn new(
         render_thread: Arc<Mutex<RenderThreadHandle>>,
-        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
         coord_system: Arc<Mutex<FlippedCoordinateSystem>>,
+        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+        min_frame_time: Option<Duration>,
     ) -> Self {
         let obj = Self {
             render_thread,
-            vertex_buffer,
             coord_system,
+            vertex_buffer,
+            min_frame_time,
+            last_frame: None,
             draw_result: None,
         };
         obj.cache_screen_size();
@@ -122,6 +121,22 @@ impl Renderer for BasicRenderer {
         drop(buffer);
 
         self.wait_for_draw();
+
+        // Handle frame rate limiting
+        if self.min_frame_time.is_some() && self.last_frame.is_some() {
+            let min_frame_time = self.min_frame_time.unwrap();
+            let frame_time = self.last_frame.unwrap().elapsed();
+
+            if frame_time < min_frame_time {
+                let sleep_time = min_frame_time - frame_time;
+                debug!(
+                    "Frame time too short, sleeping for {:.2} ms",
+                    sleep_time.as_secs_f64() * 1000.
+                );
+                std::thread::sleep(sleep_time);
+            }
+        }
+        self.last_frame = Some(Instant::now());
 
         // Send next draw command to render thread
         self.draw_result = Some(Draw.send(&self.render_thread.lock().unwrap().channel));

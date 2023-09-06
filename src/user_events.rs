@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     coordinates::CoordinateSystem,
-    render_thread::GetEvents,
+    render_thread::{CommandTrait, GetEvents},
     renderer::{RenderThreadHandle, Renderer},
     simulation::Simulation,
     types::Position,

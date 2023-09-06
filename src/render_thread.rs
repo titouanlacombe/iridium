@@ -1,15 +1,18 @@
 use std::{
     ops::Deref,
     sync::{mpsc, Arc, Mutex},
-    time::{Duration, Instant},
 };
 
-use log::debug;
 use nalgebra::Vector2;
 use sfml::{
     graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex},
     window::Event as SFMLEvent,
 };
+
+pub trait CommandTrait {
+    type Response;
+    fn send(self, sender: &mpsc::Sender<CommandEnum>) -> Self::Response;
+}
 
 macro_rules! DefineCommands {
 	($($name:ident($res:ty)),+ $(,)?) => {
@@ -24,8 +27,9 @@ macro_rules! DefineCommands {
 		$(
 			pub struct $name;
 
-			impl $name {
-				pub fn send(self, sender: &mpsc::Sender<CommandEnum>) -> mpsc::Receiver<$res> {
+			impl CommandTrait for $name {
+				type Response = mpsc::Receiver<$res>;
+				fn send(self, sender: &mpsc::Sender<CommandEnum>) -> mpsc::Receiver<$res> {
 					let (tx, rx) = mpsc::channel();
 					sender.send(CommandEnum::$name(tx)).unwrap();
 					rx
@@ -67,24 +71,14 @@ impl MockRenderWindow {
 
 pub struct RenderThread {
     window: RenderWindow,
-    min_frame_time: Option<Duration>,
-
-    // Variables
     vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
-    last_frame: Option<Instant>,
 }
 
 impl RenderThread {
-    pub fn new(
-        window: RenderWindow,
-        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
-        min_frame_time: Option<Duration>,
-    ) -> Self {
+    pub fn new(window: RenderWindow, vertex_buffer: Arc<Mutex<Vec<Vertex>>>) -> Self {
         Self {
             window,
             vertex_buffer,
-            min_frame_time,
-            last_frame: None,
         }
     }
 
@@ -105,23 +99,7 @@ impl RenderThread {
         // Release buffer
         drop(vertices);
 
-        // Handle frame rate limiting
-        if self.min_frame_time.is_some() && self.last_frame.is_some() {
-            let min_frame_time = self.min_frame_time.unwrap();
-            let frame_time = self.last_frame.unwrap().elapsed();
-
-            if frame_time < min_frame_time {
-                let sleep_time = min_frame_time - frame_time;
-                debug!(
-                    "Frame time too short, sleeping for {:.2} ms",
-                    sleep_time.as_secs_f64() * 1000.
-                );
-                std::thread::sleep(sleep_time);
-            }
-        }
-
         // Display
-        self.last_frame = Some(Instant::now());
         self.window.display();
     }
 
@@ -163,7 +141,6 @@ impl RenderThread {
 
     pub fn start(
         mock_window: MockRenderWindow,
-        min_frame_time: Option<Duration>,
         vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
         rx: mpsc::Receiver<CommandEnum>,
     ) -> std::thread::JoinHandle<()> {
@@ -176,7 +153,6 @@ impl RenderThread {
                     &mock_window.settings,
                 ),
                 vertex_buffer,
-                min_frame_time,
             )
             .main_loop(rx);
         })

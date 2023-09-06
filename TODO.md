@@ -1,6 +1,4 @@
 multithreading {
-	max fps sleep is should be handled when sending the draw command (less accurate but main thread wont block at weird places)
-
 	Mutex to RwLock (optimize read access) or alternative to arc for single thread
 	
 	https://stackoverflow.com/questions/18860243/sdl-pollevent-vs-sdl-waitevent/18862404#18862404

@@ -45,7 +45,6 @@ pub fn sfml_init(
             sfml::window::Style::CLOSE,
             sfml::window::ContextSettings::default(),
         ),
-        min_frame_time,
         vertex_buffer.clone(),
     )));
 
@@ -54,8 +53,9 @@ pub fn sfml_init(
     (
         Box::new(BasicRenderer::new(
             render_thread.clone(),
-            vertex_buffer,
             coord_system.clone(),
+            vertex_buffer,
+            min_frame_time,
         )),
         Box::new(BasicUserEventHandler::new(
             render_thread,
