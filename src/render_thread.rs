@@ -11,7 +11,7 @@ use sfml::{
 
 pub trait CommandTrait {
     type Response;
-    fn send(self, sender: &mpsc::Sender<CommandEnum>) -> Self::Response;
+    fn get_enum(self, tx: mpsc::Sender<Self::Response>) -> CommandEnum;
 }
 
 macro_rules! DefineCommands {
@@ -28,11 +28,9 @@ macro_rules! DefineCommands {
 			pub struct $name;
 
 			impl CommandTrait for $name {
-				type Response = mpsc::Receiver<$res>;
-				fn send(self, sender: &mpsc::Sender<CommandEnum>) -> mpsc::Receiver<$res> {
-					let (tx, rx) = mpsc::channel();
-					sender.send(CommandEnum::$name(tx)).unwrap();
-					rx
+				type Response = $res;
+				fn get_enum(self, tx: mpsc::Sender<Self::Response>) -> CommandEnum {
+					CommandEnum::$name(tx)
 				}
 			}
 		)+
@@ -173,17 +171,21 @@ impl RenderThreadHandle {
         }
     }
 
-    // TODO fix this
-    // pub fn command<T: CommandEnum>(&self, command: T) -> mpsc::Receiver<T::Response> {
-    //     let (tx, rx) = mpsc::channel();
-    //     self.channel.send(command).unwrap();
-    //     rx
-    // }
+    // TODO support command args (send command trait instead of enum)
+    pub fn command<T: CommandTrait>(&self, command: T) -> mpsc::Receiver<T::Response> {
+        // Create response channel
+        let (tx, rx) = mpsc::channel();
+        self.channel.send(command.get_enum(tx)).unwrap();
+        rx
+    }
 }
 
 impl Drop for RenderThreadHandle {
     fn drop(&mut self) {
-        Stop.send(&self.channel).recv().unwrap();
+        // Send stop command
+        self.command(Stop).recv().unwrap();
+
+        // Wait for thread to finish
         self.handle.take().unwrap().join().unwrap();
     }
 }

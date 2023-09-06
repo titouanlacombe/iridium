@@ -2,7 +2,7 @@ use log::debug;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::coordinates::{CoordinateSystem, FlippedCoordinateSystem};
@@ -21,7 +21,7 @@ pub struct BasicRenderer {
 
     // Variables
     last_frame: Option<Instant>,
-    draw_result: Option<<Draw as CommandTrait>::Response>,
+    draw_result: Option<mpsc::Receiver<<Draw as CommandTrait>::Response>>,
 }
 
 impl BasicRenderer {
@@ -45,8 +45,10 @@ impl BasicRenderer {
 
     fn cache_screen_size(&self) {
         self.coord_system.lock().unwrap().set_screen_size(
-            GetScreenSize
-                .send(&self.render_thread.lock().unwrap().channel)
+            self.render_thread
+                .lock()
+                .unwrap()
+                .command(GetScreenSize)
                 .recv()
                 .unwrap(),
         );
@@ -109,7 +111,7 @@ impl Renderer for BasicRenderer {
         self.last_frame = Some(Instant::now());
 
         // Send next draw command to render thread
-        self.draw_result = Some(Draw.send(&self.render_thread.lock().unwrap().channel));
+        self.draw_result = Some(self.render_thread.lock().unwrap().command(Draw));
     }
 }
 

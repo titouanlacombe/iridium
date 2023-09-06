@@ -9,8 +9,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     coordinates::CoordinateSystem,
-    render_thread::{CommandTrait, GetEvents},
-    renderer::{RenderThreadHandle, Renderer},
+    render_thread::{GetEvents, RenderThreadHandle},
+    renderer::Renderer,
     simulation::Simulation,
     types::Position,
 };
@@ -145,8 +145,11 @@ impl UserEventHandler for BasicUserEventHandler {
         sim: &mut Simulation,
         running: &mut bool,
     ) {
-        let events = GetEvents
-            .send(&self.render_thread.lock().unwrap().channel)
+        let events = self
+            .render_thread
+            .lock()
+            .unwrap()
+            .command(GetEvents)
             .recv()
             .unwrap();
 
