@@ -35,26 +35,26 @@ impl<T: PartialOrd> SortedVec<T> {
     }
 }
 
-type EventCallback = Box<dyn Fn(&mut Particles, &mut Vec<Box<dyn System>>)>;
-pub struct Event {
+type SimEventCallback = Box<dyn Fn(&mut Particles, &mut Vec<Box<dyn System>>)>;
+pub struct SimEvent {
     pub time: Time,
-    pub callback: EventCallback,
+    pub callback: SimEventCallback,
 }
 
-impl Event {
-    pub fn new(time: Time, callback: EventCallback) -> Self {
+impl SimEvent {
+    pub fn new(time: Time, callback: SimEventCallback) -> Self {
         Self { time, callback }
     }
 }
 
 // Sort from latest to earliest
-impl PartialEq for Event {
+impl PartialEq for SimEvent {
     fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
 
-impl PartialOrd for Event {
+impl PartialOrd for SimEvent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         other.time.partial_cmp(&self.time)
     }
@@ -65,12 +65,12 @@ pub trait EventsHandler {
 }
 
 pub struct DefaultEventsHandler {
-    pub events: SortedVec<Event>,
+    pub events: SortedVec<SimEvent>,
     pub current_time: Time,
 }
 
 impl DefaultEventsHandler {
-    pub fn new(events: SortedVec<Event>, current_time: Time) -> Self {
+    pub fn new(events: SortedVec<SimEvent>, current_time: Time) -> Self {
         Self {
             events,
             current_time,

@@ -1,13 +1,12 @@
 multithreading {
-	user event vs sim event
-	RwLock (optimize read access)
-	
-	Create separate event handler struct (share Arc of sfml window?)
 	get rid of sim2screen and screen2sim (events should be converted to sim coordinates by the renderer, coordinate system module)
+	max fps sleep is should be handled when sending the draw command (less accurate but main thread wont block at weird places)
+
+	Mutex to RwLock (optimize read access) or alternative to arc for single thread
+	
 	https://stackoverflow.com/questions/18860243/sdl-pollevent-vs-sdl-waitevent/18862404#18862404
 
 	fix false random (pattern repeats each click)
-	max fps sleep is should be handled when sending the draw command (less accurate but main thread wont block at weird places)
 
 	multithread systems (barely worth, don't bother in some cases, test if faster with prints)
 }

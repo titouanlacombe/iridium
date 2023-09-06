@@ -7,7 +7,8 @@ use crate::{
     simulation::Simulation,
 };
 
-pub type EventCallback = Box<dyn FnMut(&mut Box<dyn Renderer>, &mut Simulation, &mut bool, &Event)>;
+pub type UserEventCallback =
+    Box<dyn FnMut(&mut Box<dyn Renderer>, &mut Simulation, &mut bool, &Event)>;
 
 pub trait UserEventHandler {
     fn handle_events(
@@ -20,17 +21,14 @@ pub trait UserEventHandler {
 
 pub struct BasicUserEventHandler {
     render_thread: Arc<Mutex<RenderThreadHandle>>,
-    event_callback: EventCallback,
+    callback: UserEventCallback,
 }
 
 impl BasicUserEventHandler {
-    pub fn new(
-        render_thread: Arc<Mutex<RenderThreadHandle>>,
-        event_callback: EventCallback,
-    ) -> Self {
+    pub fn new(render_thread: Arc<Mutex<RenderThreadHandle>>, callback: UserEventCallback) -> Self {
         Self {
             render_thread,
-            event_callback,
+            callback,
         }
     }
 }
@@ -48,7 +46,7 @@ impl UserEventHandler for BasicUserEventHandler {
             .unwrap()
             .iter()
             .for_each(|event| {
-                (self.event_callback)(renderer, sim, running, event);
+                (self.callback)(renderer, sim, running, event);
             });
     }
 }

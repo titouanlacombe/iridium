@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     areas::{Disk, Point, Rect},
-    events::{DefaultEventsHandler, Event, SortedVec},
+    events::{DefaultEventsHandler, SimEvent, SortedVec},
     forces::{UniformDrag, UniformGravity},
     generators::{
         ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
@@ -27,7 +27,7 @@ use crate::{
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
-    user_events::{BasicUserEventHandler, EventCallback, UserEventHandler},
+    user_events::{BasicUserEventHandler, UserEventCallback, UserEventHandler},
 };
 
 // Basically a facade before i implement the real one
@@ -36,7 +36,7 @@ pub fn sfml_init(
     height: u32,
     name: &str,
     min_frame_time: Option<Duration>,
-    event_callback: EventCallback,
+    event_callback: UserEventCallback,
 ) -> (Box<dyn Renderer>, Box<dyn UserEventHandler>) {
     let vertex_buffer = Arc::new(Mutex::new(Vec::new()));
 
@@ -361,7 +361,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         vec![emitter, consumer, limit_cond, physics, velocity_integrator];
 
     let mut events = SortedVec::new();
-    events.add(Event::new(
+    events.add(SimEvent::new(
         5000.,
         Box::new(|particles, systems| {
             // Slow down particles
