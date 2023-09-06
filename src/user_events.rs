@@ -5,7 +5,7 @@ use sfml::{
         Event,
     },
 };
-use std::sync::{Arc, Mutex};
+use std::{rc::Rc, sync::RwLock};
 
 use crate::{
     coordinates::CoordinateSystem,
@@ -61,16 +61,16 @@ pub trait UserEventHandler {
 }
 
 pub struct BasicUserEventHandler {
-    render_thread: Arc<Mutex<RenderThreadHandle>>,
+    render_thread: Rc<RenderThreadHandle>,
     callback: UserEventCallback,
-    coord_system: Arc<Mutex<dyn CoordinateSystem>>,
+    coord_system: Rc<RwLock<dyn CoordinateSystem>>,
 }
 
 impl BasicUserEventHandler {
     pub fn new(
-        render_thread: Arc<Mutex<RenderThreadHandle>>,
+        render_thread: Rc<RenderThreadHandle>,
         callback: UserEventCallback,
-        coord_system: Arc<Mutex<dyn CoordinateSystem>>,
+        coord_system: Rc<RwLock<dyn CoordinateSystem>>,
     ) -> Self {
         Self {
             render_thread,
@@ -102,7 +102,7 @@ impl BasicUserEventHandler {
 
         let position = self
             .coord_system
-            .lock()
+            .read()
             .unwrap()
             .screen2sim(position.unwrap());
 
@@ -145,13 +145,7 @@ impl UserEventHandler for BasicUserEventHandler {
         sim: &mut Simulation,
         running: &mut bool,
     ) {
-        let events = self
-            .render_thread
-            .lock()
-            .unwrap()
-            .command(GetEvents)
-            .recv()
-            .unwrap();
+        let events = self.render_thread.command(GetEvents).recv().unwrap();
 
         events.iter().for_each(|event| {
             let event = self.convert_event(event);

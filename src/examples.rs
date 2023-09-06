@@ -3,7 +3,8 @@ use rayon::prelude::*;
 use sfml::window::{Event as SfmlEvent, Key};
 use std::{
     f64::consts::PI,
-    sync::{Arc, Mutex},
+    rc::Rc,
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -36,9 +37,9 @@ pub fn sfml_init(
     min_frame_time: Option<Duration>,
     event_callback: UserEventCallback,
 ) -> (Box<dyn Renderer>, Box<dyn UserEventHandler>) {
-    let vertex_buffer = Arc::new(Mutex::new(Vec::new()));
+    let vertex_buffer = Arc::new(RwLock::new(Vec::new()));
 
-    let render_thread = Arc::new(Mutex::new(RenderThreadHandle::new(
+    let render_thread = Rc::new(RenderThreadHandle::new(
         MockRenderWindow::new(
             (width, height),
             format!("Iridium - {}", name),
@@ -46,9 +47,9 @@ pub fn sfml_init(
             sfml::window::ContextSettings::default(),
         ),
         vertex_buffer.clone(),
-    )));
+    ));
 
-    let coord_system = Arc::new(Mutex::new(FlippedCoordinateSystem::new(Vector2::zeros())));
+    let coord_system = Rc::new(RwLock::new(FlippedCoordinateSystem::new(Vector2::zeros())));
 
     (
         Box::new(BasicRenderer::new(

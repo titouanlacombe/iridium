@@ -1,6 +1,6 @@
 use std::{
     ops::Deref,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc, RwLock},
 };
 
 use nalgebra::Vector2;
@@ -69,11 +69,11 @@ impl MockRenderWindow {
 
 pub struct RenderThread {
     window: RenderWindow,
-    vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+    vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
 }
 
 impl RenderThread {
-    pub fn new(window: RenderWindow, vertex_buffer: Arc<Mutex<Vec<Vertex>>>) -> Self {
+    pub fn new(window: RenderWindow, vertex_buffer: Arc<RwLock<Vec<Vertex>>>) -> Self {
         Self {
             window,
             vertex_buffer,
@@ -85,7 +85,7 @@ impl RenderThread {
         self.window.clear(Color::BLACK);
 
         // Lock buffer
-        let vertices = self.vertex_buffer.lock().unwrap();
+        let vertices = self.vertex_buffer.read().unwrap();
 
         // Draw buffer
         self.window.draw_primitives(
@@ -139,7 +139,7 @@ impl RenderThread {
 
     pub fn start(
         mock_window: MockRenderWindow,
-        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+        vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
         rx: mpsc::Receiver<CommandEnum>,
     ) -> std::thread::JoinHandle<()> {
         std::thread::spawn(move || {
@@ -163,7 +163,7 @@ pub struct RenderThreadHandle {
 }
 
 impl RenderThreadHandle {
-    pub fn new(window: MockRenderWindow, vertex_buffer: Arc<Mutex<Vec<Vertex>>>) -> Self {
+    pub fn new(window: MockRenderWindow, vertex_buffer: Arc<RwLock<Vec<Vertex>>>) -> Self {
         let (tx, rx) = mpsc::channel();
         Self {
             channel: tx,

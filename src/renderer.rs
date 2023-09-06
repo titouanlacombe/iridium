@@ -2,7 +2,8 @@ use log::debug;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
-use std::sync::{mpsc, Arc, Mutex};
+use std::rc::Rc;
+use std::sync::{mpsc, Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::coordinates::{CoordinateSystem, FlippedCoordinateSystem};
@@ -14,9 +15,9 @@ pub trait Renderer {
 }
 
 pub struct BasicRenderer {
-    render_thread: Arc<Mutex<RenderThreadHandle>>,
-    coord_system: Arc<Mutex<FlippedCoordinateSystem>>,
-    vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+    render_thread: Rc<RenderThreadHandle>,
+    coord_system: Rc<RwLock<FlippedCoordinateSystem>>,
+    vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
     min_frame_time: Option<Duration>,
 
     // Variables
@@ -26,9 +27,9 @@ pub struct BasicRenderer {
 
 impl BasicRenderer {
     pub fn new(
-        render_thread: Arc<Mutex<RenderThreadHandle>>,
-        coord_system: Arc<Mutex<FlippedCoordinateSystem>>,
-        vertex_buffer: Arc<Mutex<Vec<Vertex>>>,
+        render_thread: Rc<RenderThreadHandle>,
+        coord_system: Rc<RwLock<FlippedCoordinateSystem>>,
+        vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
         min_frame_time: Option<Duration>,
     ) -> Self {
         let obj = Self {
@@ -44,14 +45,10 @@ impl BasicRenderer {
     }
 
     fn cache_screen_size(&self) {
-        self.coord_system.lock().unwrap().set_screen_size(
-            self.render_thread
-                .lock()
-                .unwrap()
-                .command(GetScreenSize)
-                .recv()
-                .unwrap(),
-        );
+        self.coord_system
+            .write()
+            .unwrap()
+            .set_screen_size(self.render_thread.command(GetScreenSize).recv().unwrap());
     }
 
     // Wait for render thread to finish drawing
@@ -68,11 +65,11 @@ impl Renderer for BasicRenderer {
         self.cache_screen_size();
 
         // Lock & reserve buffer & coord system
-        let mut buffer = self.vertex_buffer.lock().unwrap();
+        let mut buffer = self.vertex_buffer.write().unwrap();
         buffer.resize(particles.positions.len(), Vertex::default());
-        let coord_system = self.coord_system.lock().unwrap();
 
         // Build vertex buffer (par iter on positions and colors)
+        let coord_system = self.coord_system.read().unwrap();
         particles
             .positions
             .par_iter()
@@ -111,7 +108,7 @@ impl Renderer for BasicRenderer {
         self.last_frame = Some(Instant::now());
 
         // Send next draw command to render thread
-        self.draw_result = Some(self.render_thread.lock().unwrap().command(Draw));
+        self.draw_result = Some(self.render_thread.command(Draw));
     }
 }
 
