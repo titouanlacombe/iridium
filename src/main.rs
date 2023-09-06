@@ -1,12 +1,22 @@
-use iridium::examples::benchmark2;
+use std::time::Instant;
+
+use iridium::examples::{benchmark1, benchmark2};
+use log::info;
 
 fn main() {
+    let t = Instant::now();
+
     // Configure logging
     env_logger::builder()
         .format_timestamp(None)
         .format_level(true)
         .init();
 
-    // Run simulation with renderer loop
-    benchmark2().run();
+    // Create the app
+    let mut app = benchmark2();
+
+    info!("App startup took {} ms", t.elapsed().as_millis());
+
+    // Run the app
+    app.run();
 }
