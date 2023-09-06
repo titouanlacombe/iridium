@@ -1,13 +1,14 @@
 multithreading {
-	Mutex to RwLock (optimize read access) or alternative to arc for single thread
+	Arc to Rc (& remove mutex)
+	left Mutex to RwLock (optimize read access) or alternative to arc for single thread
 	
-	https://stackoverflow.com/questions/18860243/sdl-pollevent-vs-sdl-waitevent/18862404#18862404
+	refactor commands
 
-	refactor commands: self.command<T: Command>(Command::Draw::new()) -> Command::Draw::Result
+	go through code & note fixes & improvements (performance, readability, etc)
 
 	fix false random (pattern repeats each click)
 
-	multithread systems (barely worth, don't bother in some cases, test if faster with prints)
+	more multithreading/optimisation
 }
 
 trait spatial partitioning
