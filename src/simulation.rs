@@ -1,7 +1,7 @@
 use log::debug;
 
 use crate::{
-    events::EventsHandler, particles::Particles, systems::System, timer::Timer, types::Time,
+    particles::Particles, sim_events::EventsHandler, systems::System, timer::Timer, types::Time,
 };
 
 pub struct Simulation {

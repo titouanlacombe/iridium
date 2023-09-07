@@ -1,6 +1,5 @@
 pub mod areas;
 pub mod coordinates;
-pub mod events;
 pub mod examples;
 pub mod forces;
 pub mod generators;
@@ -11,6 +10,7 @@ pub mod quadtree;
 pub mod random;
 pub mod render_thread;
 pub mod renderer;
+pub mod sim_events;
 pub mod simulation;
 pub mod systems;
 pub mod timer;

@@ -11,7 +11,6 @@ use std::{
 use crate::{
     areas::{Disk, Point, Rect},
     coordinates::FlippedCoordinateSystem,
-    events::{DefaultEventsHandler, SimEvent, SortedVec},
     forces::{UniformDrag, UniformGravity},
     generators::{
         ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
@@ -23,6 +22,7 @@ use crate::{
     random::RngGenerator,
     render_thread::RenderThread,
     renderer::{BasicRenderer, Renderer},
+    sim_events::{DefaultEventsHandler, SimEvent, SortedVec},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
