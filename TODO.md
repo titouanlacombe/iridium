@@ -1,5 +1,5 @@
 multithreading {
-	refactor commands
+	combine simulation data into a single struct?
 
 	go through code & note fixes & improvements (performance, readability, etc)
 

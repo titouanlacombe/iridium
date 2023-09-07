@@ -3,33 +3,33 @@ use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
 use std::rc::Rc;
-use std::sync::{mpsc, Arc, RwLock};
+use std::sync::{mpsc, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::coordinates::{CoordinateSystem, FlippedCoordinateSystem};
 use crate::particles::Particles;
-use crate::render_thread::{CommandTrait, Draw, GetScreenSize, RenderThreadHandle};
+use crate::render_thread::{RenderThread, VertexBuffer};
 
 pub trait Renderer {
     fn render(&mut self, particles: &Particles);
 }
 
 pub struct BasicRenderer {
-    render_thread: Rc<RenderThreadHandle>,
+    render_thread: Rc<RenderThread>,
     coord_system: Rc<RwLock<FlippedCoordinateSystem>>,
-    vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
+    vertex_buffer: VertexBuffer,
     min_frame_time: Option<Duration>,
 
     // Variables
     last_frame: Option<Instant>,
-    draw_result: Option<mpsc::Receiver<<Draw as CommandTrait>::Response>>,
+    draw_result: Option<mpsc::Receiver<()>>,
 }
 
 impl BasicRenderer {
     pub fn new(
-        render_thread: Rc<RenderThreadHandle>,
+        render_thread: Rc<RenderThread>,
         coord_system: Rc<RwLock<FlippedCoordinateSystem>>,
-        vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
+        vertex_buffer: VertexBuffer,
         min_frame_time: Option<Duration>,
     ) -> Self {
         let obj = Self {
@@ -48,7 +48,7 @@ impl BasicRenderer {
         self.coord_system
             .write()
             .unwrap()
-            .set_screen_size(self.render_thread.command(GetScreenSize).recv().unwrap());
+            .set_screen_size(self.render_thread.get_screen_size());
     }
 
     // Wait for render thread to finish drawing
@@ -108,7 +108,7 @@ impl Renderer for BasicRenderer {
         self.last_frame = Some(Instant::now());
 
         // Send next draw command to render thread
-        self.draw_result = Some(self.render_thread.command(Draw));
+        self.draw_result = Some(self.render_thread.draw());
     }
 }
 

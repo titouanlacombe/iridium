@@ -21,12 +21,13 @@ use crate::{
     iridium::{max_fps, IridiumMain},
     particles::{GeneratorFactory, ParticleFactory, Particles},
     random::RngGenerator,
-    render_thread::{MockRenderWindow, RenderThreadHandle},
+    render_thread::RenderThread,
     renderer::{BasicRenderer, Renderer},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
     user_events::{BasicUserEventHandler, UserEvent, UserEventCallback, UserEventHandler},
+    window::WindowData,
 };
 
 // Basically a facade before i implement the real one
@@ -39,8 +40,8 @@ pub fn sfml_init(
 ) -> (Box<dyn Renderer>, Box<dyn UserEventHandler>) {
     let vertex_buffer = Arc::new(RwLock::new(Vec::new()));
 
-    let render_thread = Rc::new(RenderThreadHandle::new(
-        MockRenderWindow::new(
+    let render_thread = Rc::new(RenderThread::start(
+        WindowData::new(
             (width, height),
             format!("Iridium - {}", name),
             sfml::window::Style::CLOSE,

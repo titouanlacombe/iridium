@@ -8,11 +8,8 @@ use sfml::{
 use std::{rc::Rc, sync::RwLock};
 
 use crate::{
-    coordinates::CoordinateSystem,
-    render_thread::{GetEvents, RenderThreadHandle},
-    renderer::Renderer,
-    simulation::Simulation,
-    types::Position,
+    coordinates::CoordinateSystem, render_thread::RenderThread, renderer::Renderer,
+    simulation::Simulation, types::Position,
 };
 
 pub enum UserEvent {
@@ -61,14 +58,14 @@ pub trait UserEventHandler {
 }
 
 pub struct BasicUserEventHandler {
-    render_thread: Rc<RenderThreadHandle>,
+    render_thread: Rc<RenderThread>,
     callback: UserEventCallback,
     coord_system: Rc<RwLock<dyn CoordinateSystem>>,
 }
 
 impl BasicUserEventHandler {
     pub fn new(
-        render_thread: Rc<RenderThreadHandle>,
+        render_thread: Rc<RenderThread>,
         callback: UserEventCallback,
         coord_system: Rc<RwLock<dyn CoordinateSystem>>,
     ) -> Self {
@@ -145,7 +142,7 @@ impl UserEventHandler for BasicUserEventHandler {
         sim: &mut Simulation,
         running: &mut bool,
     ) {
-        let events = self.render_thread.command(GetEvents).recv().unwrap();
+        let events = self.render_thread.get_events();
 
         events.iter().for_each(|event| {
             let event = self.convert_event(event);

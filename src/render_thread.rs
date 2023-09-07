@@ -1,189 +1,132 @@
-use std::{
-    ops::Deref,
-    sync::{mpsc, Arc, RwLock},
-};
-
 use nalgebra::Vector2;
 use sfml::{
     graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex},
     window::Event as SFMLEvent,
 };
+use std::{
+    ops::Deref,
+    sync::{mpsc, Arc, RwLock},
+    thread,
+};
 
-pub trait CommandTrait {
-    type Response;
-    fn get_enum(self, tx: mpsc::Sender<Self::Response>) -> CommandEnum;
-}
+use crate::window::WindowData;
 
-macro_rules! DefineCommands {
-	($($name:ident($res:ty)),+ $(,)?) => {
-		// Define the Command enum
-		pub enum CommandEnum {
-			$(
-				$name(mpsc::Sender<$res>),
-			)+
-		}
+pub type VertexBuffer = Arc<RwLock<Vec<Vertex>>>;
+type Command = Box<dyn FnOnce(&mut RenderData) + Send>;
 
-		// Define individual command structs
-		$(
-			pub struct $name;
-
-			impl CommandTrait for $name {
-				type Response = $res;
-				fn get_enum(self, tx: mpsc::Sender<Self::Response>) -> CommandEnum {
-					CommandEnum::$name(tx)
-				}
-			}
-		)+
-	};
-}
-
-DefineCommands! {
-    Draw(()),
-    GetScreenSize(Vector2<u32>),
-    GetEvents(Vec<SFMLEvent>),
-    Stop(()),
-}
-
-pub struct MockRenderWindow {
-    pub size: (u32, u32),
-    pub title: String,
-    pub style: sfml::window::Style,
-    pub settings: sfml::window::ContextSettings,
-}
-
-impl MockRenderWindow {
-    pub fn new(
-        size: (u32, u32),
-        title: String,
-        style: sfml::window::Style,
-        settings: sfml::window::ContextSettings,
-    ) -> Self {
-        Self {
-            size,
-            title,
-            style,
-            settings,
-        }
-    }
+pub struct RenderData {
+    pub window: RenderWindow,
+    pub vertex_buffer: VertexBuffer,
+    pub stop: bool,
 }
 
 pub struct RenderThread {
-    window: RenderWindow,
-    vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
+    sender: mpsc::Sender<Command>,
+    handle: Option<thread::JoinHandle<()>>,
 }
 
 impl RenderThread {
-    pub fn new(window: RenderWindow, vertex_buffer: Arc<RwLock<Vec<Vertex>>>) -> Self {
-        Self {
-            window,
-            vertex_buffer,
-        }
-    }
+    pub fn start(window: WindowData, vertex_buffer: VertexBuffer) -> Self {
+        // Create channel
+        let (tx, rx) = mpsc::channel::<Command>();
 
-    fn draw(&mut self) {
-        // Clear screen
-        self.window.clear(Color::BLACK);
+        // Spawn thread
+        let handle = thread::spawn(move || {
+            // Create SFML window in this thread
+            let window: RenderWindow = window.create_real();
 
-        // Lock buffer
-        let vertices = self.vertex_buffer.read().unwrap();
+            // Create render data
+            let mut data = RenderData {
+                window,
+                vertex_buffer,
+                stop: false,
+            };
 
-        // Draw buffer
-        self.window.draw_primitives(
-            vertices.deref(),
-            PrimitiveType::POINTS,
-            &RenderStates::default(),
-        );
+            // Render thread main loop
+            loop {
+                // Receive & execute command
+                rx.recv().unwrap()(&mut data);
 
-        // Release buffer
-        drop(vertices);
-
-        // Display
-        self.window.display();
-    }
-
-    fn get_screen_size(&mut self) -> Vector2<u32> {
-        let tmp = self.window.size();
-        Vector2::new(tmp.x as u32, tmp.y as u32)
-    }
-
-    fn events(&mut self) -> Vec<SFMLEvent> {
-        let mut events = Vec::new();
-        while let Some(event) = self.window.poll_event() {
-            events.push(event);
-        }
-        events
-    }
-
-    pub fn main_loop(&mut self, rx: mpsc::Receiver<CommandEnum>) {
-        loop {
-            // Receive and handle command
-            let command = rx.recv().unwrap();
-            match command {
-                CommandEnum::Draw(tx) => {
-                    self.draw();
-                    tx.send(()).unwrap();
-                }
-                CommandEnum::GetScreenSize(tx) => {
-                    tx.send(self.get_screen_size()).unwrap();
-                }
-                CommandEnum::GetEvents(tx) => {
-                    tx.send(self.events()).unwrap();
-                }
-                CommandEnum::Stop(tx) => {
-                    tx.send(()).unwrap();
+                // Check if thread should stop
+                if data.stop {
                     break;
                 }
             }
-        }
-    }
+        });
 
-    pub fn start(
-        mock_window: MockRenderWindow,
-        vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
-        rx: mpsc::Receiver<CommandEnum>,
-    ) -> std::thread::JoinHandle<()> {
-        std::thread::spawn(move || {
-            RenderThread::new(
-                RenderWindow::new(
-                    mock_window.size,
-                    mock_window.title.as_str(),
-                    mock_window.style,
-                    &mock_window.settings,
-                ),
-                vertex_buffer,
-            )
-            .main_loop(rx);
-        })
-    }
-}
-
-pub struct RenderThreadHandle {
-    pub channel: mpsc::Sender<CommandEnum>,
-    handle: Option<std::thread::JoinHandle<()>>,
-}
-
-impl RenderThreadHandle {
-    pub fn new(window: MockRenderWindow, vertex_buffer: Arc<RwLock<Vec<Vertex>>>) -> Self {
-        let (tx, rx) = mpsc::channel();
         Self {
-            channel: tx,
-            handle: Some(RenderThread::start(window, vertex_buffer, rx)),
+            sender: tx,
+            handle: Some(handle),
         }
     }
 
-    // TODO support command args (send command trait instead of enum)
-    pub fn command<T: CommandTrait>(&self, command: T) -> mpsc::Receiver<T::Response> {
+    fn command(&self, command: Command) {
+        self.sender.send(command).unwrap();
+    }
+
+    pub fn draw(&self) -> mpsc::Receiver<()> {
         // Create response channel
         let (tx, rx) = mpsc::channel();
-        self.channel.send(command.get_enum(tx)).unwrap();
+
+        self.command(Box::new(move |data: &mut RenderData| {
+            // Clear screen
+            data.window.clear(Color::BLACK);
+
+            // Lock buffer
+            let vertices = data.vertex_buffer.read().unwrap();
+
+            // Draw buffer
+            data.window.draw_primitives(
+                vertices.deref(),
+                PrimitiveType::POINTS,
+                &RenderStates::default(),
+            );
+
+            // Release buffer
+            drop(vertices);
+
+            // Display
+            data.window.display();
+
+            // Send finished signal
+            tx.send(()).unwrap();
+        }));
+
         rx
+    }
+
+    pub fn get_screen_size(&self) -> Vector2<u32> {
+        let (tx, rx) = mpsc::channel();
+
+        self.command(Box::new(move |data: &mut RenderData| {
+            let size = data.window.size();
+            tx.send(Vector2::new(size.x, size.y)).unwrap();
+        }));
+
+        rx.recv().unwrap()
+    }
+
+    pub fn get_events(&self) -> Vec<SFMLEvent> {
+        let (tx, rx) = mpsc::channel();
+
+        self.command(Box::new(move |data: &mut RenderData| {
+            let mut events = Vec::new();
+            while let Some(event) = data.window.poll_event() {
+                events.push(event);
+            }
+            tx.send(events).unwrap();
+        }));
+
+        rx.recv().unwrap()
     }
 }
 
-impl Drop for RenderThreadHandle {
+impl Drop for RenderThread {
     fn drop(&mut self) {
         // Send stop command
-        self.command(Stop).recv().unwrap();
+        self.command(Box::new(|data: &mut RenderData| {
+            data.stop = true;
+        }));
 
         // Wait for thread to finish
         self.handle.take().unwrap().join().unwrap();
