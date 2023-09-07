@@ -60,16 +60,16 @@ impl PartialOrd for SimEvent {
     }
 }
 
-pub trait EventsHandler {
+pub trait SimEventsHandler {
     fn update(&mut self, particles: &mut Particles, systems: &mut Vec<Box<dyn System>>, dt: Time);
 }
 
-pub struct DefaultEventsHandler {
+pub struct DefaultSimEventsHandler {
     pub events: SortedVec<SimEvent>,
     pub current_time: Time,
 }
 
-impl DefaultEventsHandler {
+impl DefaultSimEventsHandler {
     pub fn new(events: SortedVec<SimEvent>, current_time: Time) -> Self {
         Self {
             events,
@@ -78,7 +78,7 @@ impl DefaultEventsHandler {
     }
 }
 
-impl EventsHandler for DefaultEventsHandler {
+impl SimEventsHandler for DefaultSimEventsHandler {
     fn update(&mut self, particles: &mut Particles, systems: &mut Vec<Box<dyn System>>, dt: Time) {
         self.current_time += dt;
 

@@ -13,19 +13,19 @@ impl Timer {
         Self::new(Instant::now())
     }
 
-    pub fn reset_time(&mut self, time: Instant) {
+    pub fn reset(&mut self, time: Instant) {
         self.start = time;
     }
 
-    pub fn elapsed_time(&self, time: Instant) -> Duration {
+    pub fn elapsed(&self, time: Instant) -> Duration {
         time - self.start
     }
 
     // Elapse & reset but with only one call to Instant::now() instead of two
     pub fn lap(&mut self) -> Duration {
         let now = Instant::now();
-        let elapsed = self.elapsed_time(now);
-        self.reset_time(now);
+        let elapsed = self.elapsed(now);
+        self.reset(now);
         elapsed
     }
 }

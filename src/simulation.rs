@@ -1,20 +1,20 @@
 use log::debug;
 
 use crate::{
-    particles::Particles, sim_events::EventsHandler, systems::System, timer::Timer, types::Time,
+    particles::Particles, sim_events::SimEventsHandler, systems::System, timer::Timer, types::Time,
 };
 
 pub struct Simulation {
     pub particles: Particles,
     pub systems: Vec<Box<dyn System>>,
-    pub event_handler: Option<Box<dyn EventsHandler>>,
+    pub event_handler: Option<Box<dyn SimEventsHandler>>,
 }
 
 impl Simulation {
     pub fn new(
         particles: Particles,
         systems: Vec<Box<dyn System>>,
-        event_handler: Option<Box<dyn EventsHandler>>,
+        event_handler: Option<Box<dyn SimEventsHandler>>,
     ) -> Self {
         Self {
             particles,
@@ -30,19 +30,15 @@ impl Simulation {
         if let Some(event_handler) = &mut self.event_handler {
             event_handler.update(&mut self.particles, &mut self.systems, dt);
             debug!(
-                "Event handler update took {:.2} ms",
-                timer.lap().as_secs_f64() * 1000.,
+                "Sim event handler update took {} us",
+                timer.lap().as_micros(),
             );
         }
 
         // Update systems
         for (i, system) in &mut self.systems.iter_mut().enumerate() {
             system.update(&mut self.particles, dt);
-            debug!(
-                "System {} update took {:.2} ms",
-                i,
-                timer.lap().as_secs_f64() * 1000.,
-            );
+            debug!("System {} update took {} us", i, timer.lap().as_micros());
         }
     }
 }

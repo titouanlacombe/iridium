@@ -22,7 +22,7 @@ use crate::{
     random::RngGenerator,
     render_thread::RenderThread,
     renderer::{BasicRenderer, Renderer},
-    sim_events::{DefaultEventsHandler, SimEvent, SortedVec},
+    sim_events::{DefaultSimEventsHandler, SimEvent, SortedVec},
     simulation::{ContinuousSimulationRunner, Simulation},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
@@ -34,7 +34,7 @@ use crate::{
 pub fn sfml_init(
     width: u32,
     height: u32,
-    name: &str,
+    sim_name: &str,
     min_frame_time: Option<Duration>,
     event_callback: UserEventCallback,
 ) -> (Box<dyn Renderer>, Box<dyn UserEventHandler>) {
@@ -43,7 +43,7 @@ pub fn sfml_init(
     let render_thread = Rc::new(RenderThread::start(
         WindowData::new(
             (width, height),
-            format!("Iridium - {}", name),
+            format!("Iridium - {}", sim_name),
             sfml::window::Style::CLOSE,
             sfml::window::ContextSettings::default(),
         ),
@@ -387,7 +387,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         }),
     ));
 
-    let events_handler = Box::new(DefaultEventsHandler::new(events, 0.));
+    let events_handler = Box::new(DefaultSimEventsHandler::new(events, 0.));
 
     let sim = Simulation::new(Particles::new_empty(), systems, Some(events_handler));
 
