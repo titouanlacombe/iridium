@@ -170,7 +170,7 @@ impl DiskGenerator {
 impl Generator<Vector2<Scalar>> for DiskGenerator {
     fn generate(&mut self) -> Vector2<Scalar> {
         let angle = self.rng.gen::<Scalar>() * 2.0 * PI;
-        let radius = self.rng.gen::<Scalar>().sqrt() * self.disk.radius;
+        let radius = (self.rng.gen::<Scalar>() * self.disk.radius_squared).sqrt();
         Vector2::new(
             self.disk.position.x + radius * angle.cos(),
             self.disk.position.y + radius * angle.sin(),

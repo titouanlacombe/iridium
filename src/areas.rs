@@ -53,12 +53,21 @@ impl Area for Rect {
 
 pub struct Disk {
     pub position: Position,
-    pub radius: Length,
+    pub radius_squared: Length,
+}
+
+impl Disk {
+    pub fn new(position: Position, radius: Length) -> Self {
+        Self {
+            position,
+            radius_squared: radius * radius,
+        }
+    }
 }
 
 impl Area for Disk {
     fn contain(&self, position: Position) -> bool {
-        (position - self.position).norm_squared() <= self.radius * self.radius
+        (position - self.position).norm_squared() <= self.radius_squared
     }
 }
 

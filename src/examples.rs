@@ -96,10 +96,7 @@ pub fn benchmark1() -> IridiumMain {
 
     let mut factory = GeneratorFactory::new(
         Box::new(DiskGenerator::new(
-            Disk {
-                position: Vector2::new(200., 300.),
-                radius: 100.,
-            },
+            Disk::new(Vector2::new(200., 300.), 100.),
             rng_gen.next(),
         )),
         Box::new(Vector2PolarGenerator::new(
@@ -159,10 +156,7 @@ pub fn benchmark2() -> IridiumMain {
 
     let mut factory = GeneratorFactory::new(
         Box::new(DiskGenerator::new(
-            Disk {
-                position: Vector2::new(200., 300.),
-                radius: 100.,
-            },
+            Disk::new(Vector2::new(200., 300.), 100.),
             rng_gen.next(),
         )),
         Box::new(Vector2PolarGenerator::new(
@@ -200,11 +194,11 @@ pub fn benchmark2() -> IridiumMain {
     let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
     let consumer = Box::new(ConstantConsumer::new(
-        Box::new(Disk {
+        Box::new(Disk::new(
             // Outside of the simulation
-            position: Vector2::new(width as Scalar * 2., height as Scalar * 2.),
-            radius: width as Scalar / 10.,
-        }),
+            Vector2::new(width as Scalar * 2., height as Scalar * 2.),
+            width as Scalar / 10.,
+        )),
         100.,
     ));
 
@@ -319,13 +313,13 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
             Box::new(DiskGenerator::new(
-                Disk {
-                    position: Vector2::new(
+                Disk::new(
+                    Vector2::new(
                         width as Scalar / 10.,
                         height as Scalar - (height as Scalar / 10.),
                     ),
-                    radius: width as Scalar / 20.,
-                },
+                    width as Scalar / 20.,
+                ),
                 rng_gen.next(),
             )),
             Box::new(Vector2PolarGenerator::new(
@@ -344,10 +338,10 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
     ));
 
     let consumer = Box::new(ConstantConsumer::new(
-        Box::new(Disk {
-            position: Vector2::new(width as Scalar / 2., height as Scalar / 2.),
-            radius: width as Scalar / 10.,
-        }),
+        Box::new(Disk::new(
+            Vector2::new(width as Scalar / 2., height as Scalar / 2.),
+            width as Scalar / 10.,
+        )),
         35.,
     ));
 
