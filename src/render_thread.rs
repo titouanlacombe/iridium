@@ -1,15 +1,17 @@
 use nalgebra::Vector2;
-use sfml::{
-    graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex},
-    window::Event as SFMLEvent,
-};
+use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use std::{
     ops::Deref,
+    rc::Rc,
     sync::{mpsc, Arc, RwLock},
     thread,
 };
 
-use crate::window::WindowData;
+use crate::{
+    camera::Camera,
+    user_events::{sfml2user_event, UserEvent},
+    window::WindowData,
+};
 
 pub type VertexBuffer = Arc<RwLock<Vec<Vertex>>>;
 type Command = Box<dyn FnOnce(&mut RenderData) + Send>;
@@ -23,10 +25,15 @@ pub struct RenderData {
 pub struct RenderThread {
     sender: mpsc::Sender<Command>,
     handle: Option<thread::JoinHandle<()>>,
+    camera: Rc<RwLock<dyn Camera>>,
 }
 
 impl RenderThread {
-    pub fn start(window: WindowData, vertex_buffer: VertexBuffer) -> Self {
+    pub fn start(
+        window: WindowData,
+        vertex_buffer: VertexBuffer,
+        camera: Rc<RwLock<dyn Camera>>,
+    ) -> Self {
         // Create channel
         let (tx, rx) = mpsc::channel::<Command>();
 
@@ -57,6 +64,7 @@ impl RenderThread {
         Self {
             sender: tx,
             handle: Some(handle),
+            camera,
         }
     }
 
@@ -106,7 +114,7 @@ impl RenderThread {
         rx.recv().unwrap()
     }
 
-    pub fn get_events(&self) -> Vec<SFMLEvent> {
+    pub fn get_events(&self) -> Vec<UserEvent> {
         let (tx, rx) = mpsc::channel();
 
         self.command(Box::new(move |data: &mut RenderData| {
@@ -117,7 +125,13 @@ impl RenderThread {
             tx.send(events).unwrap();
         }));
 
-        rx.recv().unwrap()
+        // Receive events and convert them to user events
+        let camera = self.camera.read().unwrap();
+        rx.recv()
+            .unwrap()
+            .into_iter()
+            .map(|event| sfml2user_event(&event, camera.deref()))
+            .collect()
     }
 }
 

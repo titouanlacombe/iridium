@@ -1,25 +1,37 @@
 use log::info;
 use psutil::process::Process;
-use std::time::{Duration, Instant};
+use std::{
+    ops::DerefMut,
+    rc::Rc,
+    sync::RwLock,
+    time::{Duration, Instant},
+};
 
 use crate::{
+    camera::Camera,
     renderer::Renderer,
     simulation::{Simulation, SimulationRunner},
     timer::Timer,
     user_events::UserEventHandler,
 };
 
+// Regroup all simulation data in one struct to be edited by the user event handler
+pub struct SimData {
+    pub sim: Simulation,
+    pub renderer: Box<dyn Renderer>,
+    pub camera: Rc<RwLock<dyn Camera>>,
+    pub sim_runner: Box<dyn SimulationRunner>,
+    pub steps_per_frame: usize,
+    pub log_interval: Duration,
+    pub log_separator: String,
+
+    pub running: bool,
+    pub stop: bool,
+}
+
 pub struct IridiumMain {
-    sim: Simulation,
-    renderer: Box<dyn Renderer>,
-    sim_runner: Box<dyn SimulationRunner>,
+    data: SimData,
     user_event_handler: Box<dyn UserEventHandler>,
-
-    steps_per_frame: usize,
-    running: bool,
-
-    log_interval: Duration,
-    log_separator: String,
 
     process: Process,
     num_cpus: u64,
@@ -29,20 +41,27 @@ impl IridiumMain {
     pub fn new(
         sim: Simulation,
         renderer: Box<dyn Renderer>,
+        camera: Rc<RwLock<dyn Camera>>,
         sim_runner: Box<dyn SimulationRunner>,
         user_event_handler: Box<dyn UserEventHandler>,
         steps_per_frame: usize,
         log_interval: Duration,
     ) -> Self {
-        Self {
+        let data = SimData {
             sim,
             renderer,
+            camera,
             sim_runner,
-            user_event_handler,
-            steps_per_frame,
             running: true,
+            stop: false,
+            steps_per_frame,
             log_interval,
             log_separator: "-".repeat(80),
+        };
+
+        Self {
+            data,
+            user_event_handler,
             process: Process::new(std::process::id()).unwrap(),
             num_cpus: psutil::cpu::cpu_count(),
         }
@@ -57,27 +76,28 @@ impl IridiumMain {
         let mut events_elapsed = Duration::ZERO;
         let mut frame_count = 0;
 
-        while self.running {
+        while !self.data.stop {
             let mut timer = Timer::new_now();
             frame_count += 1;
 
-            for _ in 0..self.steps_per_frame {
-                self.sim_runner.step(&mut self.sim);
+            if self.data.running {
+                for _ in 0..self.data.steps_per_frame {
+                    self.data.sim_runner.step(&mut self.data.sim);
+                }
             }
             sim_elapsed += timer.lap();
 
-            self.user_event_handler.handle_events(
-                &mut self.renderer,
-                &mut self.sim,
-                &mut self.running,
-            );
+            self.user_event_handler.handle_events(&mut self.data);
             events_elapsed += timer.lap();
 
-            self.renderer.render(&self.sim.particles);
+            self.data.renderer.render(
+                &self.data.sim.particles,
+                self.data.camera.write().unwrap().deref_mut(),
+            );
             render_elapsed += timer.lap();
 
             let log_elapsed = last_log.elapsed();
-            if log_elapsed >= self.log_interval {
+            if log_elapsed >= self.data.log_interval {
                 self.report(
                     frame_count,
                     log_elapsed,
@@ -105,7 +125,7 @@ impl IridiumMain {
         events_elapsed: Duration,
     ) {
         // Separator
-        info!("{}", self.log_separator);
+        info!("{}", self.data.log_separator);
 
         // Frames
         let log_elapsed_sec = log_elapsed.as_secs_f64();
@@ -118,21 +138,21 @@ impl IridiumMain {
 
         // Timings
         let sim_elapsed_sec = sim_elapsed.as_secs_f64();
-        let sim_steps = self.steps_per_frame * frame_count;
+        let sim_steps = self.data.steps_per_frame * frame_count;
         let render_elapsed_sec = render_elapsed.as_secs_f64();
         let events_elapsed_sec = events_elapsed.as_secs_f64();
         info!(
             "Frame: {:.2} ms (Sim: {:.2} ms ({} steps/frame), Render: {:.2} ms, User events: {:.2} ms)",
             log_elapsed_sec * 1000. / frame_count as f64,
             sim_elapsed_sec * 1000. / sim_steps as f64,
-            self.steps_per_frame,
+            self.data.steps_per_frame,
             render_elapsed_sec * 1000. / frame_count as f64,
             events_elapsed_sec * 1000. / frame_count as f64
         );
 
         // Particles
-        let particle_count = self.sim.particles.len();
-        let system_count = self.sim.systems.len();
+        let particle_count = self.data.sim.particles.len();
+        let system_count = self.data.sim.systems.len();
         info!(
             "{:.2e} particles ({:.2} ns/particle), {} systems",
             particle_count,

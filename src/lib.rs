@@ -1,5 +1,5 @@
 pub mod areas;
-pub mod coordinates;
+pub mod camera;
 pub mod examples;
 pub mod forces;
 pub mod generators;

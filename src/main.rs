@@ -13,6 +13,7 @@ fn main() {
         .init();
 
     // Create the app
+    // let mut app = flow(500, 500);
     let mut app = benchmark2();
 
     info!("App startup took {} ms", t.elapsed().as_millis());
