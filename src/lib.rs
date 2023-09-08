@@ -6,6 +6,7 @@ pub mod generators;
 pub mod integrator;
 pub mod iridium;
 pub mod particles;
+pub mod perf_logger;
 pub mod quadtree;
 pub mod random;
 pub mod render_thread;

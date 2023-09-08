@@ -1,13 +1,15 @@
-use log::debug;
+use std::time::Duration;
 
 use crate::{
-    particles::Particles, sim_events::SimEventsHandler, systems::System, timer::Timer, types::Time,
+    particles::Particles, perf_logger::PerformanceLogger, sim_events::SimEventsHandler,
+    systems::System, types::Time,
 };
 
 pub struct Simulation {
     pub particles: Particles,
     pub systems: Vec<Box<dyn System>>,
     pub event_handler: Option<Box<dyn SimEventsHandler>>,
+    logger: PerformanceLogger,
 }
 
 impl Simulation {
@@ -20,26 +22,29 @@ impl Simulation {
             particles,
             systems,
             event_handler,
+            logger: PerformanceLogger::new(Duration::from_secs(1)),
         }
     }
 
     pub fn step(&mut self, dt: Time) {
-        let mut timer = Timer::new_now();
+        self.logger.start();
 
         // Update events
         if let Some(event_handler) = &mut self.event_handler {
             event_handler.update(&mut self.particles, &mut self.systems, dt);
-            debug!(
-                "Sim event handler update took {} us",
-                timer.lap().as_micros(),
-            );
+
+            self.logger.time("Event Handler");
         }
 
         // Update systems
         for (i, system) in &mut self.systems.iter_mut().enumerate() {
             system.update(&mut self.particles, dt);
-            debug!("System {} update took {} us", i, timer.lap().as_micros());
+
+            self.logger
+                .time(&format!("{} (System {})", system.get_name(), i));
         }
+
+        self.logger.stop();
     }
 }
 

@@ -10,6 +10,10 @@ use crate::{
 
 pub trait System {
     fn update(&mut self, particles: &mut Particles, dt: Time);
+
+    fn get_name(&self) -> String {
+        std::any::type_name::<Self>().to_string()
+    }
 }
 
 pub struct ConstantConsumer {
