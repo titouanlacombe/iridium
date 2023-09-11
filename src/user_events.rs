@@ -1,11 +1,14 @@
-use nalgebra::Vector2;
 use sfml::window::{
     mouse::{Button, Wheel},
     Event,
 };
 use std::rc::Rc;
 
-use crate::{camera::Camera, iridium::SimData, render_thread::RenderThread, types::Position};
+use crate::{input::KeysState, iridium::SimData, render_thread::RenderThread, types::Position};
+
+pub trait InputHandler {
+    fn handle(&mut self, data: &mut SimData, real_dt: f64);
+}
 
 pub enum UserEvent {
     Event(Event),
@@ -40,85 +43,37 @@ pub enum UserEvent {
     },
 }
 
-pub fn sfml2user_event(event: &Event, camera: &dyn Camera) -> UserEvent {
-    let mut screen_pos = None;
-
-    // Match positioned events
-    match event {
-        Event::MouseButtonPressed { x, y, .. }
-        | Event::MouseButtonReleased { x, y, .. }
-        | Event::MouseMoved { x, y }
-        | Event::MouseWheelScrolled { x, y, .. }
-        | Event::TouchBegan { x, y, .. }
-        | Event::TouchMoved { x, y, .. }
-        | Event::TouchEnded { x, y, .. } => {
-            screen_pos = Some(Vector2::new(*x as f64, *y as f64));
-        }
-        _ => (),
-    }
-
-    // Return event if no position (no need to convert)
-    if screen_pos.is_none() {
-        return UserEvent::Event(*event);
-    }
-
-    let position = camera.screen2sim(screen_pos.unwrap());
-
-    match event {
-        Event::MouseButtonPressed { button, .. } => UserEvent::MouseButtonPressed {
-            button: *button,
-            position,
-        },
-        Event::MouseButtonReleased { button, .. } => UserEvent::MouseButtonReleased {
-            button: *button,
-            position,
-        },
-        Event::MouseMoved { .. } => UserEvent::MouseMoved { position },
-        Event::MouseWheelScrolled { wheel, delta, .. } => UserEvent::MouseWheelScrolled {
-            wheel: *wheel,
-            delta: *delta,
-            position,
-        },
-        Event::TouchBegan { finger, .. } => UserEvent::TouchBegan {
-            finger: *finger,
-            position,
-        },
-        Event::TouchMoved { finger, .. } => UserEvent::TouchMoved {
-            finger: *finger,
-            position,
-        },
-        Event::TouchEnded { finger, .. } => UserEvent::TouchEnded {
-            finger: *finger,
-            position,
-        },
-        _ => UserEvent::Event(*event),
-    }
-}
-
 pub type UserEventCallback = Box<dyn FnMut(&mut SimData, &UserEvent)>;
+pub type FrameCallback = Box<dyn FnMut(&mut SimData, &KeysState, f64)>;
 
-pub trait UserEventHandler {
-    fn handle_events(&mut self, data: &mut SimData);
-}
-
-pub struct BasicUserEventHandler {
+pub struct BasicInputHandler {
     render_thread: Rc<RenderThread>,
-    callback: UserEventCallback,
+    keys_state: KeysState,
+    event_callback: UserEventCallback,
+    frame_callback: FrameCallback,
 }
 
-impl BasicUserEventHandler {
-    pub fn new(render_thread: Rc<RenderThread>, callback: UserEventCallback) -> Self {
+impl BasicInputHandler {
+    pub fn new(
+        render_thread: Rc<RenderThread>,
+        event_callback: UserEventCallback,
+        frame_callback: FrameCallback,
+    ) -> Self {
         Self {
             render_thread,
-            callback,
+            keys_state: KeysState::new(),
+            event_callback,
+            frame_callback,
         }
     }
 }
 
-impl UserEventHandler for BasicUserEventHandler {
-    fn handle_events(&mut self, data: &mut SimData) {
+impl InputHandler for BasicInputHandler {
+    fn handle(&mut self, data: &mut SimData, real_dt: f64) {
         self.render_thread.get_events().iter().for_each(|event| {
-            (self.callback)(data, event);
+            self.keys_state.update(event);
+            (self.event_callback)(data, event);
         });
+        (self.frame_callback)(data, &self.keys_state, real_dt);
     }
 }

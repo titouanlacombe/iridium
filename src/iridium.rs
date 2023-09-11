@@ -12,7 +12,7 @@ use crate::{
     renderer::Renderer,
     simulation::{Simulation, SimulationRunner},
     timer::Timer,
-    user_events::UserEventHandler,
+    user_events::InputHandler,
 };
 
 // Regroup all simulation data in one struct to be edited by the user event handler
@@ -31,7 +31,7 @@ pub struct SimData {
 
 pub struct IridiumMain {
     data: SimData,
-    user_event_handler: Box<dyn UserEventHandler>,
+    input_handler: Box<dyn InputHandler>,
 
     process: Process,
     num_cpus: u64,
@@ -43,7 +43,7 @@ impl IridiumMain {
         renderer: Box<dyn Renderer>,
         camera: Rc<RwLock<dyn Camera>>,
         sim_runner: Box<dyn SimulationRunner>,
-        user_event_handler: Box<dyn UserEventHandler>,
+        input_handler: Box<dyn InputHandler>,
         steps_per_frame: usize,
         log_interval: Duration,
     ) -> Self {
@@ -61,7 +61,7 @@ impl IridiumMain {
 
         Self {
             data,
-            user_event_handler,
+            input_handler,
             process: Process::new(std::process::id()).unwrap(),
             num_cpus: psutil::cpu::cpu_count(),
         }
@@ -70,6 +70,8 @@ impl IridiumMain {
     // Default loop for quick prototyping
     pub fn run(&mut self) {
         let mut last_log = Instant::now();
+        let mut prof_timer = Timer::new_now();
+        let mut input_timer = Timer::new_now();
 
         let mut sim_elapsed = Duration::ZERO;
         let mut render_elapsed = Duration::ZERO;
@@ -77,24 +79,25 @@ impl IridiumMain {
         let mut frame_count = 0;
 
         while !self.data.stop {
-            let mut timer = Timer::new_now();
             frame_count += 1;
+            prof_timer.lap();
 
             if self.data.running {
                 for _ in 0..self.data.steps_per_frame {
                     self.data.sim_runner.step(&mut self.data.sim);
                 }
             }
-            sim_elapsed += timer.lap();
+            sim_elapsed += prof_timer.lap();
 
-            self.user_event_handler.handle_events(&mut self.data);
-            events_elapsed += timer.lap();
+            self.input_handler
+                .handle(&mut self.data, input_timer.lap().as_secs_f64());
+            events_elapsed += prof_timer.lap();
 
             self.data.renderer.render(
                 &self.data.sim.particles,
                 self.data.camera.write().unwrap().deref_mut(),
             );
-            render_elapsed += timer.lap();
+            render_elapsed += prof_timer.lap();
 
             let log_elapsed = last_log.elapsed();
             if log_elapsed >= self.data.log_interval {

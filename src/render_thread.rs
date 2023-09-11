@@ -7,11 +7,7 @@ use std::{
     thread,
 };
 
-use crate::{
-    camera::Camera,
-    user_events::{sfml2user_event, UserEvent},
-    window::WindowData,
-};
+use crate::{camera::Camera, input::sfml2user_event, user_events::UserEvent, window::WindowData};
 
 pub type VertexBuffer = Arc<RwLock<Vec<Vertex>>>;
 type Command = Box<dyn FnOnce(&mut RenderData) + Send>;

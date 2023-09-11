@@ -3,6 +3,7 @@ pub mod camera;
 pub mod examples;
 pub mod forces;
 pub mod generators;
+pub mod input;
 pub mod integrator;
 pub mod iridium;
 pub mod particles;

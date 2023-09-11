@@ -1,4 +1,8 @@
 multithreading {
+	reporter?
+	fullscreen + resize
+	window set_icon
+	 
 	go through code & note fixes & improvements (performance, readability, etc)
 
 	fix false random (pattern repeats each click)
@@ -15,6 +19,7 @@ benchmark & optimize
 iridium big facade to make it easy to use
 is it posible to implement particles lifetimes ?
 more integrators option (euler, verlet, etc) & test smallest dt possible?
+window.vsync
 custom shading (geometry shader)
 benchmark & optimize gpu?
 

@@ -16,6 +16,7 @@ use crate::{
         ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
         RectGenerator, UniformGenerator, Vector2PolarGenerator,
     },
+    input::KeysState,
     integrator::GaussianIntegrator,
     iridium::{max_fps, IridiumMain, SimData},
     particles::{GeneratorFactory, ParticleFactory, Particles},
@@ -26,9 +27,65 @@ use crate::{
     simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
-    user_events::{BasicUserEventHandler, UserEvent, UserEventCallback},
+    user_events::{BasicInputHandler, FrameCallback, UserEvent, UserEventCallback},
     window::WindowData,
 };
+
+fn get_default_event_handler() -> (UserEventCallback, FrameCallback) {
+    let event_callback = Box::new(move |data: &mut SimData, event: &UserEvent| {
+        let mut camera = data.camera.write().unwrap();
+
+        match event {
+            UserEvent::Event(event) => match event {
+                SfmlEvent::Closed => {
+                    data.stop = true;
+                }
+                SfmlEvent::KeyPressed { code, .. } => match code {
+                    Key::Escape => {
+                        data.stop = true;
+                    }
+                    Key::Space => {
+                        data.running = !data.running;
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
+            UserEvent::MouseWheelScrolled { delta, .. } => {
+                *camera.zoom() *= 1. + *delta as f64 * 0.05;
+            }
+            _ => {}
+        }
+    });
+
+    let frame_callback = Box::new(|data: &mut SimData, keys_state: &KeysState, dt: f64| {
+        let mut camera = data.camera.write().unwrap();
+
+        let translation_speed = dt * 200. / *camera.zoom();
+        let rotation_speed = dt * PI * 0.4;
+
+        if keys_state.get(Key::Up) {
+            camera.offset().y -= translation_speed;
+        }
+        if keys_state.get(Key::Down) {
+            camera.offset().y += translation_speed;
+        }
+        if keys_state.get(Key::Left) {
+            camera.offset().x += translation_speed;
+        }
+        if keys_state.get(Key::Right) {
+            camera.offset().x -= translation_speed;
+        }
+        if keys_state.get(Key::LShift) {
+            *camera.rotation() += rotation_speed;
+        }
+        if keys_state.get(Key::LControl) {
+            *camera.rotation() -= rotation_speed;
+        }
+    });
+
+    (event_callback, frame_callback)
+}
 
 // Basically a facade before i implement the real one
 pub fn base_iridium_app(
@@ -39,6 +96,7 @@ pub fn base_iridium_app(
     sim_name: &str,
     min_frame_time: Option<Duration>,
     event_callback: UserEventCallback,
+    frame_callback: FrameCallback,
 ) -> IridiumMain {
     let vertex_buffer = Arc::new(RwLock::new(Vec::new()));
 
@@ -70,54 +128,14 @@ pub fn base_iridium_app(
         )),
         camera,
         sim_runner,
-        Box::new(BasicUserEventHandler::new(render_thread, event_callback)),
+        Box::new(BasicInputHandler::new(
+            render_thread,
+            event_callback,
+            frame_callback,
+        )),
         4,
         Duration::from_secs(1),
     )
-}
-
-fn default_event_handler(data: &mut SimData, event: &UserEvent) {
-    let mut camera = data.camera.write().unwrap();
-
-    match event {
-        UserEvent::Event(event) => match event {
-            SfmlEvent::Closed => {
-                data.stop = true;
-            }
-            SfmlEvent::KeyPressed { code, .. } => match code {
-                Key::Escape => {
-                    data.stop = true;
-                }
-                Key::Up | Key::Down | Key::Left | Key::Right => {
-                    let zoom = *camera.zoom();
-                    match code {
-                        Key::Up => camera.offset().y -= 20. / zoom,
-                        Key::Down => camera.offset().y += 20. / zoom,
-                        Key::Left => camera.offset().x += 20. / zoom,
-                        Key::Right => camera.offset().x -= 20. / zoom,
-                        _ => {}
-                    }
-                }
-                Key::LShift | Key::LControl => {
-                    let rotation_change = match code {
-                        Key::LShift => PI * 0.04,
-                        Key::LControl => -PI * 0.04,
-                        _ => 0.0,
-                    };
-                    *camera.rotation() += rotation_change;
-                }
-                Key::Space => {
-                    data.running = !data.running;
-                }
-                _ => {}
-            },
-            _ => {}
-        },
-        UserEvent::MouseWheelScrolled { delta, .. } => {
-            *camera.zoom() *= 1. + *delta as f64 * 0.05;
-        }
-        _ => {}
-    }
 }
 
 pub fn benchmark1() -> IridiumMain {
@@ -160,6 +178,8 @@ pub fn benchmark1() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
+    let (event_callback, frame_callback) = get_default_event_handler();
+
     base_iridium_app(
         width,
         height,
@@ -167,7 +187,8 @@ pub fn benchmark1() -> IridiumMain {
         sim_runner,
         "Benchmark 1",
         None,
-        Box::new(default_event_handler),
+        event_callback,
+        frame_callback,
     )
 }
 
@@ -232,6 +253,8 @@ pub fn benchmark2() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
+    let (event_callback, frame_callback) = get_default_event_handler();
+
     base_iridium_app(
         width,
         height,
@@ -239,7 +262,8 @@ pub fn benchmark2() -> IridiumMain {
         sim_runner,
         "Benchmark 2",
         None,
-        Box::new(default_event_handler),
+        event_callback,
+        frame_callback,
     )
 }
 
@@ -272,6 +296,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
+    let (mut default_event_callback, frame_callback) = get_default_event_handler();
     let event_callback = Box::new(move |data: &mut SimData, event: &UserEvent| match event {
         UserEvent::MouseButtonPressed {
             button: sfml::window::mouse::Button::Left,
@@ -297,7 +322,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
             pfactory.create(1_000, &mut data.sim.particles);
         }
-        _ => default_event_handler(data, &event),
+        _ => default_event_callback(data, &event),
     });
 
     base_iridium_app(
@@ -308,6 +333,7 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         "Fireworks 2",
         max_fps(60),
         event_callback,
+        frame_callback,
     )
 }
 
@@ -392,6 +418,8 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(4.));
 
+    let (event_callback, frame_callback) = get_default_event_handler();
+
     base_iridium_app(
         width,
         height,
@@ -399,7 +427,8 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         "Flow",
         max_fps(60),
-        Box::new(default_event_handler),
+        event_callback,
+        frame_callback,
     )
 }
 
@@ -445,6 +474,8 @@ pub fn benchmark3() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
+    let (event_callback, frame_callback) = get_default_event_handler();
+
     base_iridium_app(
         width,
         height,
@@ -452,7 +483,8 @@ pub fn benchmark3() -> IridiumMain {
         sim_runner,
         "Benchmark 3",
         None,
-        Box::new(default_event_handler),
+        event_callback,
+        frame_callback,
     )
 }
 
