@@ -1,57 +1,56 @@
-use nalgebra::Vector2;
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use std::{
-    ops::Deref,
-    rc::Rc,
     sync::{mpsc, Arc, RwLock},
     thread,
 };
 
-use crate::{camera::Camera, input::sfml2user_event, user_events::UserEvent, window::WindowData};
+use crate::{
+    input::WindowEvent,
+    safe_sfml::{ViewData, WindowData},
+};
 
-pub type VertexBuffer = Arc<RwLock<Vec<Vertex>>>;
-type Command = Box<dyn FnOnce(&mut RenderData) + Send>;
+pub type DrawResult = Vec<WindowEvent>;
 
+type RenderCommand = Box<dyn FnOnce(&mut RenderData, &mut RenderWindow, &mut bool) + Send>;
+
+#[derive(Clone)]
 pub struct RenderData {
-    pub window: RenderWindow,
-    pub vertex_buffer: VertexBuffer,
-    pub stop: bool,
+    pub vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
+    pub view_data: Arc<RwLock<ViewData>>,
+}
+
+impl RenderData {
+    pub fn new(vertex_buffer: Arc<RwLock<Vec<Vertex>>>, view_data: Arc<RwLock<ViewData>>) -> Self {
+        Self {
+            vertex_buffer: vertex_buffer,
+            view_data: view_data,
+        }
+    }
 }
 
 pub struct RenderThread {
-    sender: mpsc::Sender<Command>,
+    sender: mpsc::Sender<RenderCommand>,
     handle: Option<thread::JoinHandle<()>>,
-    camera: Rc<RwLock<dyn Camera>>,
 }
 
 impl RenderThread {
-    pub fn start(
-        window: WindowData,
-        vertex_buffer: VertexBuffer,
-        camera: Rc<RwLock<dyn Camera>>,
-    ) -> Self {
+    pub fn start(window: WindowData, mut data: RenderData) -> Self {
         // Create channel
-        let (tx, rx) = mpsc::channel::<Command>();
+        let (tx, rx) = mpsc::channel::<RenderCommand>();
 
         // Spawn thread
         let handle = thread::spawn(move || {
             // Create SFML window in this thread
-            let window: RenderWindow = window.create_real();
-
-            // Create render data
-            let mut data = RenderData {
-                window,
-                vertex_buffer,
-                stop: false,
-            };
+            let mut window = window.make();
 
             // Render thread main loop
+            let mut stop = false;
             loop {
                 // Receive & execute command
-                rx.recv().unwrap()(&mut data);
+                rx.recv().unwrap()(&mut data, &mut window, &mut stop);
 
                 // Check if thread should stop
-                if data.stop {
+                if stop {
                     break;
                 }
             }
@@ -60,82 +59,55 @@ impl RenderThread {
         Self {
             sender: tx,
             handle: Some(handle),
-            camera,
         }
     }
 
-    fn command(&self, command: Command) {
+    fn command(&self, command: RenderCommand) {
         self.sender.send(command).unwrap();
     }
 
-    pub fn draw(&self) -> mpsc::Receiver<()> {
+    pub fn draw(&self) -> mpsc::Receiver<DrawResult> {
         // Create response channel
         let (tx, rx) = mpsc::channel();
 
-        self.command(Box::new(move |data: &mut RenderData| {
+        self.command(Box::new(move |data, window, _stop| {
             // Clear screen
-            data.window.clear(Color::BLACK);
+            window.clear(Color::BLACK);
+
+            // Set view
+            window.set_view(&data.view_data.read().unwrap().make());
 
             // Lock buffer
             let vertices = data.vertex_buffer.read().unwrap();
 
             // Draw buffer
-            data.window.draw_primitives(
-                vertices.deref(),
-                PrimitiveType::POINTS,
-                &RenderStates::default(),
-            );
+            window.draw_primitives(&vertices, PrimitiveType::POINTS, &RenderStates::default());
 
             // Release buffer
             drop(vertices);
 
             // Display
-            data.window.display();
+            window.display();
+
+            // Poll events
+            let mut events = Vec::new();
+            while let Some(event) = window.poll_event() {
+                events.push(WindowEvent::from_sfml(&event, &window));
+            }
 
             // Send finished signal
-            tx.send(()).unwrap();
-        }));
-
-        rx
-    }
-
-    pub fn get_screen_size(&self) -> Vector2<u32> {
-        let (tx, rx) = mpsc::channel();
-
-        self.command(Box::new(move |data: &mut RenderData| {
-            let size = data.window.size();
-            tx.send(Vector2::new(size.x, size.y)).unwrap();
-        }));
-
-        rx.recv().unwrap()
-    }
-
-    pub fn get_events(&self) -> Vec<UserEvent> {
-        let (tx, rx) = mpsc::channel();
-
-        self.command(Box::new(move |data: &mut RenderData| {
-            let mut events = Vec::new();
-            while let Some(event) = data.window.poll_event() {
-                events.push(event);
-            }
             tx.send(events).unwrap();
         }));
 
-        // Receive events and convert them to user events
-        let camera = self.camera.read().unwrap();
-        rx.recv()
-            .unwrap()
-            .into_iter()
-            .map(|event| sfml2user_event(&event, camera.deref()))
-            .collect()
+        rx
     }
 }
 
 impl Drop for RenderThread {
     fn drop(&mut self) {
         // Send stop command
-        self.command(Box::new(|data: &mut RenderData| {
-            data.stop = true;
+        self.command(Box::new(|_, _, stop| {
+            *stop = true;
         }));
 
         // Wait for thread to finish

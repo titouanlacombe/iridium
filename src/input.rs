@@ -1,8 +1,10 @@
 use nalgebra::Vector2;
-use sfml::window::{Event, Key};
+use sfml::{
+    graphics::{RenderTarget, RenderWindow},
+    system::Vector2i,
+    window::{Event, Key},
+};
 use std::collections::HashMap;
-
-use crate::{camera::Camera, user_events::UserEvent};
 
 pub struct KeysState {
     map: HashMap<Key, bool>,
@@ -15,17 +17,14 @@ impl KeysState {
         }
     }
 
-    pub fn update(&mut self, event: &UserEvent) {
-        match event {
-            UserEvent::Event(event) => match event {
-                Event::KeyPressed { code, .. } => {
-                    self.map.insert(*code, true);
-                }
-                Event::KeyReleased { code, .. } => {
-                    self.map.insert(*code, false);
-                }
-                _ => (),
-            },
+    pub fn update(&mut self, event: &WindowEvent) {
+        match event.original {
+            Event::KeyPressed { code, .. } => {
+                self.map.insert(code, true);
+            }
+            Event::KeyReleased { code, .. } => {
+                self.map.insert(code, false);
+            }
             _ => (),
         }
     }
@@ -35,57 +34,31 @@ impl KeysState {
     }
 }
 
-pub fn sfml2user_event(event: &Event, camera: &dyn Camera) -> UserEvent {
-    let mut screen_pos = None;
+pub struct WindowEvent {
+    pub original: Event,
+    pub position: Option<Vector2<f64>>,
+}
 
-    // Match positioned events
-    match event {
-        Event::MouseButtonPressed { x, y, .. }
-        | Event::MouseButtonReleased { x, y, .. }
-        | Event::MouseMoved { x, y }
-        | Event::MouseWheelScrolled { x, y, .. }
-        | Event::TouchBegan { x, y, .. }
-        | Event::TouchMoved { x, y, .. }
-        | Event::TouchEnded { x, y, .. } => {
-            screen_pos = Some(Vector2::new(*x as f64, *y as f64));
+impl WindowEvent {
+    pub fn from_sfml(event: &Event, window: &RenderWindow) -> Self {
+        // Check if the event has a position
+        let screen_pos = match event {
+            Event::MouseButtonPressed { x, y, .. }
+            | Event::MouseButtonReleased { x, y, .. }
+            | Event::MouseMoved { x, y }
+            | Event::MouseWheelScrolled { x, y, .. }
+            | Event::TouchBegan { x, y, .. }
+            | Event::TouchMoved { x, y, .. }
+            | Event::TouchEnded { x, y, .. } => {
+                let position = window.map_pixel_to_coords_current_view(Vector2i::new(*x, *y));
+                Some(Vector2::new(position.x as f64, position.y as f64))
+            }
+            _ => None,
+        };
+
+        WindowEvent {
+            original: event.clone(),
+            position: screen_pos,
         }
-        _ => (),
-    }
-
-    // Return event if no position (no need to convert)
-    if screen_pos.is_none() {
-        return UserEvent::Event(*event);
-    }
-
-    let position = camera.screen2sim(screen_pos.unwrap());
-
-    match event {
-        Event::MouseButtonPressed { button, .. } => UserEvent::MouseButtonPressed {
-            button: *button,
-            position,
-        },
-        Event::MouseButtonReleased { button, .. } => UserEvent::MouseButtonReleased {
-            button: *button,
-            position,
-        },
-        Event::MouseMoved { .. } => UserEvent::MouseMoved { position },
-        Event::MouseWheelScrolled { wheel, delta, .. } => UserEvent::MouseWheelScrolled {
-            wheel: *wheel,
-            delta: *delta,
-            position,
-        },
-        Event::TouchBegan { finger, .. } => UserEvent::TouchBegan {
-            finger: *finger,
-            position,
-        },
-        Event::TouchMoved { finger, .. } => UserEvent::TouchMoved {
-            finger: *finger,
-            position,
-        },
-        Event::TouchEnded { finger, .. } => UserEvent::TouchEnded {
-            finger: *finger,
-            position,
-        },
-        _ => UserEvent::Event(*event),
     }
 }

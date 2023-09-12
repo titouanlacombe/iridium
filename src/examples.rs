@@ -1,42 +1,46 @@
 use nalgebra::Vector2;
 use rayon::prelude::*;
-use sfml::window::{Event as SfmlEvent, Key};
+use sfml::{
+    system::Vector2f,
+    window::{Event as SfmlEvent, Key},
+};
 use std::{
     f64::consts::PI,
-    rc::Rc,
     sync::{Arc, RwLock},
     time::Duration,
 };
 
 use crate::{
+    app::{max_fps, AppData, AppMain},
     areas::{Disk, Point, Rect},
-    camera,
     forces::{UniformDrag, UniformGravity},
     generators::{
         ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
         RectGenerator, UniformGenerator, Vector2PolarGenerator,
     },
-    input::KeysState,
+    input::{KeysState, WindowEvent},
     integrator::GaussianIntegrator,
-    iridium::{max_fps, IridiumMain, SimData},
     particles::{GeneratorFactory, ParticleFactory, Particles},
     random::RngGenerator,
-    render_thread::RenderThread,
-    renderer::BasicRenderer,
+    render_thread::{RenderData, RenderThread},
+    renderer::{BasicRenderer, InputCallback},
+    safe_sfml::{ViewData, WindowData},
     sim_events::{DefaultSimEventsHandler, SimEvent, SortedVec},
     simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
     systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
     types::Scalar,
-    user_events::{BasicInputHandler, FrameCallback, UserEvent, UserEventCallback},
-    window::WindowData,
 };
 
-fn get_default_event_handler() -> (UserEventCallback, FrameCallback) {
-    let event_callback = Box::new(move |data: &mut SimData, event: &UserEvent| {
-        let mut camera = data.camera.write().unwrap();
+fn get_default_input_callback() -> InputCallback {
+    let mut keys_state = KeysState::new();
 
-        match event {
-            UserEvent::Event(event) => match event {
+    Box::new(move |data, render_data, dt, events| {
+        let view_data = &mut render_data.view_data.write().unwrap();
+
+        for event in events {
+            keys_state.update(&event);
+
+            match event.original {
                 SfmlEvent::Closed => {
                     data.stop = true;
                 }
@@ -49,42 +53,38 @@ fn get_default_event_handler() -> (UserEventCallback, FrameCallback) {
                     }
                     _ => {}
                 },
+                SfmlEvent::MouseWheelScrolled { delta, .. } => {
+                    view_data.zoom *= 1. + delta * 0.05;
+                }
+                SfmlEvent::Resized { width, height } => {
+                    view_data.size = Vector2f::new(width as f32, height as f32);
+                }
                 _ => {}
-            },
-            UserEvent::MouseWheelScrolled { delta, .. } => {
-                *camera.zoom() *= 1. + *delta as f64 * 0.05;
             }
-            _ => {}
         }
-    });
 
-    let frame_callback = Box::new(|data: &mut SimData, keys_state: &KeysState, dt: f64| {
-        let mut camera = data.camera.write().unwrap();
-
-        let translation_speed = dt * 200. / *camera.zoom();
-        let rotation_speed = dt * PI * 0.4;
+        let translation_speed = (dt * 200. / view_data.zoom as f64) as f32;
+        let rotation_speed = (dt * 90.) as f32;
 
         if keys_state.get(Key::Up) {
-            camera.offset().y -= translation_speed;
+            view_data.center.y -= translation_speed;
         }
         if keys_state.get(Key::Down) {
-            camera.offset().y += translation_speed;
+            view_data.center.y += translation_speed;
         }
         if keys_state.get(Key::Left) {
-            camera.offset().x += translation_speed;
+            view_data.center.x -= translation_speed;
         }
         if keys_state.get(Key::Right) {
-            camera.offset().x -= translation_speed;
+            view_data.center.x += translation_speed;
         }
         if keys_state.get(Key::LShift) {
-            *camera.rotation() += rotation_speed;
+            view_data.rotation += rotation_speed;
         }
         if keys_state.get(Key::LControl) {
-            *camera.rotation() -= rotation_speed;
+            view_data.rotation -= rotation_speed;
         }
-    });
-
-    (event_callback, frame_callback)
+    })
 }
 
 // Basically a facade before i implement the real one
@@ -95,50 +95,46 @@ pub fn base_iridium_app(
     sim_runner: Box<dyn SimulationRunner>,
     sim_name: &str,
     min_frame_time: Option<Duration>,
-    event_callback: UserEventCallback,
-    frame_callback: FrameCallback,
-) -> IridiumMain {
+    input_callback: InputCallback,
+) -> AppMain {
     let vertex_buffer = Arc::new(RwLock::new(Vec::new()));
 
-    let camera = Rc::new(RwLock::new(camera::BasicCamera::new(
-        Vector2::new(width, height),
-        Vector2::zeros(),
-        // Vector2::new(-(width as Scalar) / 2., -(height as Scalar) / 2.),
-        1.,
+    let view_data = Arc::new(RwLock::new(ViewData::new(
+        Vector2f::new(width as f32 / 2., height as f32 / 2.),
+        Vector2f::new(width as f32, height as f32),
+        sfml::graphics::FloatRect::new(0., 0., 1., 1.),
         0.,
+        1.,
     )));
 
-    let render_thread = Rc::new(RenderThread::start(
+    let render_data = RenderData::new(vertex_buffer, view_data);
+
+    let render_thread = RenderThread::start(
         WindowData::new(
             (width, height),
             format!("Iridium - {}", sim_name),
-            sfml::window::Style::CLOSE,
+            sfml::window::Style::DEFAULT,
             sfml::window::ContextSettings::default(),
+            false,
         ),
-        vertex_buffer.clone(),
-        camera.clone(),
-    ));
+        render_data.clone(),
+    );
 
-    IridiumMain::new(
+    AppMain::new(
         sim,
         Box::new(BasicRenderer::new(
-            render_thread.clone(),
-            vertex_buffer,
-            min_frame_time,
-        )),
-        camera,
-        sim_runner,
-        Box::new(BasicInputHandler::new(
             render_thread,
-            event_callback,
-            frame_callback,
+            input_callback,
+            min_frame_time,
+            render_data,
         )),
+        sim_runner,
         4,
         Duration::from_secs(1),
     )
 }
 
-pub fn benchmark1() -> IridiumMain {
+pub fn benchmark1() -> AppMain {
     let width = 500;
     let height = 500;
     let mut rng_gen = RngGenerator::new(0);
@@ -178,8 +174,6 @@ pub fn benchmark1() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let (event_callback, frame_callback) = get_default_event_handler();
-
     base_iridium_app(
         width,
         height,
@@ -187,12 +181,11 @@ pub fn benchmark1() -> IridiumMain {
         sim_runner,
         "Benchmark 1",
         None,
-        event_callback,
-        frame_callback,
+        get_default_input_callback(),
     )
 }
 
-pub fn benchmark2() -> IridiumMain {
+pub fn benchmark2() -> AppMain {
     let width = 500;
     let height = 500;
     let mut rng_gen = RngGenerator::new(0);
@@ -253,8 +246,6 @@ pub fn benchmark2() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let (event_callback, frame_callback) = get_default_event_handler();
-
     base_iridium_app(
         width,
         height,
@@ -262,12 +253,11 @@ pub fn benchmark2() -> IridiumMain {
         sim_runner,
         "Benchmark 2",
         None,
-        event_callback,
-        frame_callback,
+        get_default_input_callback(),
     )
 }
 
-pub fn fireworks(width: u32, height: u32) -> IridiumMain {
+pub fn fireworks(width: u32, height: u32) -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
 
     let limit_cond = Box::new(Wall {
@@ -296,34 +286,44 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let (mut default_event_callback, frame_callback) = get_default_event_handler();
-    let event_callback = Box::new(move |data: &mut SimData, event: &UserEvent| match event {
-        UserEvent::MouseButtonPressed {
-            button: sfml::window::mouse::Button::Left,
-            position,
-            ..
-        } => {
-            let mut pfactory = GeneratorFactory::new(
-                Box::new(PointGenerator::new(Point {
-                    position: *position,
-                })),
-                Box::new(Vector2PolarGenerator::new(
-                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
-                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 2. * PI)),
-                )),
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(HSVAGenerator::new(
-                    Box::new(UniformGenerator::new(rng_gen.next(), 0., 360.)),
-                    Box::new(ConstantGenerator::new(1.)),
-                    Box::new(ConstantGenerator::new(1.)),
-                    Box::new(ConstantGenerator::new(1.)),
-                )),
-            );
+    let mut default_input_callback = get_default_input_callback();
+    let input_callback = Box::new(
+        move |data: &mut AppData,
+              render_data: &mut RenderData,
+              dt: Scalar,
+              events: &Vec<WindowEvent>| {
+            default_input_callback(data, render_data, dt, events);
 
-            pfactory.create(1_000, &mut data.sim.particles);
-        }
-        _ => default_event_callback(data, &event),
-    });
+            for event in events {
+                match event.original {
+                    SfmlEvent::MouseButtonPressed {
+                        button: sfml::window::mouse::Button::Left,
+                        ..
+                    } => {
+                        let mut pfactory = GeneratorFactory::new(
+                            Box::new(PointGenerator::new(Point {
+                                position: event.position.unwrap(),
+                            })),
+                            Box::new(Vector2PolarGenerator::new(
+                                Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),
+                                Box::new(UniformGenerator::new(rng_gen.next(), 0., 2. * PI)),
+                            )),
+                            Box::new(ConstantGenerator::new(1.)),
+                            Box::new(HSVAGenerator::new(
+                                Box::new(UniformGenerator::new(rng_gen.next(), 0., 360.)),
+                                Box::new(ConstantGenerator::new(1.)),
+                                Box::new(ConstantGenerator::new(1.)),
+                                Box::new(ConstantGenerator::new(1.)),
+                            )),
+                        );
+
+                        pfactory.create(1_000, &mut data.sim.particles);
+                    }
+                    _ => {}
+                }
+            }
+        },
+    );
 
     base_iridium_app(
         width,
@@ -332,12 +332,11 @@ pub fn fireworks(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         "Fireworks 2",
         max_fps(60),
-        event_callback,
-        frame_callback,
+        input_callback,
     )
 }
 
-pub fn flow(width: u32, height: u32) -> IridiumMain {
+pub fn flow(width: u32, height: u32) -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
 
     let emitter = Box::new(ConstantEmitter::new(
@@ -418,8 +417,6 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(4.));
 
-    let (event_callback, frame_callback) = get_default_event_handler();
-
     base_iridium_app(
         width,
         height,
@@ -427,8 +424,7 @@ pub fn flow(width: u32, height: u32) -> IridiumMain {
         sim_runner,
         "Flow",
         max_fps(60),
-        event_callback,
-        frame_callback,
+        get_default_input_callback(),
     )
 }
 
@@ -440,7 +436,7 @@ impl System for SimReset {
     }
 }
 
-pub fn benchmark3() -> IridiumMain {
+pub fn benchmark3() -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
     let width = 500;
     let height = 500;
@@ -474,8 +470,6 @@ pub fn benchmark3() -> IridiumMain {
 
     let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
 
-    let (event_callback, frame_callback) = get_default_event_handler();
-
     base_iridium_app(
         width,
         height,
@@ -483,8 +477,7 @@ pub fn benchmark3() -> IridiumMain {
         sim_runner,
         "Benchmark 3",
         None,
-        event_callback,
-        frame_callback,
+        get_default_input_callback(),
     )
 }
 

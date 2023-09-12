@@ -1,25 +1,16 @@
 use log::info;
 use psutil::process::Process;
-use std::{
-    ops::DerefMut,
-    rc::Rc,
-    sync::RwLock,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crate::{
-    camera::Camera,
     renderer::Renderer,
     simulation::{Simulation, SimulationRunner},
     timer::Timer,
-    user_events::InputHandler,
 };
 
-// Regroup all simulation data in one struct to be edited by the user event handler
-pub struct SimData {
+// Regroup all app data in one struct to be edited by the various systems
+pub struct AppData {
     pub sim: Simulation,
-    pub renderer: Box<dyn Renderer>,
-    pub camera: Rc<RwLock<dyn Camera>>,
     pub sim_runner: Box<dyn SimulationRunner>,
     pub steps_per_frame: usize,
     pub log_interval: Duration,
@@ -29,28 +20,24 @@ pub struct SimData {
     pub stop: bool,
 }
 
-pub struct IridiumMain {
-    data: SimData,
-    input_handler: Box<dyn InputHandler>,
+pub struct AppMain {
+    data: AppData,
+    renderer: Box<dyn Renderer>,
 
     process: Process,
     num_cpus: u64,
 }
 
-impl IridiumMain {
+impl AppMain {
     pub fn new(
         sim: Simulation,
         renderer: Box<dyn Renderer>,
-        camera: Rc<RwLock<dyn Camera>>,
         sim_runner: Box<dyn SimulationRunner>,
-        input_handler: Box<dyn InputHandler>,
         steps_per_frame: usize,
         log_interval: Duration,
     ) -> Self {
-        let data = SimData {
+        let data = AppData {
             sim,
-            renderer,
-            camera,
             sim_runner,
             running: true,
             stop: false,
@@ -61,7 +48,7 @@ impl IridiumMain {
 
         Self {
             data,
-            input_handler,
+            renderer,
             process: Process::new(std::process::id()).unwrap(),
             num_cpus: psutil::cpu::cpu_count(),
         }
@@ -71,11 +58,9 @@ impl IridiumMain {
     pub fn run(&mut self) {
         let mut last_log = Instant::now();
         let mut prof_timer = Timer::new_now();
-        let mut input_timer = Timer::new_now();
 
         let mut sim_elapsed = Duration::ZERO;
         let mut render_elapsed = Duration::ZERO;
-        let mut events_elapsed = Duration::ZERO;
         let mut frame_count = 0;
 
         while !self.data.stop {
@@ -89,31 +74,17 @@ impl IridiumMain {
             }
             sim_elapsed += prof_timer.lap();
 
-            self.input_handler
-                .handle(&mut self.data, input_timer.lap().as_secs_f64());
-            events_elapsed += prof_timer.lap();
-
-            self.data.renderer.render(
-                &self.data.sim.particles,
-                self.data.camera.write().unwrap().deref_mut(),
-            );
+            self.renderer.render(&mut self.data);
             render_elapsed += prof_timer.lap();
 
             let log_elapsed = last_log.elapsed();
             if log_elapsed >= self.data.log_interval {
-                self.report(
-                    frame_count,
-                    log_elapsed,
-                    sim_elapsed,
-                    render_elapsed,
-                    events_elapsed,
-                );
+                self.report(frame_count, log_elapsed, sim_elapsed, render_elapsed);
 
                 // Reset counters
                 last_log = Instant::now();
                 sim_elapsed = Duration::ZERO;
                 render_elapsed = Duration::ZERO;
-                events_elapsed = Duration::ZERO;
                 frame_count = 0;
             }
         }
@@ -125,7 +96,6 @@ impl IridiumMain {
         log_elapsed: Duration,
         sim_elapsed: Duration,
         render_elapsed: Duration,
-        events_elapsed: Duration,
     ) {
         // Separator
         info!("{}", self.data.log_separator);
@@ -143,14 +113,12 @@ impl IridiumMain {
         let sim_elapsed_sec = sim_elapsed.as_secs_f64();
         let sim_steps = self.data.steps_per_frame * frame_count;
         let render_elapsed_sec = render_elapsed.as_secs_f64();
-        let events_elapsed_sec = events_elapsed.as_secs_f64();
         info!(
-            "Frame: {:.2} ms (Sim: {:.2} ms ({} steps/frame), Render: {:.2} ms, User events: {:.2} ms)",
+            "Frame: {:.2} ms (Sim: {:.2} ms ({} steps/frame), Render: {:.2} ms)",
             log_elapsed_sec * 1000. / frame_count as f64,
             sim_elapsed_sec * 1000. / sim_steps as f64,
             self.data.steps_per_frame,
             render_elapsed_sec * 1000. / frame_count as f64,
-            events_elapsed_sec * 1000. / frame_count as f64
         );
 
         // Particles

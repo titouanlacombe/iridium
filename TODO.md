@@ -1,8 +1,11 @@
 multithreading {
-	reporter?
-	fullscreen + resize
+	fix flipped y axis
+	
+	fullscreen key toggle
 	window set_icon
-	 
+
+	reorga modules
+
 	go through code & note fixes & improvements (performance, readability, etc)
 
 	fix false random (pattern repeats each click)
