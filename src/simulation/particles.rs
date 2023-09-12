@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     generators::Generator,
     types::{Color, Mass, Position, Velocity},
 };

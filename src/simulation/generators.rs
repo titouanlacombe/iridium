@@ -4,7 +4,7 @@ use nalgebra::Vector2;
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
 
-use crate::{
+use super::{
     areas::{Disk, Point, Rect},
     types::{Color, Scalar},
 };

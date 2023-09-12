@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use iridium::examples::benchmark2;
+use iridium::examples::{benchmark2, fireworks};
 use log::info;
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
         .init();
 
     // Create the app
-    // let mut app = flow(500, 500);
+    // let mut app = fireworks(500, 500);
     let mut app = benchmark2();
 
     info!("App startup took {} ms", t.elapsed().as_millis());

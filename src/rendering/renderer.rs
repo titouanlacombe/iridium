@@ -6,10 +6,10 @@ use sfml::system::Vector2f;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
+use super::input::WindowEvent;
+use super::render_thread::{DrawResult, RenderData, RenderThread};
 use crate::app::AppData;
-use crate::input::WindowEvent;
-use crate::render_thread::{DrawResult, RenderData, RenderThread};
-use crate::timer::Timer;
+use crate::utils::timer::Timer;
 
 pub type InputCallback = Box<dyn FnMut(&mut AppData, &mut RenderData, f64, &Vec<WindowEvent>)>;
 

@@ -1,6 +1,6 @@
 use nalgebra::Vector2;
 
-use crate::types::{Length, Position};
+use super::types::{Length, Position};
 
 pub struct QuadTree {
     pub position: Position,

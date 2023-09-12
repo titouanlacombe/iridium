@@ -4,7 +4,7 @@ use std::{
     thread,
 };
 
-use crate::{
+use super::{
     input::WindowEvent,
     safe_sfml::{ViewData, WindowData},
 };

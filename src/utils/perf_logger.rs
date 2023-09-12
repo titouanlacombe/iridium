@@ -1,11 +1,10 @@
+use log::info;
 use std::{
     collections::{hash_map::Entry, HashMap},
     time::{Duration, Instant},
 };
 
-use log::info;
-
-use crate::timer::Timer;
+use super::timer::Timer;
 
 // Warning this file is ugly, i just wanted to get it done
 pub struct PeriodicToggle {

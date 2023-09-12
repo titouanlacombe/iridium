@@ -3,9 +3,9 @@ use psutil::process::Process;
 use std::time::{Duration, Instant};
 
 use crate::{
-    renderer::Renderer,
-    simulation::{Simulation, SimulationRunner},
-    timer::Timer,
+    rendering::renderer::Renderer,
+    simulation::simulation::{Simulation, SimulationRunner},
+    utils::timer::Timer,
 };
 
 // Regroup all app data in one struct to be edited by the various systems

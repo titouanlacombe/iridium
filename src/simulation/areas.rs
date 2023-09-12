@@ -1,7 +1,7 @@
 use nalgebra::Vector2;
 use rayon::prelude::*;
 
-use crate::types::{Length, Position};
+use super::types::{Length, Position};
 
 pub trait Area: Sync {
     fn contain(&self, position: Position) -> bool;

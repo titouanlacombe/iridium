@@ -12,23 +12,27 @@ use std::{
 
 use crate::{
     app::{max_fps, AppData, AppMain},
-    areas::{Disk, Point, Rect},
-    forces::{UniformDrag, UniformGravity},
-    generators::{
-        ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
-        RectGenerator, UniformGenerator, Vector2PolarGenerator,
+    rendering::{
+        input::{KeysState, WindowEvent},
+        render_thread::{RenderData, RenderThread},
+        renderer::{BasicRenderer, InputCallback},
+        safe_sfml::{ViewData, WindowData},
     },
-    input::{KeysState, WindowEvent},
-    integrator::GaussianIntegrator,
-    particles::{GeneratorFactory, ParticleFactory, Particles},
-    random::RngGenerator,
-    render_thread::{RenderData, RenderThread},
-    renderer::{BasicRenderer, InputCallback},
-    safe_sfml::{ViewData, WindowData},
-    sim_events::{DefaultSimEventsHandler, SimEvent, SortedVec},
-    simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
-    systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
-    types::Scalar,
+    simulation::{
+        areas::{Disk, Point, Rect},
+        forces::{UniformDrag, UniformGravity},
+        generators::{
+            ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
+            RectGenerator, UniformGenerator, Vector2PolarGenerator,
+        },
+        integrator::GaussianIntegrator,
+        particles::{GeneratorFactory, ParticleFactory, Particles},
+        random::RngGenerator,
+        sim_events::{DefaultSimEventsHandler, SimEvent, SortedVec},
+        simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
+        systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
+        types::Scalar,
+    },
 };
 
 fn get_default_input_callback() -> InputCallback {

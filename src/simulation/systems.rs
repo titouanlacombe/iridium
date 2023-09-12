@@ -1,7 +1,7 @@
 use nalgebra::Vector2;
 use rayon::prelude::*;
 
-use crate::{
+use super::{
     areas::Area,
     integrator::Integrator,
     particles::{ParticleFactory, Particles},

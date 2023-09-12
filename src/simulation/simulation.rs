@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use crate::{
-    particles::Particles, perf_logger::PerformanceLogger, sim_events::SimEventsHandler,
-    systems::System, types::Time,
-};
+use super::{particles::Particles, sim_events::SimEventsHandler, systems::System, types::Time};
+use crate::utils::perf_logger::PerformanceLogger;
 
 pub struct Simulation {
     pub particles: Particles,

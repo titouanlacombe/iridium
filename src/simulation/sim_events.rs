@@ -1,4 +1,4 @@
-use crate::{particles::Particles, systems::System, types::Time};
+use super::{particles::Particles, systems::System, types::Time};
 
 pub struct SortedVec<T> {
     pub vec: Vec<T>,
