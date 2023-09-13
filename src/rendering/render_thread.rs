@@ -1,3 +1,4 @@
+use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use std::{
     sync::{mpsc, Arc, RwLock},
@@ -78,7 +79,13 @@ impl RenderThread {
             window.set_view(&data.view_data.read().unwrap().make());
 
             // Lock buffer
-            let vertices = data.vertex_buffer.read().unwrap();
+            let mut vertices = data.vertex_buffer.write().unwrap();
+
+            // Flip y axis
+            let size_y = window.size().y as f32;
+            vertices.par_iter_mut().for_each(|v| {
+                v.position.y = size_y - v.position.y;
+            });
 
             // Draw buffer
             window.draw_primitives(&vertices, PrimitiveType::POINTS, &RenderStates::default());

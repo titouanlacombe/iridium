@@ -58,6 +58,11 @@ impl Renderer for BasicRenderer {
     fn render(&mut self, data: &mut AppData) {
         let particles = &data.sim.particles;
 
+        // TODO use double buffering to swap buffers for better performance (no need to wait here)
+        // TODO Draw command take ref to vertex buffer as argument
+        // Wait for last draw to finish & get events since last frame
+        let events = self.wait_for_draw();
+
         // Lock & reserve buffer & coord system
         let mut buffer = self.render_data.vertex_buffer.write().unwrap();
         buffer.resize(particles.positions.len(), Vertex::default());
@@ -80,9 +85,6 @@ impl Renderer for BasicRenderer {
 
         // Unlock buffer
         drop(buffer);
-
-        // Wait for last draw to finish & get events since last frame
-        let events = self.wait_for_draw();
 
         // Handle frame rate limiting
         let mut frame_time = self.timer.elapsed();
