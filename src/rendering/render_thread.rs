@@ -1,7 +1,10 @@
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
 use std::{
-    sync::{mpsc, Arc, RwLock},
+    sync::{
+        mpsc::{self, Receiver},
+        Arc, RwLock,
+    },
     thread,
 };
 
@@ -12,22 +15,7 @@ use super::{
 
 pub type DrawResult = Vec<WindowEvent>;
 
-type RenderCommand = Box<dyn FnOnce(&mut RenderData, &mut RenderWindow, &mut bool) + Send>;
-
-#[derive(Clone)]
-pub struct RenderData {
-    pub vertex_buffer: Arc<RwLock<Vec<Vertex>>>,
-    pub view_data: Arc<RwLock<ViewData>>,
-}
-
-impl RenderData {
-    pub fn new(vertex_buffer: Arc<RwLock<Vec<Vertex>>>, view_data: Arc<RwLock<ViewData>>) -> Self {
-        Self {
-            vertex_buffer: vertex_buffer,
-            view_data: view_data,
-        }
-    }
-}
+type RenderCommand = Box<dyn FnOnce(&mut RenderWindow, &mut bool) + Send>;
 
 pub struct RenderThread {
     sender: mpsc::Sender<RenderCommand>,
@@ -35,7 +23,7 @@ pub struct RenderThread {
 }
 
 impl RenderThread {
-    pub fn start(window: WindowData, mut data: RenderData) -> Self {
+    pub fn start(window: WindowData) -> Self {
         // Create channel
         let (tx, rx) = mpsc::channel::<RenderCommand>();
 
@@ -48,7 +36,7 @@ impl RenderThread {
             let mut stop = false;
             loop {
                 // Receive & execute command
-                rx.recv().unwrap()(&mut data, &mut window, &mut stop);
+                rx.recv().unwrap()(&mut window, &mut stop);
 
                 // Check if thread should stop
                 if stop {
@@ -67,19 +55,23 @@ impl RenderThread {
         self.sender.send(command).unwrap();
     }
 
-    pub fn draw(&self) -> mpsc::Receiver<DrawResult> {
+    pub fn draw(
+        &self,
+        buffer: Arc<RwLock<Vec<Vertex>>>,
+        view_data: Arc<RwLock<ViewData>>,
+    ) -> Receiver<DrawResult> {
         // Create response channel
         let (tx, rx) = mpsc::channel();
 
-        self.command(Box::new(move |data, window, _stop| {
+        self.command(Box::new(move |window, _stop| {
             // Clear screen
             window.clear(Color::BLACK);
 
             // Set view
-            window.set_view(&data.view_data.read().unwrap().make());
+            window.set_view(&view_data.read().unwrap().make());
 
             // Lock buffer
-            let mut vertices = data.vertex_buffer.write().unwrap();
+            let mut vertices = buffer.write().unwrap();
 
             // Flip y axis
             let size_y = window.size().y as f32;
@@ -113,7 +105,7 @@ impl RenderThread {
 impl Drop for RenderThread {
     fn drop(&mut self) {
         // Send stop command
-        self.command(Box::new(|_, _, stop| {
+        self.command(Box::new(|_, stop| {
             *stop = true;
         }));
 

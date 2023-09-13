@@ -4,10 +4,12 @@ use rayon::prelude::*;
 use sfml::graphics::{Color, Vertex};
 use sfml::system::Vector2f;
 use std::sync::mpsc::Receiver;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use super::input::WindowEvent;
-use super::render_thread::{DrawResult, RenderData, RenderThread};
+use super::render_thread::{DrawResult, RenderThread};
+use super::safe_sfml::ViewData;
 use crate::app::AppData;
 use crate::utils::timer::Timer;
 
@@ -15,6 +17,23 @@ pub type InputCallback = Box<dyn FnMut(&mut AppData, &mut RenderData, f64, &Vec<
 
 pub trait Renderer {
     fn render(&mut self, sim_data: &mut AppData);
+}
+
+#[derive(Clone)]
+pub struct RenderData {
+    pub view_data: Arc<RwLock<ViewData>>,
+    pub vertex_buffer_a: Arc<RwLock<Vec<Vertex>>>,
+    pub vertex_buffer_b: Arc<RwLock<Vec<Vertex>>>,
+}
+
+impl RenderData {
+    pub fn new(view_data: ViewData) -> Self {
+        Self {
+            view_data: Arc::new(RwLock::new(view_data)),
+            vertex_buffer_a: Arc::new(RwLock::new(Vec::new())),
+            vertex_buffer_b: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
 }
 
 pub struct BasicRenderer {
@@ -58,13 +77,8 @@ impl Renderer for BasicRenderer {
     fn render(&mut self, data: &mut AppData) {
         let particles = &data.sim.particles;
 
-        // TODO use double buffering to swap buffers for better performance (no need to wait here)
-        // TODO Draw command take ref to vertex buffer as argument
-        // Wait for last draw to finish & get events since last frame
-        let events = self.wait_for_draw();
-
         // Lock & reserve buffer & coord system
-        let mut buffer = self.render_data.vertex_buffer.write().unwrap();
+        let mut buffer = self.render_data.vertex_buffer_a.write().unwrap();
         buffer.resize(particles.positions.len(), Vertex::default());
 
         // Build vertex buffer
@@ -86,6 +100,15 @@ impl Renderer for BasicRenderer {
         // Unlock buffer
         drop(buffer);
 
+        // Swap buffers
+        std::mem::swap(
+            &mut self.render_data.vertex_buffer_a,
+            &mut self.render_data.vertex_buffer_b,
+        );
+
+        // Wait for last draw to finish & get events since last frame
+        let events = self.wait_for_draw();
+
         // Handle frame rate limiting
         let mut frame_time = self.timer.elapsed();
         if self.min_frame_time.is_some() {
@@ -105,7 +128,10 @@ impl Renderer for BasicRenderer {
         self.timer.reset();
 
         // Send next draw command to render thread
-        self.draw_result = Some(self.render_thread.draw());
+        self.draw_result = Some(self.render_thread.draw(
+            self.render_data.vertex_buffer_b.clone(),
+            self.render_data.view_data.clone(),
+        ));
 
         // Handle events
         (self.input_callback)(

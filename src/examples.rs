@@ -4,18 +4,14 @@ use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
-use std::{
-    f64::consts::PI,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::{f64::consts::PI, time::Duration};
 
 use crate::{
     app::{max_fps, AppData, AppMain},
     rendering::{
         input::{KeysState, WindowEvent},
-        render_thread::{RenderData, RenderThread},
-        renderer::{BasicRenderer, InputCallback},
+        render_thread::RenderThread,
+        renderer::{BasicRenderer, InputCallback, RenderData},
         safe_sfml::{ViewData, WindowData},
     },
     simulation::{
@@ -101,28 +97,23 @@ pub fn base_iridium_app(
     min_frame_time: Option<Duration>,
     input_callback: InputCallback,
 ) -> AppMain {
-    let vertex_buffer = Arc::new(RwLock::new(Vec::new()));
-
-    let view_data = Arc::new(RwLock::new(ViewData::new(
+    let view_data = ViewData::new(
         Vector2f::new(width as f32 / 2., height as f32 / 2.),
         Vector2f::new(width as f32, height as f32),
         sfml::graphics::FloatRect::new(0., 0., 1., 1.),
         0.,
         1.,
-    )));
-
-    let render_data = RenderData::new(vertex_buffer, view_data);
-
-    let render_thread = RenderThread::start(
-        WindowData::new(
-            (width, height),
-            format!("Iridium - {}", sim_name),
-            sfml::window::Style::DEFAULT,
-            sfml::window::ContextSettings::default(),
-            false,
-        ),
-        render_data.clone(),
     );
+
+    let render_data = RenderData::new(view_data);
+
+    let render_thread = RenderThread::start(WindowData::new(
+        (width, height),
+        format!("Iridium - {}", sim_name),
+        sfml::window::Style::DEFAULT,
+        sfml::window::ContextSettings::default(),
+        false,
+    ));
 
     AppMain::new(
         sim,
