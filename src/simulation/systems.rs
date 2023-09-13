@@ -17,35 +17,50 @@ pub trait System {
     }
 }
 
+// Handle the case where the rate is not an integer
+// Making the rate smooth & accurate across steps
+// Use a remainder to be deterministic
+pub struct SmoothRate {
+    rate: Scalar,
+    remainder: Scalar,
+}
+
+impl SmoothRate {
+    pub fn new(rate: Scalar) -> Self {
+        Self {
+            rate,
+            remainder: 0.0,
+        }
+    }
+
+    pub fn get(&mut self, dt: Time) -> usize {
+        let n = self.rate * dt + self.remainder;
+        let quotient = n as usize;
+
+        // Remainder
+        self.remainder = n - quotient as Scalar;
+
+        quotient
+    }
+}
+
 pub struct ConstantConsumer {
-    pub area: Box<dyn Area>,
-    pub rate: Scalar,
+    area: Box<dyn Area>,
+    rate: SmoothRate,
 }
 
 impl ConstantConsumer {
     pub fn new(area: Box<dyn Area>, rate: Scalar) -> Self {
-        Self { area, rate }
+        Self {
+            area,
+            rate: SmoothRate::new(rate),
+        }
     }
-}
-
-// Handle the case where the rate is not an integer
-// Making the rate smooth & accurate across steps
-fn smooth_rate(rate: Scalar, dt: Time) -> usize {
-    let n = rate * dt;
-    let mut quotient = n as usize;
-
-    // Remainder
-    // TODO make deterministic (keep track of remainder)
-    if rand::random::<Scalar>() < n - quotient as Scalar {
-        quotient += 1;
-    }
-
-    quotient
 }
 
 impl System for ConstantConsumer {
     fn update(&mut self, particles: &mut Particles, dt: Time) {
-        let mut quotient = smooth_rate(self.rate, dt);
+        let mut quotient = self.rate.get(dt);
 
         let mut to_remove = Vec::new();
         self.area.contains(&particles.positions, &mut to_remove);
@@ -62,19 +77,22 @@ impl System for ConstantConsumer {
 }
 
 pub struct ConstantEmitter {
-    pub p_factory: Box<dyn ParticleFactory>,
-    pub rate: Scalar,
+    p_factory: Box<dyn ParticleFactory>,
+    rate: SmoothRate,
 }
 
 impl ConstantEmitter {
     pub fn new(p_factory: Box<dyn ParticleFactory>, rate: Scalar) -> Self {
-        Self { p_factory, rate }
+        Self {
+            p_factory,
+            rate: SmoothRate::new(rate),
+        }
     }
 }
 
 impl System for ConstantEmitter {
     fn update(&mut self, particles: &mut Particles, dt: Time) {
-        let quotient = smooth_rate(self.rate, dt);
+        let quotient = self.rate.get(dt);
         self.p_factory.create(quotient, particles);
     }
 }
