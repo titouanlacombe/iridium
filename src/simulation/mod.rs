@@ -1,4 +1,5 @@
 pub mod areas;
+pub mod color;
 pub mod forces;
 pub mod generators;
 pub mod integrator;

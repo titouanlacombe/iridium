@@ -6,7 +6,8 @@ use rand_xorshift::XorShiftRng;
 
 use super::{
     areas::{Disk, Point, Rect},
-    types::{Color, Scalar},
+    color::Color,
+    types::Scalar,
 };
 
 pub trait Generator<T> {
@@ -236,14 +237,14 @@ impl Generator<Color> for RGBAGenerator {
             .zip(g.into_iter())
             .zip(b.into_iter().zip(a.into_iter()))
         {
-            vec.push((r, g, b, a));
+            vec.push(Color::new(r, g, b, a));
         }
     }
 
     fn generate(&mut self) -> Color {
         let mut vec = Vec::with_capacity(1);
         self.generate_n(1, &mut vec);
-        vec[0]
+        vec.pop().unwrap()
     }
 }
 
@@ -307,13 +308,13 @@ impl Generator<Color> for HSVAGenerator {
             .zip(v.into_iter().zip(a.into_iter()))
         {
             let (r, g, b) = Self::hsv2rgb(h, s, v);
-            vec.push((r, g, b, a));
+            vec.push(Color::new(r, g, b, a));
         }
     }
 
     fn generate(&mut self) -> Color {
         let mut vec = Vec::with_capacity(1);
         self.generate_n(1, &mut vec);
-        vec[0]
+        vec.pop().unwrap()
     }
 }

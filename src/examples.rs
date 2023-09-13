@@ -26,7 +26,10 @@ use crate::{
         random::RngGenerator,
         sim_events::{DefaultSimEventsHandler, SimEvent, SortedVec},
         simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
-        systems::{ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator, Wall},
+        systems::{
+            ColorWheel, ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator,
+            Wall,
+        },
         types::Scalar,
     },
 };
@@ -353,8 +356,8 @@ pub fn flow(width: u32, height: u32) -> AppMain {
             Box::new(ConstantGenerator::new(1.)),
             Box::new(RGBAGenerator::new(
                 Box::new(ConstantGenerator::new(1.)),
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(ConstantGenerator::new(1.)),
+                Box::new(ConstantGenerator::new(0.)),
+                Box::new(ConstantGenerator::new(0.)),
                 Box::new(ConstantGenerator::new(1.)),
             )),
         )),
@@ -387,9 +390,16 @@ pub fn flow(width: u32, height: u32) -> AppMain {
 
     let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
-    // TODO system to change particle color in time
-    let systems: Vec<Box<dyn System>> =
-        vec![emitter, consumer, limit_cond, physics, velocity_integrator];
+    let color_wheel = Box::new(ColorWheel { speed: 0.2 });
+
+    let systems: Vec<Box<dyn System>> = vec![
+        emitter,
+        consumer,
+        limit_cond,
+        physics,
+        velocity_integrator,
+        color_wheel,
+    ];
 
     let mut events = SortedVec::new();
     events.add(SimEvent::new(

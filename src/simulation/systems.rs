@@ -3,6 +3,7 @@ use rayon::prelude::*;
 
 use super::{
     areas::Area,
+    color::Color,
     integrator::Integrator,
     particles::{ParticleFactory, Particles},
     types::{Force as TypeForce, Scalar, Time},
@@ -204,5 +205,19 @@ impl System for VelocityIntegrator {
     fn update(&mut self, particles: &mut Particles, dt: Time) {
         self.integrator
             .integrate_vec(&particles.velocities, &mut particles.positions, dt);
+    }
+}
+
+pub struct ColorWheel {
+    pub speed: Scalar,
+}
+
+impl System for ColorWheel {
+    fn update(&mut self, particles: &mut Particles, dt: Time) {
+        particles.colors.par_iter_mut().for_each(|color| {
+            let (h, s, v, a) = color.to_hsva();
+            let h = (h + self.speed * dt) % 360.0;
+            *color = Color::from_hsva(h, s, v, a);
+        });
     }
 }

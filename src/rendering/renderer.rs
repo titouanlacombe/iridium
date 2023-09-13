@@ -90,10 +90,10 @@ impl Renderer for BasicRenderer {
             .for_each(|((position, color), vertex)| {
                 vertex.position = Vector2f::new(position.x as f32, position.y as f32);
                 vertex.color = Color::rgba(
-                    (color.0 * 255.) as u8,
-                    (color.1 * 255.) as u8,
-                    (color.2 * 255.) as u8,
-                    (color.3 * 255.) as u8,
+                    (color.r * 255.) as u8,
+                    (color.g * 255.) as u8,
+                    (color.b * 255.) as u8,
+                    (color.a * 255.) as u8,
                 );
             });
 

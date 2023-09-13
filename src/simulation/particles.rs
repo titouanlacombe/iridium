@@ -1,6 +1,7 @@
 use super::{
+    color::Color,
     generators::Generator,
-    types::{Color, Mass, Position, Velocity},
+    types::{Mass, Position, Velocity},
 };
 
 pub struct Particles {
