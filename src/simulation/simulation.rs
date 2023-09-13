@@ -38,8 +38,7 @@ impl Simulation {
         for (i, system) in &mut self.systems.iter_mut().enumerate() {
             system.update(&mut self.particles, dt);
 
-            self.logger
-                .time(&format!("{} (System {})", system.get_name(), i));
+            self.logger.time(&format!("[{}] {}", i, system.get_name()));
         }
 
         self.logger.stop();
