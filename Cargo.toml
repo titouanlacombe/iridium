@@ -8,10 +8,10 @@ edition = "2021"
 env_logger = "*"
 log = "*"
 nalgebra = "*"
-psutil = "3.2.2"
+psutil = "*"
 rand = "*"
-rand_xorshift = "0.3.0"
-rayon = "1.7.0"
+rand_xorshift = "*"
+rayon = "*"
 sfml = "*"
 
 [profile.dev]
