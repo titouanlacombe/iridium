@@ -40,9 +40,8 @@ pub struct WindowEvent {
 }
 
 impl WindowEvent {
-    pub fn from_sfml(event: &Event, window: &RenderWindow) -> Self {
-        // Check if the event has a position
-        let screen_pos = match event {
+    fn get_position(event: &Event, window: &RenderWindow) -> Option<Vector2<f64>> {
+        match event {
             Event::MouseButtonPressed { x, y, .. }
             | Event::MouseButtonReleased { x, y, .. }
             | Event::MouseMoved { x, y }
@@ -57,11 +56,13 @@ impl WindowEvent {
                 Some(position)
             }
             _ => None,
-        };
+        }
+    }
 
+    pub fn from_sfml(event: Event, window: &RenderWindow) -> Self {
         WindowEvent {
-            original: event.clone(),
-            position: screen_pos,
+            original: event,
+            position: Self::get_position(&event, window),
         }
     }
 }

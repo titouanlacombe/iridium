@@ -91,7 +91,7 @@ impl RenderThread {
             // Poll events
             let mut events = Vec::new();
             while let Some(event) = window.poll_event() {
-                events.push(WindowEvent::from_sfml(&event, &window));
+                events.push(WindowEvent::from_sfml(event, &window));
             }
 
             // Send finished signal
