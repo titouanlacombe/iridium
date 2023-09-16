@@ -237,7 +237,7 @@ impl Generator<Color> for RGBAGenerator {
             .zip(g.into_iter())
             .zip(b.into_iter().zip(a.into_iter()))
         {
-            vec.push(Color::new(r, g, b, a));
+            vec.push(Color::from_rgba(r, g, b, a));
         }
     }
 
