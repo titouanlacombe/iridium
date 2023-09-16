@@ -24,7 +24,7 @@ use crate::{
         integrator::GaussianIntegrator,
         particles::{GeneratorFactory, ParticleFactory, Particles},
         random::RngGenerator,
-        sim_events::{DefaultSimEventsHandler, SimEvent, SortedVec},
+        sim_events::{DefaultSimEventsHandler, SimEvent},
         simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
         systems::{
             ColorWheel, ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator,
@@ -32,6 +32,7 @@ use crate::{
         },
         types::Scalar,
     },
+    utils::sorted_vec::SortedVec,
 };
 
 fn get_default_input_callback() -> InputCallback {
