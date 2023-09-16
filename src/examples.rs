@@ -110,7 +110,7 @@ pub fn base_iridium_app(
 
     let render_data = RenderData::new(view_data);
 
-    let render_thread = RenderThread::start(WindowData::new(
+    let render_thread = RenderThread::new(WindowData::new(
         (width, height),
         format!("Iridium - {}", sim_name),
         sfml::window::Style::DEFAULT,

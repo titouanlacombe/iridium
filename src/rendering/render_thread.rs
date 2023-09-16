@@ -1,58 +1,42 @@
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use sfml::graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex};
-use std::{
-    sync::{
-        mpsc::{self, Receiver},
-        Arc, RwLock,
-    },
-    thread,
+use std::sync::{
+    mpsc::{self, Receiver},
+    Arc, RwLock,
 };
 
 use super::{
     input::WindowEvent,
     safe_sfml::{ViewData, WindowData},
 };
+use crate::utils::worker_thread::WorkerThread;
 
 pub type DrawResult = Vec<WindowEvent>;
 
-type RenderCommand = Box<dyn FnOnce(&mut RenderWindow, &mut bool) + Send>;
+pub struct RenderThreadData {
+    pub window: Option<RenderWindow>,
+}
+
+impl Default for RenderThreadData {
+    fn default() -> Self {
+        Self { window: None }
+    }
+}
 
 pub struct RenderThread {
-    sender: mpsc::Sender<RenderCommand>,
-    handle: Option<thread::JoinHandle<()>>,
+    thread: WorkerThread<RenderThreadData>,
 }
 
 impl RenderThread {
-    pub fn start(window: WindowData) -> Self {
-        // Create channel
-        let (tx, rx) = mpsc::channel::<RenderCommand>();
+    pub fn new(window: WindowData) -> Self {
+        let thread = WorkerThread::new();
 
-        // Spawn thread
-        let handle = thread::spawn(move || {
-            // Create SFML window in this thread
-            let mut window = window.make();
+        // Create window
+        thread.send(Box::new(move |data: &mut RenderThreadData, _stop| {
+            data.window = Some(window.make());
+        }));
 
-            // Render thread main loop
-            let mut stop = false;
-            loop {
-                // Receive & execute command
-                rx.recv().unwrap()(&mut window, &mut stop);
-
-                // Check if thread should stop
-                if stop {
-                    break;
-                }
-            }
-        });
-
-        Self {
-            sender: tx,
-            handle: Some(handle),
-        }
-    }
-
-    fn command(&self, command: RenderCommand) {
-        self.sender.send(command).unwrap();
+        Self { thread }
     }
 
     pub fn draw(
@@ -63,7 +47,9 @@ impl RenderThread {
         // Create response channel
         let (tx, rx) = mpsc::channel();
 
-        self.command(Box::new(move |window, _stop| {
+        self.thread.send(Box::new(move |data, _stop| {
+            let window = data.window.as_mut().unwrap();
+
             // Clear screen
             window.clear(Color::BLACK);
 
@@ -99,17 +85,5 @@ impl RenderThread {
         }));
 
         rx
-    }
-}
-
-impl Drop for RenderThread {
-    fn drop(&mut self) {
-        // Send stop command
-        self.command(Box::new(|_, stop| {
-            *stop = true;
-        }));
-
-        // Wait for thread to finish
-        self.handle.take().unwrap().join().unwrap();
     }
 }
