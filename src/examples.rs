@@ -299,7 +299,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
                         button: sfml::window::mouse::Button::Left,
                         ..
                     } => {
-                        let mut pfactory = GeneratorFactory::new(
+                        let mut firework_factory = GeneratorFactory::new(
                             Box::new(PointGenerator::new(Point {
                                 position: event.position.unwrap(),
                             })),
@@ -316,7 +316,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
                             )),
                         );
 
-                        pfactory.create(1_000, &mut data.sim.particles);
+                        firework_factory.create(1_000, &mut data.sim.particles);
                     }
                     _ => {}
                 }
