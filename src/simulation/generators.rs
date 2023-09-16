@@ -269,23 +269,6 @@ impl HSVAGenerator {
             a_generator,
         }
     }
-
-    pub fn hsv2rgb(h: Scalar, s: Scalar, v: Scalar) -> (Scalar, Scalar, Scalar) {
-        let c = v * s;
-        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-        let m = v - c;
-
-        let (r, g, b) = match h {
-            h if h < 60.0 => (c, x, 0.0),
-            h if h < 120.0 => (x, c, 0.0),
-            h if h < 180.0 => (0.0, c, x),
-            h if h < 240.0 => (0.0, x, c),
-            h if h < 300.0 => (x, 0.0, c),
-            _ => (c, 0.0, x),
-        };
-
-        (r + m, g + m, b + m)
-    }
 }
 
 impl Generator<Color> for HSVAGenerator {
@@ -307,8 +290,7 @@ impl Generator<Color> for HSVAGenerator {
             .zip(s.into_iter())
             .zip(v.into_iter().zip(a.into_iter()))
         {
-            let (r, g, b) = Self::hsv2rgb(h, s, v);
-            vec.push(Color::new(r, g, b, a));
+            vec.push(Color::from_hsva(h, s, v, a));
         }
     }
 
