@@ -1,6 +1,4 @@
 multithreading {
-	go through code & note fixes & improvements (performance, readability, etc)
-
 	fix false random (pattern repeats each click)
 
 	more multithreading/optimisation
