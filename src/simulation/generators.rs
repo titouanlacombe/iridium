@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use nalgebra::Vector2;
 use rand::Rng;
-use rand_xorshift::XorShiftRng;
+use rand_pcg::Pcg64Mcg;
 
 use super::{
     areas::{Disk, Point, Rect},
@@ -39,13 +39,13 @@ impl<T: Clone> Generator<T> for ConstantGenerator<T> {
 }
 
 pub struct UniformGenerator {
-    rng: XorShiftRng,
+    rng: Pcg64Mcg,
     min: Scalar,
     max: Scalar,
 }
 
 impl UniformGenerator {
-    pub fn new(rng: XorShiftRng, min: Scalar, max: Scalar) -> Self {
+    pub fn new(rng: Pcg64Mcg, min: Scalar, max: Scalar) -> Self {
         if min >= max {
             panic!("min must be less than max");
         }
@@ -139,11 +139,11 @@ impl Generator<Vector2<Scalar>> for Vector2PolarGenerator {
 
 pub struct RectGenerator {
     rect: Rect,
-    rng: XorShiftRng,
+    rng: Pcg64Mcg,
 }
 
 impl RectGenerator {
-    pub fn new(rect: Rect, rng: XorShiftRng) -> Self {
+    pub fn new(rect: Rect, rng: Pcg64Mcg) -> Self {
         Self { rect, rng }
     }
 }
@@ -159,11 +159,11 @@ impl Generator<Vector2<Scalar>> for RectGenerator {
 
 pub struct DiskGenerator {
     disk: Disk,
-    rng: XorShiftRng,
+    rng: Pcg64Mcg,
 }
 
 impl DiskGenerator {
-    pub fn new(disk: Disk, rng: XorShiftRng) -> Self {
+    pub fn new(disk: Disk, rng: Pcg64Mcg) -> Self {
         Self { disk, rng }
     }
 }

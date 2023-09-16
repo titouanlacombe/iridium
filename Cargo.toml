@@ -10,7 +10,7 @@ log = "*"
 nalgebra = "*"
 psutil = "*"
 rand = "*"
-rand_xorshift = "*"
+rand_pcg = "*"
 rayon = "*"
 sfml = "*"
 

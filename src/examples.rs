@@ -58,7 +58,7 @@ fn get_default_input_callback() -> InputCallback {
                     _ => {}
                 },
                 SfmlEvent::MouseWheelScrolled { delta, .. } => {
-                    view_data.zoom *= 1. + delta * 0.05;
+                    view_data.zoom *= 1. - delta * 0.05;
                 }
                 SfmlEvent::Resized { width, height } => {
                     view_data.size = Vector2f::new(width as f32, height as f32);
