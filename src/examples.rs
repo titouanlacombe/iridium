@@ -25,7 +25,7 @@ use crate::{
         particles::{GeneratorFactory, ParticleFactory, Particles},
         random::RngGenerator,
         sim_events::{DefaultSimEventsHandler, SimEvent},
-        simulation::{ContinuousSimulationRunner, Simulation, SimulationRunner},
+        simulation::{ConstantSimulationRunner, Simulation, SimulationRunner},
         systems::{
             ColorWheel, ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator,
             Wall,
@@ -171,7 +171,7 @@ pub fn benchmark1() -> AppMain {
 
     let sim = Simulation::new(particles, vec![limit_cond, velocity_integrator], None);
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
 
     base_iridium_app(
         width,
@@ -243,7 +243,7 @@ pub fn benchmark2() -> AppMain {
         None,
     );
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
 
     base_iridium_app(
         width,
@@ -283,7 +283,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
         None,
     );
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
 
     let mut default_input_callback = get_default_input_callback();
     let input_callback = Box::new(
@@ -421,7 +421,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
 
     let sim = Simulation::new(Particles::new_empty(), systems, Some(events_handler));
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(4.));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(4.));
 
     base_iridium_app(
         width,
@@ -474,7 +474,7 @@ pub fn benchmark3() -> AppMain {
 
     let sim = Simulation::new(Particles::new_empty(), vec![sim_reseter, emitter], None);
 
-    let sim_runner = Box::new(ContinuousSimulationRunner::new(1.));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
 
     base_iridium_app(
         width,

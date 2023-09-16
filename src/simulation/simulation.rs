@@ -49,17 +49,17 @@ pub trait SimulationRunner {
     fn step(&mut self, sim: &mut Simulation);
 }
 
-pub struct ContinuousSimulationRunner {
+pub struct ConstantSimulationRunner {
     dt: Time,
 }
 
-impl ContinuousSimulationRunner {
+impl ConstantSimulationRunner {
     pub fn new(dt: Time) -> Self {
         Self { dt }
     }
 }
 
-impl SimulationRunner for ContinuousSimulationRunner {
+impl SimulationRunner for ConstantSimulationRunner {
     fn step(&mut self, sim: &mut Simulation) {
         sim.step(self.dt);
     }
