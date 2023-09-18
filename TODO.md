@@ -1,28 +1,18 @@
-multithreading {
-	go through code & note fixes & improvements (performance, readability, etc)
-
-	fix false random (pattern repeats each click)
-
-	more multithreading/optimisation
-}
-
-trait spatial partitioning
+trait spatial partitioning?
 add quadtree (readme.md)
-create boids system
+create boids system example
 add coulomb, friction, gravity
-benchmark & optimize
+
+implement particles lifetimes (new buffer) ?
 
 iridium big facade to make it easy to use
-is it posible to implement particles lifetimes ?
-more integrators option (euler, verlet, etc) & test smallest dt possible?
+more integrators option (euler, verlet, etc) & test biggest dt possible?
+benchmark & optimize sim?
 
 window set_icon
 fullscreen key toggle
 window.vsync
 
-fix flipped y axis (need custom opengl?)
+fix flipped y axis (cleanely) (need custom opengl?)
 custom shading (geometry shader)
-benchmark & optimize gpu?
-
-notes:
-for sim benchmark disable render
+benchmark & optimize render?

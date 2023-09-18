@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use nalgebra::Vector2;
 use rand::Rng;
-use rand_xorshift::XorShiftRng;
+use rand_pcg::Pcg64Mcg;
 
 use super::{
     areas::{Disk, Point, Rect},
@@ -39,13 +39,13 @@ impl<T: Clone> Generator<T> for ConstantGenerator<T> {
 }
 
 pub struct UniformGenerator {
-    rng: XorShiftRng,
+    rng: Pcg64Mcg,
     min: Scalar,
     max: Scalar,
 }
 
 impl UniformGenerator {
-    pub fn new(rng: XorShiftRng, min: Scalar, max: Scalar) -> Self {
+    pub fn new(rng: Pcg64Mcg, min: Scalar, max: Scalar) -> Self {
         if min >= max {
             panic!("min must be less than max");
         }
@@ -139,11 +139,11 @@ impl Generator<Vector2<Scalar>> for Vector2PolarGenerator {
 
 pub struct RectGenerator {
     rect: Rect,
-    rng: XorShiftRng,
+    rng: Pcg64Mcg,
 }
 
 impl RectGenerator {
-    pub fn new(rect: Rect, rng: XorShiftRng) -> Self {
+    pub fn new(rect: Rect, rng: Pcg64Mcg) -> Self {
         Self { rect, rng }
     }
 }
@@ -159,11 +159,11 @@ impl Generator<Vector2<Scalar>> for RectGenerator {
 
 pub struct DiskGenerator {
     disk: Disk,
-    rng: XorShiftRng,
+    rng: Pcg64Mcg,
 }
 
 impl DiskGenerator {
-    pub fn new(disk: Disk, rng: XorShiftRng) -> Self {
+    pub fn new(disk: Disk, rng: Pcg64Mcg) -> Self {
         Self { disk, rng }
     }
 }
@@ -237,7 +237,7 @@ impl Generator<Color> for RGBAGenerator {
             .zip(g.into_iter())
             .zip(b.into_iter().zip(a.into_iter()))
         {
-            vec.push(Color::new(r, g, b, a));
+            vec.push(Color::from_rgba(r, g, b, a));
         }
     }
 
@@ -269,23 +269,6 @@ impl HSVAGenerator {
             a_generator,
         }
     }
-
-    pub fn hsv2rgb(h: Scalar, s: Scalar, v: Scalar) -> (Scalar, Scalar, Scalar) {
-        let c = v * s;
-        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-        let m = v - c;
-
-        let (r, g, b) = match h {
-            h if h < 60.0 => (c, x, 0.0),
-            h if h < 120.0 => (x, c, 0.0),
-            h if h < 180.0 => (0.0, c, x),
-            h if h < 240.0 => (0.0, x, c),
-            h if h < 300.0 => (x, 0.0, c),
-            _ => (c, 0.0, x),
-        };
-
-        (r + m, g + m, b + m)
-    }
 }
 
 impl Generator<Color> for HSVAGenerator {
@@ -307,8 +290,7 @@ impl Generator<Color> for HSVAGenerator {
             .zip(s.into_iter())
             .zip(v.into_iter().zip(a.into_iter()))
         {
-            let (r, g, b) = Self::hsv2rgb(h, s, v);
-            vec.push(Color::new(r, g, b, a));
+            vec.push(Color::from_hsva(h, s, v, a));
         }
     }
 

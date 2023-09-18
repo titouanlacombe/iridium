@@ -1,39 +1,5 @@
 use super::{particles::Particles, systems::System, types::Time};
-
-pub struct SortedVec<T> {
-    pub vec: Vec<T>,
-}
-
-impl<T: PartialOrd> SortedVec<T> {
-    pub fn new() -> Self {
-        Self { vec: Vec::new() }
-    }
-
-    pub fn add(&mut self, value: T) {
-        let mut left = 0;
-        let mut right = self.vec.len();
-
-        while left < right {
-            let mid = (left + right) / 2;
-
-            if self.vec[mid] < value {
-                left = mid + 1;
-            } else {
-                right = mid;
-            }
-        }
-
-        self.vec.insert(left, value);
-    }
-
-    pub fn first(&self) -> Option<&T> {
-        self.vec.first()
-    }
-
-    pub fn pop(&mut self) -> Option<T> {
-        self.vec.pop()
-    }
-}
+use crate::utils::sorted_vec::SortedVec;
 
 type SimEventCallback = Box<dyn Fn(&mut Particles, &mut Vec<Box<dyn System>>)>;
 pub struct SimEvent {
@@ -47,13 +13,13 @@ impl SimEvent {
     }
 }
 
-// Sort from latest to earliest
 impl PartialEq for SimEvent {
     fn eq(&self, _other: &Self) -> bool {
         false
     }
 }
 
+// Sort from latest to earliest
 impl PartialOrd for SimEvent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         other.time.partial_cmp(&self.time)

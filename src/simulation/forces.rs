@@ -2,9 +2,12 @@ use rayon::prelude::*;
 
 use super::{
     particles::Particles,
-    systems::Force as PhysForce,
-    types::{Acceleration, Force, Scalar, Velocity},
+    types::{Acceleration, Force as ForceType, Scalar, Velocity},
 };
+
+pub trait Force {
+    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>);
+}
 
 pub struct UniformGravity {
     pub acceleration: Acceleration,
@@ -16,8 +19,8 @@ impl UniformGravity {
     }
 }
 
-impl PhysForce for UniformGravity {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<Force>) {
+impl Force for UniformGravity {
+    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
         particles
             .masses
             .par_iter()
@@ -39,8 +42,8 @@ impl UniformDrag {
     }
 }
 
-impl PhysForce for UniformDrag {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<Force>) {
+impl Force for UniformDrag {
+    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
         particles
             .velocities
             .par_iter()
