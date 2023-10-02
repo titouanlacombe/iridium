@@ -5,6 +5,8 @@ add coulomb, friction, gravity
 
 implement particles lifetimes (new buffer) ?
 
+sim events can control window (close, resize, etc)???
+
 iridium big facade to make it easy to use
 more integrators option (euler, verlet, etc) & test biggest dt possible?
 benchmark & optimize sim?
