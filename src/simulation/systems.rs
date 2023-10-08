@@ -175,6 +175,14 @@ impl System for Physics {
             force.apply(particles, &mut self.forces_buffer);
         }
 
+        // Scale forces by mass to get acceleration
+        self.forces_buffer
+            .par_iter_mut()
+            .zip(particles.masses.par_iter())
+            .for_each(|(force, mass)| {
+                *force /= *mass;
+            });
+
         self.integrator
             .integrate_vec(&self.forces_buffer, &mut particles.velocities, dt);
     }
