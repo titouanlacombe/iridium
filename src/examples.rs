@@ -16,10 +16,11 @@ use crate::{
     },
     simulation::{
         areas::{Disk, Point, Rect},
-        forces::{UniformDrag, UniformGravity},
+        color::Color,
+        forces::{Drag, Gravity, Repulsion, UniformDrag, UniformGravity},
         generators::{
-            ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RGBAGenerator,
-            RectGenerator, UniformGenerator, Vector2PolarGenerator,
+            ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RectGenerator,
+            UniformGenerator, Vector2PolarGenerator,
         },
         integrator::GaussianIntegrator,
         particles::{GeneratorFactory, ParticleFactory, Particles},
@@ -148,12 +149,7 @@ pub fn benchmark1() -> AppMain {
             Box::new(UniformGenerator::new(rng_gen.next(), -0.2 * PI, 0.)),
         )),
         Box::new(ConstantGenerator::new(1.)),
-        Box::new(RGBAGenerator::new(
-            Box::new(ConstantGenerator::new(1.)),
-            Box::new(ConstantGenerator::new(1.)),
-            Box::new(ConstantGenerator::new(1.)),
-            Box::new(ConstantGenerator::new(1.)),
-        )),
+        Box::new(ConstantGenerator::new(Color::WHITE)),
     );
 
     let limit_cond = Box::new(Wall {
@@ -199,12 +195,7 @@ pub fn benchmark2() -> AppMain {
             Box::new(UniformGenerator::new(rng_gen.next(), -0.2 * PI, 0.)),
         )),
         Box::new(ConstantGenerator::new(1.)),
-        Box::new(RGBAGenerator::new(
-            Box::new(ConstantGenerator::new(1.)),
-            Box::new(ConstantGenerator::new(1.)),
-            Box::new(ConstantGenerator::new(1.)),
-            Box::new(ConstantGenerator::new(1.)),
-        )),
+        Box::new(ConstantGenerator::new(Color::WHITE)),
     );
 
     let mut particles = Particles::new_empty();
@@ -355,12 +346,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
                 Box::new(ConstantGenerator::new(0.1 * PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
-            Box::new(RGBAGenerator::new(
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(ConstantGenerator::new(0.)),
-                Box::new(ConstantGenerator::new(0.)),
-                Box::new(ConstantGenerator::new(1.)),
-            )),
+            Box::new(ConstantGenerator::new(Color::RED)),
         )),
         30.,
     ));
@@ -460,12 +446,7 @@ pub fn benchmark3() -> AppMain {
                 Box::new(ConstantGenerator::new(0.1 * PI)),
             )),
             Box::new(ConstantGenerator::new(1.)),
-            Box::new(RGBAGenerator::new(
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(ConstantGenerator::new(1.)),
-                Box::new(ConstantGenerator::new(1.)),
-            )),
+            Box::new(ConstantGenerator::new(Color::WHITE)),
         )),
         5E5,
     ));
@@ -488,3 +469,91 @@ pub fn benchmark3() -> AppMain {
 }
 
 // pub fn events() {}
+
+// Temporary facade to generate a planet
+fn gen_planet(
+    position: Vector2<Scalar>,
+    radius: Scalar,
+    mass: Scalar,
+    color: Color,
+    n: usize,
+    rng_gen: &mut RngGenerator,
+    particles: &mut Particles,
+) {
+    GeneratorFactory::new(
+        Box::new(DiskGenerator::new(
+            Disk::new(position, radius),
+            rng_gen.next(),
+        )),
+        Box::new(ConstantGenerator::new(Vector2::zeros())),
+        Box::new(ConstantGenerator::new(mass)),
+        Box::new(ConstantGenerator::new(color)),
+    )
+    .create(n, particles);
+}
+
+pub fn gravity1(width: u32, height: u32) -> AppMain {
+    let mut rng_gen = RngGenerator::new(0);
+    let center = Vector2::new(width as Scalar / 2., height as Scalar / 2.);
+
+    let mut particles = Particles::new_empty();
+
+    let offset = Vector2::new(width as Scalar / 3., 0.);
+
+    // Generate stars
+    gen_planet(
+        center + offset,
+        center.min() / 4.,
+        1.,
+        Color::WHITE,
+        1_500,
+        &mut rng_gen,
+        &mut particles,
+    );
+
+    // Generate black hole
+    gen_planet(
+        center - offset,
+        0.,
+        200.,
+        Color::RED,
+        1,
+        &mut rng_gen,
+        &mut particles,
+    );
+
+    let limit_cond = Box::new(Wall {
+        x_min: 0.,
+        y_min: 0.,
+        x_max: width as Scalar,
+        y_max: height as Scalar,
+        restitution: 1.,
+    });
+
+    let gravity = Box::new(Gravity::new(0.1, 2.));
+    let drag = Box::new(Drag::new(0.006, 12.));
+    let repulsion = Box::new(Repulsion::new(0.5, 0.5));
+
+    let physics = Box::new(Physics::new(
+        vec![gravity, drag, repulsion],
+        Box::new(GaussianIntegrator),
+    ));
+
+    let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
+
+    let systems: Vec<Box<dyn System>> = vec![limit_cond, physics, velocity_integrator];
+
+    let sim = Simulation::new(particles, systems, None);
+
+    let sim_runner = Box::new(ConstantSimulationRunner::new(0.08));
+
+    base_iridium_app(
+        width,
+        height,
+        sim,
+        sim_runner,
+        "Flow",
+        max_fps(60),
+        get_default_input_callback(),
+    )
+}
