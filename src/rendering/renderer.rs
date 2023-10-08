@@ -149,3 +149,15 @@ impl Drop for BasicRenderer {
         self.wait_for_draw();
     }
 }
+
+pub struct NoRenderer {}
+
+impl NoRenderer {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Renderer for NoRenderer {
+    fn render(&mut self, _data: &mut AppData) {}
+}
