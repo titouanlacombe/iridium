@@ -67,7 +67,7 @@ fn get_default_input_callback() -> InputCallback {
             }
         }
 
-        let translation_speed = (dt * 200. / view_data.zoom as f64) as f32;
+        let translation_speed = (dt * 200. * view_data.zoom as f64) as f32;
         let rotation_speed = (dt * 90.) as f32;
 
         if keys_state.get(Key::Up) {
@@ -207,6 +207,9 @@ pub fn benchmark2() -> AppMain {
         )),
     );
 
+    let mut particles = Particles::new_empty();
+    factory.create(1_000_000, &mut particles);
+
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
@@ -214,9 +217,6 @@ pub fn benchmark2() -> AppMain {
         y_max: height as Scalar,
         restitution: 0.8,
     });
-
-    let mut particles = Particles::new_empty();
-    factory.create(1_000_000, &mut particles);
 
     let gravity = Box::new(UniformGravity::new(Vector2::new(0., -0.001)));
     let drag = Box::new(UniformDrag::new(0.0005, Vector2::new(-4., 0.)));
