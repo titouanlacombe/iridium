@@ -42,6 +42,12 @@ pub struct Rect {
     pub size: Vector2<Length>,
 }
 
+impl Rect {
+    pub fn new(position: Position, size: Vector2<Length>) -> Self {
+        Self { position, size }
+    }
+}
+
 impl Area for Rect {
     fn contain(&self, position: Position) -> bool {
         position.x >= self.position.x
