@@ -1,4 +1,4 @@
-naive grav & coulombs
+naive grav & repulsion (dist^3)
 frame by frame input when paused ?
 
 trait spatial partitioning? (grav & coulombs take RC SpacePart as parameter)
