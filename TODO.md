@@ -1,4 +1,5 @@
 naive grav & coulombs
+frame by frame input when paused ?
 
 trait spatial partitioning? (grav & coulombs take RC SpacePart as parameter)
 space partitioning update (sim system that update the partitioning every step)
