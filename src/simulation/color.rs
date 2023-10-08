@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f64,
     pub g: f64,
@@ -6,9 +7,18 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new(r: f64, g: f64, b: f64, a: f64) -> Self {
+    pub const fn new(r: f64, g: f64, b: f64, a: f64) -> Self {
         Self { r, g, b, a }
     }
+
+    pub const BLACK: Self = Self::new(0.0, 0.0, 0.0, 1.0);
+    pub const WHITE: Self = Self::new(1.0, 1.0, 1.0, 1.0);
+    pub const RED: Self = Self::new(1.0, 0.0, 0.0, 1.0);
+    pub const GREEN: Self = Self::new(0.0, 1.0, 0.0, 1.0);
+    pub const BLUE: Self = Self::new(0.0, 0.0, 1.0, 1.0);
+    pub const YELLOW: Self = Self::new(1.0, 1.0, 0.0, 1.0);
+    pub const CYAN: Self = Self::new(0.0, 1.0, 1.0, 1.0);
+    pub const MAGENTA: Self = Self::new(1.0, 0.0, 1.0, 1.0);
 
     pub fn from_rgba(r: f64, g: f64, b: f64, a: f64) -> Self {
         Self::new(r, g, b, a)
