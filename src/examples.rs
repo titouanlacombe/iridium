@@ -38,9 +38,15 @@ use crate::{
 
 fn get_default_input_callback() -> InputCallback {
     let mut keys_state = KeysState::new();
+    let mut single_step = false;
 
     Box::new(move |data, render_data, dt, events| {
         let view_data = &mut render_data.view_data.write().unwrap();
+
+        if single_step {
+            single_step = false;
+            data.running = false;
+        }
 
         for event in events {
             keys_state.update(&event);
@@ -55,6 +61,10 @@ fn get_default_input_callback() -> InputCallback {
                     }
                     Key::Space => {
                         data.running = !data.running;
+                    }
+                    Key::S => {
+                        data.running = true;
+                        single_step = true;
                     }
                     _ => {}
                 },
