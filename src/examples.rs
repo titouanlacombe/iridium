@@ -144,7 +144,8 @@ pub fn base_iridium_app(
     )
 }
 
-pub fn benchmark1() -> AppMain {
+// TODO benchmark empty simulation
+pub fn benchmark_base() -> AppMain {
     let width = 500;
     let height = 500;
     let mut rng_gen = RngGenerator::new(0);
@@ -184,13 +185,13 @@ pub fn benchmark1() -> AppMain {
         height,
         sim,
         sim_runner,
-        "Benchmark 1",
+        "Benchmark Base",
         None,
         get_default_input_callback(),
     )
 }
 
-pub fn benchmark2() -> AppMain {
+pub fn benchmark_forces() -> AppMain {
     let width = 500;
     let height = 500;
     let mut rng_gen = RngGenerator::new(0);
@@ -251,7 +252,7 @@ pub fn benchmark2() -> AppMain {
         height,
         sim,
         sim_runner,
-        "Benchmark 2",
+        "Benchmark Forces",
         None,
         get_default_input_callback(),
     )
@@ -330,7 +331,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
         height,
         sim,
         sim_runner,
-        "Fireworks 2",
+        "Fireworks",
         max_fps(60),
         input_callback,
     )
@@ -438,7 +439,7 @@ impl System for SimReset {
     }
 }
 
-pub fn benchmark3() -> AppMain {
+pub fn benchmark_generator() -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
     let width = 500;
     let height = 500;
@@ -472,7 +473,7 @@ pub fn benchmark3() -> AppMain {
         height,
         sim,
         sim_runner,
-        "Benchmark 3",
+        "Benchmark Generator",
         None,
         get_default_input_callback(),
     )
@@ -502,6 +503,7 @@ fn gen_planet(
     .create(n, particles);
 }
 
+// TODO convert to benchmark_gravity
 pub fn gravity1(width: u32, height: u32) -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
     let center = Vector2::new(width as Scalar / 2., height as Scalar / 2.);
@@ -562,7 +564,7 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         height,
         sim,
         sim_runner,
-        "Flow",
+        "Gravity",
         max_fps(60),
         get_default_input_callback(),
     )
