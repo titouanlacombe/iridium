@@ -4,6 +4,8 @@ add quadtree (readme.md)
 create boids system example
 add coulomb, friction, gravity
 
+use izip?
+
 implement particles lifetimes (new buffer) ?
 
 sim events can control window (close, resize, etc)???

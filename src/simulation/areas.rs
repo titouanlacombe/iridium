@@ -81,6 +81,12 @@ pub struct Point {
     pub position: Position,
 }
 
+impl Point {
+    pub fn new(position: Position) -> Self {
+        Self { position }
+    }
+}
+
 impl Area for Point {
     fn contain(&self, position: Position) -> bool {
         position == self.position
