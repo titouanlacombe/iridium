@@ -2,7 +2,7 @@ use rayon::prelude::*;
 
 use super::{
     particles::Particles,
-    types::{Acceleration, Force as ForceType, Scalar, Velocity},
+    types::{Acceleration, Force as ForceType, Mass, Position, Scalar, Velocity},
 };
 
 pub trait Force {
@@ -63,6 +63,17 @@ impl Gravity {
     pub fn new(coef: Scalar, epsilon: Scalar) -> Self {
         Self { coef, epsilon }
     }
+
+    pub fn newton(&self, pos1: Position, pos2: Position, mass1: Mass, mass2: Mass) -> ForceType {
+        let distance_v = pos1 - pos2;
+        let distance = distance_v.norm();
+
+        if distance < self.epsilon {
+            return ForceType::zeros();
+        }
+
+        self.coef * distance_v * mass1 * mass2 / distance.powi(3)
+    }
 }
 
 impl Force for Gravity {
@@ -82,16 +93,12 @@ impl Force for Gravity {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
                     for i in start..end {
                         for j in (i + 1)..particles.positions.len() {
-                            let distance_v = particles.positions[i] - particles.positions[j];
-                            let distance = distance_v.norm();
-
-                            if distance < self.epsilon {
-                                continue;
-                            }
-
-                            let force = self.coef * particles.masses[i] * particles.masses[j]
-                                / distance.powi(3)
-                                * distance_v;
+                            let force = self.newton(
+                                particles.positions[i],
+                                particles.positions[j],
+                                particles.masses[i],
+                                particles.masses[j],
+                            );
 
                             local_forces[i] -= force;
                             local_forces[j] += force;
