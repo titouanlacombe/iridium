@@ -2,8 +2,9 @@ use nalgebra::Vector2;
 
 use super::{
     areas::{Area, Rect},
+    forces::Gravity,
     particles::Particles,
-    types::{Mass, Position},
+    types::{Force, Mass, Position, Scalar},
 };
 
 pub struct QuadTreeNode {
@@ -13,18 +14,21 @@ pub struct QuadTreeNode {
     pub particles: Vec<usize>,
 
     // For Barnes-Hut
-    pub position_of_mass: Position,
+    pub position_of_mass: Vector2<Scalar>,
     pub total_mass: Mass,
+    pub center_of_mass: Option<Position>, // Cache
 }
 
+// TODO iterator
 impl QuadTreeNode {
     pub fn new(rect: Rect) -> Self {
         Self {
             rect,
             childs: None,
             particles: Vec::new(),
-            position_of_mass: Position::new(0.0, 0.0),
+            position_of_mass: Vector2::new(0.0, 0.0),
             total_mass: 0.0,
+            center_of_mass: None,
         }
     }
 
@@ -72,10 +76,14 @@ impl QuadTreeNode {
     }
 
     fn merge(&mut self) {
-        if let Some(childs) = &mut self.childs {
-            for child in childs.iter_mut() {
-                child.merge();
-                self.particles.append(&mut child.particles);
+        let mut stack = Vec::new();
+        stack.push(self);
+
+        while let Some(node) = stack.pop() {
+            self.particles.extend(node.particles.drain(..));
+
+            if let Some(childs) = &mut node.childs {
+                stack.extend(childs.iter_mut());
             }
         }
 
@@ -117,29 +125,46 @@ impl QuadTreeNode {
         }
     }
 
-    pub fn reset(&mut self) {
-        if let Some(childs) = &mut self.childs {
-            for child in childs.iter_mut() {
-                child.reset();
-            }
+    fn get_center_of_mass(&mut self) -> Position {
+        if let Some(center_of_mass) = self.center_of_mass {
+            center_of_mass
+        } else {
+            let center_of_mass = self.position_of_mass / self.total_mass;
+            self.center_of_mass = Some(center_of_mass);
+            center_of_mass
         }
-
-        self.particles.clear();
-        self.position_of_mass = Position::new(0.0, 0.0);
-        self.total_mass = 0.0;
     }
 }
 
 pub struct QuadTree {
     root: QuadTreeNode,
     max_particles: usize,
+    gravity: Gravity,
+    theta: f64, // Barnes-Hut
 }
 
 impl QuadTree {
-    pub fn new(rect: Rect, max_particles: usize) -> Self {
+    pub fn new(rect: Rect, max_particles: usize, gravity: Gravity, theta: f64) -> Self {
         Self {
             root: QuadTreeNode::new(rect),
             max_particles,
+            gravity,
+            theta,
+        }
+    }
+
+    pub fn reset(&mut self) {
+        let mut stack = Vec::new();
+        stack.push(&mut self.root);
+
+        while let Some(node) = stack.pop() {
+            node.particles.clear();
+            node.position_of_mass = Position::new(0.0, 0.0);
+            node.total_mass = 0.0;
+
+            if let Some(childs) = &mut node.childs {
+                stack.extend(childs.iter_mut());
+            }
         }
     }
 
@@ -147,6 +172,40 @@ impl QuadTree {
         for index in 0..particles.len() {
             self.root
                 .insert_particle(index, particles, self.max_particles);
+        }
+    }
+
+    fn barnes_hut(&self, index: usize, particles: &Particles, force: &mut Force) {
+        let mut stack = Vec::new();
+        stack.push(&mut self.root);
+
+        let pos = particles.positions[index];
+        let mass = particles.masses[index];
+
+        while let Some(node) = stack.pop() {
+            let center_of_mass = node.get_center_of_mass();
+            let distance = (center_of_mass - pos).norm();
+            let theta = self.theta * node.rect.size.norm() / distance;
+
+            if theta < 1.0 {
+                *force += self
+                    .gravity
+                    .newton(pos, center_of_mass, mass, node.total_mass);
+            } else {
+                if let Some(childs) = &node.childs {
+                    for child in childs.iter_mut() {
+                        if child.rect.contain(pos) {
+                            stack.push(child);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn gravity(&self, particles: &Particles, forces: &mut Vec<Force>) {
+        for index in 0..particles.len() {
+            self.barnes_hut(index, particles, &mut forces[index]);
         }
     }
 }
