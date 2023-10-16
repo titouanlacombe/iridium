@@ -28,23 +28,11 @@ impl QuadTreeNode {
         }
     }
 
-    pub fn should_divide(&self, max_particles: usize) -> bool {
+    fn should_divide(&self, max_particles: usize) -> bool {
         self.particles.len() > max_particles
     }
 
-    pub fn reset(&mut self) {
-        if let Some(childs) = &mut self.childs {
-            for child in childs.iter_mut() {
-                child.reset();
-            }
-        }
-
-        self.particles.clear();
-        self.position_of_mass = Position::new(0.0, 0.0);
-        self.total_mass = 0.0;
-    }
-
-    pub fn subdivide(&mut self, particles: &Particles, max_particles: usize) {
+    fn subdivide(&mut self, particles: &Particles, max_particles: usize) {
         let half_size = self.rect.size / 2.0;
 
         self.childs = Some(Box::new([
@@ -83,7 +71,7 @@ impl QuadTreeNode {
         }
     }
 
-    pub fn merge(&mut self) {
+    fn merge(&mut self) {
         if let Some(childs) = &mut self.childs {
             for child in childs.iter_mut() {
                 child.merge();
@@ -128,6 +116,18 @@ impl QuadTreeNode {
             }
         }
     }
+
+    pub fn reset(&mut self) {
+        if let Some(childs) = &mut self.childs {
+            for child in childs.iter_mut() {
+                child.reset();
+            }
+        }
+
+        self.particles.clear();
+        self.position_of_mass = Position::new(0.0, 0.0);
+        self.total_mass = 0.0;
+    }
 }
 
 pub struct QuadTree {
@@ -136,17 +136,17 @@ pub struct QuadTree {
 }
 
 impl QuadTree {
-    pub fn insert_particles(&mut self, particles: &Particles) {
-        for index in 0..particles.len() {
-            self.root
-                .insert_particle(index, particles, self.max_particles);
-        }
-    }
-
     pub fn new(rect: Rect, max_particles: usize) -> Self {
         Self {
             root: QuadTreeNode::new(rect),
             max_particles,
+        }
+    }
+
+    pub fn insert_particles(&mut self, particles: &Particles) {
+        for index in 0..particles.len() {
+            self.root
+                .insert_particle(index, particles, self.max_particles);
         }
     }
 }
