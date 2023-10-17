@@ -5,127 +5,95 @@ use super::{
     areas::{Area, Rect},
     forces::Gravity,
     particles::Particles,
-    types::{Force, Mass, Position, Scalar},
+    types::{Force, Mass, Position},
 };
 
 pub struct QuadTreeNode {
     pub rect: Rect,
-    pub childs: Vec<QuadTreeNode>,
     pub particles: Vec<usize>,
-    pub nb_particles: usize, // Take childs into account
+    pub childs: Vec<QuadTreeNode>,
 
     // For Barnes-Hut
-    pub total_mass: Mass,
-    pub position_of_mass: Vector2<Scalar>,
-
-    // Caches
-    pub scale: f64,
     pub center_of_mass: Position,
+    pub total_mass: Mass,
+    pub scale: f64,
 }
-
-// TODO create iterator for quadtreenode
 
 impl QuadTreeNode {
     // TODO use allocator adapted to the problem
-    pub fn new(rect: Rect, max_particles: usize) -> Self {
+    pub fn new(rect: Rect) -> Self {
         let scale = rect.size.norm();
-
         Self {
             rect,
+            particles: Vec::new(),
             childs: Vec::with_capacity(4),
-            particles: Vec::with_capacity(max_particles / 4),
-            nb_particles: 0,
-            total_mass: 0.0,
-            position_of_mass: Vector2::new(0.0, 0.0),
-            scale,
             center_of_mass: Vector2::new(0.0, 0.0),
+            total_mass: 0.0,
+            scale,
         }
     }
 
-    fn should_divide(&self, max_particles: usize) -> bool {
-        self.nb_particles > max_particles
-    }
-
-    fn find_target(&mut self, position: Position) -> &mut QuadTreeNode {
-        let mut i = 0;
-        while i < 4 {
-            if self.childs[i].rect.contain(position) {
-                break;
-            }
-            i += 1;
-        }
-
-        &mut self.childs[i]
-    }
-
-    fn subdivide(&mut self, particles: &Particles, max_particles: usize) {
+    pub fn create_childs(&mut self) {
         let half_size = self.rect.size / 2.0;
-
         for i in 0..4 {
-            self.childs.push(QuadTreeNode::new(
-                Rect::new(
-                    self.rect.position
-                        + Vector2::new((i % 2) as f64 * half_size.x, (i / 2) as f64 * half_size.y),
-                    half_size,
-                ),
-                max_particles,
-            ));
+            self.childs.push(QuadTreeNode::new(Rect::new(
+                self.rect.position
+                    + Vector2::new((i % 2) as f64 * half_size.x, (i / 2) as f64 * half_size.y),
+                half_size,
+            )));
         }
+    }
 
-        for particle in self.particles.iter() {
-            // TODO fix borrow error
-            self.find_target(particles.positions[*particle])
-                .insert_particle(*particle, particles, max_particles);
-        }
-
-        // Free memory
+    pub fn insert_particles(
+        &mut self,
+        mut indexes: Vec<usize>,
+        positions: &Vec<Position>,
+        masses: &Vec<Mass>,
+        max_particles: usize,
+    ) {
+        // Clear node
+        self.particles.clear();
         self.particles.shrink_to_fit();
-    }
+        self.center_of_mass = Vector2::new(0.0, 0.0);
+        self.total_mass = 0.0;
 
-    fn merge(&mut self) {
-        let mut stack = Vec::new();
-        stack.extend(self.childs.iter_mut());
+        // Compute center of mass and total mass
+        indexes.iter().for_each(|&particle_index| {
+            self.center_of_mass += positions[particle_index] * masses[particle_index];
+            self.total_mass += masses[particle_index];
+        });
+        self.center_of_mass /= self.total_mass;
 
-        while let Some(node) = stack.pop() {
-            self.particles.extend(node.particles.drain(..));
-            stack.extend(node.childs.iter_mut());
-        }
-
-        self.childs.clear();
-    }
-
-    pub fn prune(&mut self, max_particles: usize) {
-        if !self.should_divide(max_particles) {
-            self.merge();
-        }
-
-        for child in self.childs.iter_mut() {
-            child.prune(max_particles);
-        }
-    }
-
-    #[inline]
-    pub fn insert_particle(&mut self, index: usize, particles: &Particles, max_particles: usize) {
-        let position = particles.positions[index];
-        let mass = particles.masses[index];
-
-        // Update node data
-        self.nb_particles += 1;
-        self.position_of_mass += position * mass;
-        self.total_mass += mass;
-
-        if self.childs.is_empty() {
-            // If leaf node, insert & check for subdivision
-            self.particles.push(index);
-            if self.should_divide(max_particles) {
-                self.subdivide(particles, max_particles);
-            }
+        if indexes.len() <= max_particles {
+            // Prune childs
+            self.particles = indexes; // Take ownership of indexes
+            self.childs.clear(); // Drop childs if necessary
             return;
         }
 
-        // Insert particle in the correct child
-        self.find_target(position)
-            .insert_particle(index, particles, max_particles);
+        // Subdivide node
+        // Create childs if necessary
+        if self.childs.is_empty() {
+            self.create_childs();
+        }
+
+        // Particle redistribution
+        let mut childs_indexes = vec![Vec::new(); 4];
+        for particle_index in indexes.drain(..) {
+            let mut child_num = 0;
+            for (i, child) in self.childs.iter().skip(1).enumerate() {
+                if child.rect.contain(positions[particle_index]) {
+                    child_num = i + 1;
+                    break;
+                }
+            }
+            childs_indexes[child_num].push(particle_index);
+        }
+
+        // Insert particles in childs
+        for (child, indexes) in self.childs.iter_mut().zip(childs_indexes) {
+            child.insert_particles(indexes, positions, masses, max_particles);
+        }
     }
 }
 
@@ -139,64 +107,40 @@ pub struct QuadTree {
 impl QuadTree {
     pub fn new(rect: Rect, max_particles: usize, gravity: Gravity, theta: f64) -> Self {
         Self {
-            root: QuadTreeNode::new(rect, max_particles),
+            root: QuadTreeNode::new(rect),
             max_particles,
             gravity,
             theta,
         }
     }
 
-    pub fn clear(&mut self) {
-        let mut stack = Vec::new();
-        stack.push(&mut self.root);
-
-        while let Some(node) = stack.pop() {
-            node.particles.clear();
-            node.nb_particles = 0;
-            node.position_of_mass = Position::new(0.0, 0.0);
-            node.total_mass = 0.0;
-
-            stack.extend(node.childs.iter_mut());
-        }
-    }
-
-    pub fn prepare(&mut self) {
-        let mut stack = Vec::new();
-        stack.push(&mut self.root);
-
-        while let Some(node) = stack.pop() {
-            node.center_of_mass = node.position_of_mass / node.total_mass;
-
-            stack.extend(node.childs.iter_mut());
-        }
-    }
-
     #[inline]
-    fn barnes_hut(&self, index: usize, particles: &Particles, force: &mut Force) {
+    fn barnes_hut(
+        &self,
+        particle: usize,
+        positions: &Vec<Position>,
+        masses: &Vec<Mass>,
+        force: &mut Force,
+    ) {
         let mut stack = Vec::new();
         stack.push(&self.root);
 
-        let pos = particles.positions[index];
-        let mass = particles.masses[index];
+        let pos = positions[particle];
+        let mass = masses[particle];
 
         while let Some(node) = stack.pop() {
-            let distance = (node.center_of_mass - pos).norm();
-
             if node.childs.is_empty() {
                 // Leaf node: Calculate the force directly between the particles if not the same particle
-                for particle in &node.particles {
-                    if *particle == index {
+                for &other in &node.particles {
+                    if other == particle {
                         continue;
                     }
 
-                    *force += self.gravity.newton(
-                        pos,
-                        particles.positions[*particle],
-                        mass,
-                        particles.masses[*particle],
-                    );
+                    *force += self
+                        .gravity
+                        .newton(pos, positions[other], mass, masses[other]);
                 }
-            } else if (node.scale / distance) < self.theta {
+            } else if (node.scale / (node.center_of_mass - pos).norm()) < self.theta {
                 // Barnes-Hut criterion satisfied: Approximate the force
                 *force += self
                     .gravity
@@ -211,25 +155,17 @@ impl QuadTree {
     }
 
     pub fn gravity(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
-        // Clear tree (reset nodes but keep structure)
-        self.clear();
-
-        // Insert particles
-        // TODO par iter
-        (0..particles.len()).into_iter().for_each(|index| {
-            self.root
-                .insert_particle(index, particles, self.max_particles);
-        });
-
-        // Prune tree structure
-        self.root.prune(self.max_particles);
-
-        // Prepare tree for force calculation
-        self.prepare();
+        // Insert particles (will prune the tree if necessary)
+        self.root.insert_particles(
+            (0..particles.len()).collect::<Vec<_>>(),
+            &particles.positions,
+            &particles.masses,
+            self.max_particles,
+        );
 
         // Calculate forces
         forces.par_iter_mut().enumerate().for_each(|(i, force)| {
-            self.barnes_hut(i, particles, force);
+            self.barnes_hut(i, &particles.positions, &particles.masses, force);
         });
     }
 }
