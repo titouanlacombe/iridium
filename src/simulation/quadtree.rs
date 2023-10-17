@@ -12,15 +12,15 @@ pub struct QuadTreeNode {
     pub rect: Rect,
     pub childs: Vec<QuadTreeNode>,
     pub particles: Vec<usize>,
-    nb_particles: usize, // Take childs into account
+    pub nb_particles: usize, // Take childs into account
 
     // For Barnes-Hut
     pub total_mass: Mass,
-    position_of_mass: Vector2<Scalar>,
+    pub position_of_mass: Vector2<Scalar>,
 
     // Caches
-    scale: f64,
-    center_of_mass: Option<Position>, // TODO change to preloaded cache
+    pub scale: f64,
+    pub center_of_mass: Position,
 }
 
 // TODO create iterator for quadtreenode
@@ -28,17 +28,17 @@ pub struct QuadTreeNode {
 impl QuadTreeNode {
     // TODO use allocator adapted to the problem
     pub fn new(rect: Rect, max_particles: usize) -> Self {
-        let scale = (rect.size.x.powi(2) + rect.size.y.powi(2)).sqrt();
+        let scale = rect.size.norm();
 
         Self {
             rect,
             childs: Vec::with_capacity(4),
             particles: Vec::with_capacity(max_particles / 4),
             nb_particles: 0,
-            position_of_mass: Vector2::new(0.0, 0.0),
             total_mass: 0.0,
-            center_of_mass: None,
+            position_of_mass: Vector2::new(0.0, 0.0),
             scale,
+            center_of_mass: Vector2::new(0.0, 0.0),
         }
     }
 
@@ -127,17 +127,6 @@ impl QuadTreeNode {
         self.find_target(position)
             .insert_particle(index, particles, max_particles);
     }
-
-    #[inline]
-    fn get_center_of_mass(&mut self) -> Position {
-        if let Some(center_of_mass) = self.center_of_mass {
-            center_of_mass
-        } else {
-            let center_of_mass = self.position_of_mass / self.total_mass;
-            self.center_of_mass = Some(center_of_mass);
-            center_of_mass
-        }
-    }
 }
 
 pub struct QuadTree {
@@ -157,7 +146,7 @@ impl QuadTree {
         }
     }
 
-    pub fn reset(&mut self) {
+    pub fn clear(&mut self) {
         let mut stack = Vec::new();
         stack.push(&mut self.root);
 
@@ -166,31 +155,32 @@ impl QuadTree {
             node.nb_particles = 0;
             node.position_of_mass = Position::new(0.0, 0.0);
             node.total_mass = 0.0;
-            node.center_of_mass = None;
 
             stack.extend(node.childs.iter_mut());
         }
     }
 
-    pub fn insert_particles(&mut self, particles: &Particles) {
-        for index in 0..particles.len() {
-            self.root
-                .insert_particle(index, particles, self.max_particles);
+    pub fn prepare(&mut self) {
+        let mut stack = Vec::new();
+        stack.push(&mut self.root);
+
+        while let Some(node) = stack.pop() {
+            node.center_of_mass = node.position_of_mass / node.total_mass;
+
+            stack.extend(node.childs.iter_mut());
         }
     }
 
-    // TODO transform into immutable function
     #[inline]
-    fn barnes_hut(&mut self, index: usize, particles: &Particles, force: &mut Force) {
+    fn barnes_hut(&self, index: usize, particles: &Particles, force: &mut Force) {
         let mut stack = Vec::new();
-        stack.push(&mut self.root);
+        stack.push(&self.root);
 
         let pos = particles.positions[index];
         let mass = particles.masses[index];
 
         while let Some(node) = stack.pop() {
-            let center_of_mass = node.get_center_of_mass();
-            let distance = (center_of_mass - pos).norm();
+            let distance = (node.center_of_mass - pos).norm();
 
             if node.childs.is_empty() {
                 // Leaf node: Calculate the force directly between the particles if not the same particle
@@ -210,10 +200,10 @@ impl QuadTree {
                 // Barnes-Hut criterion satisfied: Approximate the force
                 *force += self
                     .gravity
-                    .newton(pos, center_of_mass, mass, node.total_mass);
+                    .newton(pos, node.center_of_mass, mass, node.total_mass);
             } else {
                 // Barnes-Hut criterion not satisfied: Traverse the children
-                for child in node.childs.iter_mut() {
+                for child in node.childs.iter() {
                     stack.push(child);
                 }
             }
@@ -221,15 +211,25 @@ impl QuadTree {
     }
 
     pub fn gravity(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
-        forces.iter_mut().enumerate().for_each(|(i, force)| {
-            self.barnes_hut(i, particles, force);
+        // Clear tree (reset nodes but keep structure)
+        self.clear();
+
+        // Insert particles
+        // TODO par iter
+        (0..particles.len()).into_iter().for_each(|index| {
+            self.root
+                .insert_particle(index, particles, self.max_particles);
         });
 
-        // TODO implement the following steps:
-        // 1. Clear tree (keep structure) (DONE)
-        // 2. Insert particles (DONE)
-        // 3. Prune tree structure (DONE)
-        // 4. Prepare tree for force calculation (TODO)
-        // 5. Calculate forces (DONE)
+        // Prune tree structure
+        self.root.prune(self.max_particles);
+
+        // Prepare tree for force calculation
+        self.prepare();
+
+        // Calculate forces
+        forces.par_iter_mut().enumerate().for_each(|(i, force)| {
+            self.barnes_hut(i, particles, force);
+        });
     }
 }
