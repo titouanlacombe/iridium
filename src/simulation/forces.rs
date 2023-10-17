@@ -78,6 +78,10 @@ impl Gravity {
 
 impl Force for Gravity {
     fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
+        // TODO refactor: first create a vec of all the combinations of particles
+        // par iter on this vec and collect the results in a vec of forces indexed by the index of the particle
+        // then add the results to the forces vec
+
         rayon::scope(|s| {
             let num_threads = rayon::current_num_threads();
             let particles_per_thread = (particles.positions.len() + num_threads - 1) / num_threads;
