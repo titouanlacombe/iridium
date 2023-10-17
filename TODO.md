@@ -5,6 +5,7 @@ create boids system example
 add coulomb, friction, gravity
 
 use izip?
+change particles to Rc (remove simulation data altogether, only use systems)
 
 implement particles lifetimes (new buffer) ?
 
