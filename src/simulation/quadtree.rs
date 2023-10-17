@@ -187,7 +187,7 @@ impl QuadTree {
 
         while let Some(node) = stack.pop() {
             let center_of_mass = node.get_center_of_mass();
-            let d = (center_of_mass - pos).norm();
+            let distance = (center_of_mass - pos).norm();
 
             if node.childs.is_none() {
                 // Leaf node: Calculate the force directly between the particles if not the same particle
@@ -201,7 +201,7 @@ impl QuadTree {
                         );
                     }
                 }
-            } else if (node.rect.size.x / d) < self.theta {
+            } else if (node.rect.size.x / distance) < self.theta {
                 // Barnes-Hut criterion satisfied: Approximate the force
                 *force += self
                     .gravity
