@@ -10,18 +10,22 @@ use super::{
 pub struct QuadTreeNode {
     pub rect: Rect,
     pub childs: Option<Box<[QuadTreeNode; 4]>>,
-
     pub particles: Vec<usize>,
 
     // For Barnes-Hut
-    pub position_of_mass: Vector2<Scalar>,
     pub total_mass: Mass,
-    pub center_of_mass: Option<Position>, // Cache
+    position_of_mass: Vector2<Scalar>,
+
+    // Caches
+    scale: f64,
+    center_of_mass: Option<Position>,
 }
 
 // TODO iterator
 impl QuadTreeNode {
     pub fn new(rect: Rect) -> Self {
+        let scale = (rect.size.x.powi(2) + rect.size.y.powi(2)).sqrt();
+
         Self {
             rect,
             childs: None,
@@ -29,6 +33,7 @@ impl QuadTreeNode {
             position_of_mass: Vector2::new(0.0, 0.0),
             total_mass: 0.0,
             center_of_mass: None,
+            scale,
         }
     }
 
@@ -201,7 +206,7 @@ impl QuadTree {
                         );
                     }
                 }
-            } else if (node.rect.size.x / distance) < self.theta {
+            } else if (node.scale / distance) < self.theta {
                 // Barnes-Hut criterion satisfied: Approximate the force
                 *force += self
                     .gravity
