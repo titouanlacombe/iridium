@@ -9,8 +9,8 @@ use super::{
 
 pub struct QuadTreeNode {
     pub rect: Rect,
-
     pub childs: Option<Box<[QuadTreeNode; 4]>>,
+
     pub particles: Vec<usize>,
 
     // For Barnes-Hut
@@ -77,7 +77,10 @@ impl QuadTreeNode {
 
     fn merge(&mut self) {
         let mut stack = Vec::new();
-        stack.push(self);
+
+        if let Some(childs) = &mut self.childs {
+            stack.extend(childs.iter_mut());
+        }
 
         while let Some(node) = stack.pop() {
             self.particles.extend(node.particles.drain(..));
@@ -140,7 +143,7 @@ pub struct QuadTree {
     root: QuadTreeNode,
     max_particles: usize,
     gravity: Gravity,
-    theta: f64, // Barnes-Hut
+    theta: f64, // Barnes-Hut (0.0: no approximation, 1.0: full approximation)
 }
 
 impl QuadTree {
@@ -175,7 +178,7 @@ impl QuadTree {
         }
     }
 
-    fn barnes_hut(&self, index: usize, particles: &Particles, force: &mut Force) {
+    fn barnes_hut(&mut self, index: usize, particles: &Particles, force: &mut Force) {
         let mut stack = Vec::new();
         stack.push(&mut self.root);
 
@@ -184,26 +187,37 @@ impl QuadTree {
 
         while let Some(node) = stack.pop() {
             let center_of_mass = node.get_center_of_mass();
-            let distance = (center_of_mass - pos).norm();
-            let theta = self.theta * node.rect.size.norm() / distance;
+            let d = (center_of_mass - pos).norm();
 
-            if theta < 1.0 {
+            if node.childs.is_none() {
+                // Leaf node: Calculate the force directly between the particles if not the same particle
+                for particle in &node.particles {
+                    if *particle != index {
+                        *force += self.gravity.newton(
+                            pos,
+                            particles.positions[*particle],
+                            mass,
+                            particles.masses[*particle],
+                        );
+                    }
+                }
+            } else if (node.rect.size.x / d) < self.theta {
+                // Barnes-Hut criterion satisfied: Approximate the force
                 *force += self
                     .gravity
                     .newton(pos, center_of_mass, mass, node.total_mass);
             } else {
-                if let Some(childs) = &node.childs {
+                // Barnes-Hut criterion not satisfied: Traverse the children
+                if let Some(childs) = &mut node.childs {
                     for child in childs.iter_mut() {
-                        if child.rect.contain(pos) {
-                            stack.push(child);
-                        }
+                        stack.push(child);
                     }
                 }
             }
         }
     }
 
-    pub fn gravity(&self, particles: &Particles, forces: &mut Vec<Force>) {
+    pub fn gravity(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
         for index in 0..particles.len() {
             self.barnes_hut(index, particles, &mut forces[index]);
         }
