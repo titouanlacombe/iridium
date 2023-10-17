@@ -64,6 +64,7 @@ impl Gravity {
         Self { coef, epsilon }
     }
 
+    #[inline]
     pub fn newton(&self, pos1: Position, pos2: Position, mass1: Mass, mass2: Mass) -> ForceType {
         let distance_v = pos1 - pos2;
         let distance = distance_v.norm();

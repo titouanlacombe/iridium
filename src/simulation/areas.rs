@@ -49,6 +49,7 @@ impl Rect {
 }
 
 impl Area for Rect {
+    #[inline]
     fn contain(&self, position: Position) -> bool {
         position.x >= self.position.x
             && position.x <= self.position.x + self.size.x
@@ -72,6 +73,7 @@ impl Disk {
 }
 
 impl Area for Disk {
+    #[inline]
     fn contain(&self, position: Position) -> bool {
         (position - self.position).norm_squared() <= self.radius_squared
     }
@@ -88,6 +90,7 @@ impl Point {
 }
 
 impl Area for Point {
+    #[inline]
     fn contain(&self, position: Position) -> bool {
         position == self.position
     }
