@@ -5,7 +5,11 @@ use std::time::Duration;
 use iridium::{
     examples::gen_planet,
     simulation::{
-        areas::Rect, color::Color, forces::Gravity, particles::Particles, quadtree::QuadTree,
+        areas::Rect,
+        color::Color,
+        forces::{Force, Gravity},
+        particles::Particles,
+        quadtree::QuadTree,
         random::RngGenerator,
     },
 };
@@ -45,7 +49,7 @@ fn benchmark_qt(c: &mut Criterion) {
         })
     });
 
-    let mut quadtree = QuadTree::new(rect, max_particles, gravity, theta);
+    let mut quadtree = QuadTree::new(rect, max_particles, gravity.clone(), theta);
     quadtree.insert_particles(&particles);
 
     group.bench_function("re-insertion", |b| {
@@ -55,6 +59,12 @@ fn benchmark_qt(c: &mut Criterion) {
     });
 
     let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
+
+    group.bench_function("naive", |b| {
+        b.iter(|| {
+            gravity.clone().apply(&particles, &mut forces);
+        })
+    });
 
     group.bench_function("barnes_hut", |b| {
         b.iter(|| {
