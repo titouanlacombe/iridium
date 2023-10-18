@@ -33,13 +33,6 @@ fn benchmark_qt(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(2));
 
     let particles = generate_particles(1000);
-    let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
-    let mut quadtree = QuadTree::new(
-        Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0)),
-        10,
-        Gravity::new(1., 0.),
-        0.5,
-    );
 
     group.bench_function("insertion", |b| {
         b.iter(|| {
@@ -53,11 +46,20 @@ fn benchmark_qt(c: &mut Criterion) {
         })
     });
 
+    let mut quadtree = QuadTree::new(
+        Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0)),
+        10,
+        Gravity::new(1., 0.),
+        0.5,
+    );
+
     group.bench_function("re-insertion", |b| {
         b.iter(|| {
             quadtree.insert_particles(&particles);
         })
     });
+
+    let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
 
     group.bench_function("barnes_hut", |b| {
         b.iter(|| {
