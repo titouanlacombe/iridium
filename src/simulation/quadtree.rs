@@ -80,6 +80,7 @@ impl QuadTreeNode {
         }
 
         // Particle redistribution
+        // TODO parallelize
         let mut childs_indexes = vec![Vec::new(); 4];
         for particle_index in indexes.drain(..) {
             let mut child_num = 0;
@@ -93,6 +94,7 @@ impl QuadTreeNode {
         }
 
         // Insert particles in childs
+        // TODO maybe parallelize
         for (child, indexes) in self.childs.iter_mut().zip(childs_indexes) {
             child.insert_particles(indexes, positions, masses, max_particles);
         }
