@@ -33,25 +33,20 @@ fn benchmark_qt(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(2));
 
     let particles = generate_particles(1000);
+    let max_particles = 10;
+    let theta = 0.5;
+    let gravity = Gravity::new(1., 0.);
+    let rect = Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0));
 
     group.bench_function("insertion", |b| {
         b.iter(|| {
-            let mut quadtree = QuadTree::new(
-                Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0)),
-                10,
-                Gravity::new(1., 0.),
-                0.5,
-            );
+            let mut quadtree = QuadTree::new(rect.clone(), max_particles, gravity.clone(), theta);
             quadtree.insert_particles(&particles);
         })
     });
 
-    let mut quadtree = QuadTree::new(
-        Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0)),
-        10,
-        Gravity::new(1., 0.),
-        0.5,
-    );
+    let mut quadtree = QuadTree::new(rect, max_particles, gravity, theta);
+    quadtree.insert_particles(&particles);
 
     group.bench_function("re-insertion", |b| {
         b.iter(|| {

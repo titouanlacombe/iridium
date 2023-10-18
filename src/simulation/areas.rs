@@ -37,6 +37,7 @@ pub trait Area: Sync {
     }
 }
 
+#[derive(Clone)]
 pub struct Rect {
     pub position: Position,
     pub size: Vector2<Length>,

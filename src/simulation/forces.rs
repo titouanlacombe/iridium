@@ -54,6 +54,7 @@ impl Force for UniformDrag {
     }
 }
 
+#[derive(Clone)]
 pub struct Gravity {
     pub coef: Scalar,
     pub epsilon: Scalar,
