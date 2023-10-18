@@ -171,7 +171,7 @@ impl System for Physics {
         self.forces_buffer.clear();
         self.forces_buffer.resize(particles.len(), Vector2::zeros());
 
-        for force in self.forces.iter() {
+        for force in self.forces.iter_mut() {
             force.apply(particles, &mut self.forces_buffer);
         }
 
