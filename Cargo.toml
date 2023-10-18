@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+criterion = "*"
 env_logger = "*"
 log = "*"
 nalgebra = "*"
@@ -21,3 +22,7 @@ opt-level = 1
 [profile.release]
 opt-level = 3
 debug = true
+
+[[bench]]
+name = "benchmark"
+harness = false    # We disable the default harness because Criterion brings its own.
