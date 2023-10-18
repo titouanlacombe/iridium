@@ -36,7 +36,7 @@ fn benchmark_qt(c: &mut Criterion) {
     group.warm_up_time(Duration::from_millis(400));
     group.measurement_time(Duration::from_secs(4));
 
-    let particles = generate_particles(1000);
+    let particles = generate_particles(1500);
     let max_particles = 20;
     let theta = 0.5;
     let gravity = Gravity::new(1., 0.);
