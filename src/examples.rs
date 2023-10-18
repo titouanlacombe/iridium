@@ -4,7 +4,7 @@ use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
-use std::{f64::consts::PI, time::Duration};
+use std::{f64::consts::PI, ops::Deref, time::Duration};
 
 use crate::{
     app::{max_fps, AppData, AppMain},
@@ -24,6 +24,7 @@ use crate::{
         },
         integrator::GaussianIntegrator,
         particles::{GeneratorFactory, ParticleFactory, Particles},
+        quadtree::{BarnesHutForce, QuadTree},
         random::RngGenerator,
         sim_events::{DefaultSimEventsHandler, SimEvent},
         simulation::{ConstantSimulationRunner, Simulation, SimulationRunner},
@@ -543,11 +544,20 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
     });
 
     let gravity = Box::new(Gravity::new(0.1, 2.));
+    let bh_gravity = Box::new(BarnesHutForce::new(QuadTree::new(
+        Rect::new(
+            Vector2::new(0., 0.),
+            Vector2::new(width as Scalar, height as Scalar),
+        ),
+        20,
+        gravity.deref().clone(),
+        0.5,
+    )));
     let drag = Box::new(Drag::new(0.006, 12.));
     let repulsion = Box::new(Repulsion::new(0.5, 0.5));
 
     let physics = Box::new(Physics::new(
-        vec![gravity, drag, repulsion],
+        vec![bh_gravity, drag, repulsion],
         Box::new(GaussianIntegrator),
     ));
 

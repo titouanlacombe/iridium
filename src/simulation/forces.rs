@@ -74,7 +74,7 @@ impl Gravity {
             return ForceType::zeros();
         }
 
-        self.coef * distance_v * mass1 * mass2 / distance.powi(3)
+        -self.coef * distance_v * mass1 * mass2 / distance.powi(3)
     }
 }
 
@@ -107,8 +107,8 @@ impl Force for Gravity {
                                 particles.masses[j],
                             );
 
-                            local_forces[i] -= force;
-                            local_forces[j] += force;
+                            local_forces[i] += force;
+                            local_forces[j] -= force;
                         }
                     }
                     let mut global_forces = force_clone.lock().unwrap();

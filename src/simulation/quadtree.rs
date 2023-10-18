@@ -172,8 +172,14 @@ impl QuadTree {
     }
 }
 
-struct BarnesHutForce {
+pub struct BarnesHutForce {
     quadtree: QuadTree,
+}
+
+impl BarnesHutForce {
+    pub fn new(quadtree: QuadTree) -> Self {
+        Self { quadtree }
+    }
 }
 
 impl ForceTrait for BarnesHutForce {
