@@ -52,6 +52,8 @@ Forces:
 - Drag (uniform)
 - Drag (particle to particle)
 
+Quadtree: fast collision detection and force computation
+
 ## Development
 
 ```sh

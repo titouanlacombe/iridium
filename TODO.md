@@ -1,14 +1,13 @@
-trait spatial partitioning? (grav & coulombs take RC SpacePart as parameter)
-space partitioning update (sim system that update the partitioning every step)
-add quadtree (readme.md)
-create boids system example
-add coulomb, friction, gravity
+finish QT {
+	allocator
+	draw qt (Rc...)
+	bench & opti
+	implement coulomb, friction with quadtree
+}
 
 use izip?
 change particles to Rc (remove simulation data altogether, only use systems)
-
 implement particles lifetimes (new buffer) ?
-
 sim events can control window (close, resize, etc)???
 
 iridium big facade to make it easy to use
@@ -19,6 +18,7 @@ window set_icon
 fullscreen key toggle
 window.vsync
 
-fix flipped y axis (cleanely) (need custom opengl?)
-custom shading (geometry shader)
+custom shading (geometry shader) {
+	fix flipped y axis (cleanely) (need custom opengl?)
+}
 benchmark & optimize render?
