@@ -19,6 +19,12 @@ cargo run
 
 ### Benchmarking
 
+```sh
+cargo bench
+```
+
+### Profiling
+
 Setup:
 ```sh
 sudo apt install -y perf
