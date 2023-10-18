@@ -482,7 +482,7 @@ pub fn benchmark_generator() -> AppMain {
 // pub fn events() {}
 
 // Temporary facade to generate a planet
-fn gen_planet(
+pub fn gen_planet(
     position: Vector2<Scalar>,
     radius: Scalar,
     mass: Scalar,

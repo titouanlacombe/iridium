@@ -27,17 +27,24 @@ fn generate_particles(n: usize) -> Particles {
 }
 
 fn benchmark_barnes_hut(c: &mut Criterion) {
-    c.bench_function("barnes_hut", |b| {
-        let particles = generate_particles(1000);
-        let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
+    let particles = generate_particles(1000);
+    let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
+    let mut quadtree = QuadTree::new(
+        Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0)),
+        10,
+        Gravity::new(1., 0.),
+        0.5,
+    );
+
+    c.bench_function("insertion", |b| {
         b.iter(|| {
-            let mut quadtree = QuadTree::new(
-                Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0)),
-                10,
-                Gravity::new(1., 0.),
-                0.5,
-            );
-            quadtree.gravity(&particles, &mut forces);
+            quadtree.insert_particles(&particles);
+        })
+    });
+
+    c.bench_function("barnes_hut", |b| {
+        b.iter(|| {
+            quadtree.barnes_hut_particles(&particles, &mut forces);
         })
     });
 }

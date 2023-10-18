@@ -3,7 +3,7 @@ use rayon::prelude::*;
 
 use super::{
     areas::{Area, Rect},
-    forces::Gravity,
+    forces::{Force as ForceTrait, Gravity},
     particles::Particles,
     types::{Force, Mass, Position},
 };
@@ -154,7 +154,7 @@ impl QuadTree {
         }
     }
 
-    pub fn gravity(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
+    pub fn insert_particles(&mut self, particles: &Particles) {
         // Insert particles (will prune the tree if necessary)
         self.root.insert_particles(
             (0..particles.len()).collect::<Vec<_>>(),
@@ -162,10 +162,23 @@ impl QuadTree {
             &particles.masses,
             self.max_particles,
         );
+    }
 
+    pub fn barnes_hut_particles(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
         // Calculate forces
         forces.par_iter_mut().enumerate().for_each(|(i, force)| {
             self.barnes_hut(i, &particles.positions, &particles.masses, force);
         });
+    }
+}
+
+struct BarnesHutForce {
+    quadtree: QuadTree,
+}
+
+impl ForceTrait for BarnesHutForce {
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
+        self.quadtree.insert_particles(particles);
+        self.quadtree.barnes_hut_particles(particles, forces);
     }
 }

@@ -6,7 +6,7 @@ use super::{
 };
 
 pub trait Force {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>);
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>);
 }
 
 pub struct UniformGravity {
@@ -20,7 +20,7 @@ impl UniformGravity {
 }
 
 impl Force for UniformGravity {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
         particles
             .masses
             .par_iter()
@@ -43,7 +43,7 @@ impl UniformDrag {
 }
 
 impl Force for UniformDrag {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
         particles
             .velocities
             .par_iter()
@@ -78,7 +78,7 @@ impl Gravity {
 }
 
 impl Force for Gravity {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
         // TODO refactor: first create a vec of all the combinations of particles
         // par iter on this vec and collect the results in a vec of forces indexed by the index of the particle
         // then add the results to the forces vec
@@ -93,12 +93,13 @@ impl Force for Gravity {
                 let force_clone = force_arc.clone();
                 let start = thread_id * particles_per_thread;
                 let end = std::cmp::min(start + particles_per_thread, particles.positions.len());
+                let immut_self = &*self;
 
                 s.spawn(move |_| {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
                     for i in start..end {
                         for j in (i + 1)..particles.positions.len() {
-                            let force = self.newton(
+                            let force = immut_self.newton(
                                 particles.positions[i],
                                 particles.positions[j],
                                 particles.masses[i],
@@ -131,7 +132,7 @@ impl Drag {
 }
 
 impl Force for Drag {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
         rayon::scope(|s| {
             let num_threads = rayon::current_num_threads();
             let particles_per_thread = (particles.positions.len() + num_threads - 1) / num_threads;
@@ -142,6 +143,7 @@ impl Force for Drag {
                 let force_clone = force_arc.clone();
                 let start = thread_id * particles_per_thread;
                 let end = std::cmp::min(start + particles_per_thread, particles.positions.len());
+                let immut_self = &*self;
 
                 s.spawn(move |_| {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
@@ -151,14 +153,14 @@ impl Force for Drag {
 
                             let distance = distance_v.norm();
 
-                            if distance > self.distance || distance == 0.0 {
+                            if distance > immut_self.distance || distance == 0.0 {
                                 continue;
                             }
 
-                            // Linear interpolation between 0 (self.distance) and 1 (0)
-                            let dist_coef = 1.0 - distance / self.distance;
+                            // Linear interpolation between 0 (f_distance) and 1 (0)
+                            let dist_coef = 1.0 - distance / immut_self.distance;
                             let velocity_diff = particles.velocities[i] - particles.velocities[j];
-                            let force = (-self.coef * dist_coef) * velocity_diff;
+                            let force = (-immut_self.coef * dist_coef) * velocity_diff;
 
                             local_forces[i] += force;
                             local_forces[j] -= force;
@@ -186,7 +188,7 @@ impl Repulsion {
 }
 
 impl Force for Repulsion {
-    fn apply(&self, particles: &Particles, forces: &mut Vec<ForceType>) {
+    fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
         rayon::scope(|s| {
             let num_threads = rayon::current_num_threads();
             let particles_per_thread = (particles.positions.len() + num_threads - 1) / num_threads;
@@ -197,6 +199,7 @@ impl Force for Repulsion {
                 let force_clone = force_arc.clone();
                 let start = thread_id * particles_per_thread;
                 let end = std::cmp::min(start + particles_per_thread, particles.positions.len());
+                let immut_self = &*self;
 
                 s.spawn(move |_| {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
@@ -205,11 +208,11 @@ impl Force for Repulsion {
                             let distance_v = particles.positions[i] - particles.positions[j];
                             let distance = distance_v.norm();
 
-                            if distance < self.epsilon {
+                            if distance < immut_self.epsilon {
                                 continue;
                             }
 
-                            let force = self.coef * distance_v / distance.powi(4);
+                            let force = immut_self.coef * distance_v / distance.powi(4);
 
                             local_forces[i] += force;
                             local_forces[j] -= force;
