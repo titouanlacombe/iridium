@@ -113,6 +113,7 @@ pub struct QuadTree {
     pub root: QuadTreeNode,
     // allocator: Arena<QuadTreeNode>,
     max_particles: usize,
+    // TODO refactor forces (optional)
     gravity: Gravity,
     repulsion: Repulsion,
     drag: Drag,
