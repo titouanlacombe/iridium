@@ -141,8 +141,8 @@ impl System for Void {
         self.area.contains(&particles.positions, &mut to_remove);
 
         // TODO parallelize????????
-        for i in to_remove {
-            particles.swap_remove(i);
+        for i in to_remove.iter().rev() {
+            particles.swap_remove(*i);
         }
     }
 }
