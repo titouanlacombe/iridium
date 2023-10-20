@@ -4,7 +4,12 @@ use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
-use std::{f64::consts::PI, ops::Deref, time::Duration};
+use std::{
+    f64::consts::PI,
+    ops::Deref,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use crate::{
     app::{max_fps, AppData, AppMain},
@@ -112,6 +117,7 @@ pub fn base_iridium_app(
     sim_name: &str,
     min_frame_time: Option<Duration>,
     input_callback: InputCallback,
+    quadtree: Option<Arc<RwLock<QuadTree>>>,
 ) -> AppMain {
     let view_data = ViewData::new(
         Vector2f::new(width as f32 / 2., height as f32 / 2.),
@@ -134,6 +140,7 @@ pub fn base_iridium_app(
     AppMain::new(
         sim,
         Box::new(BasicRenderer::new(
+            quadtree,
             render_thread,
             input_callback,
             min_frame_time,
@@ -189,6 +196,7 @@ pub fn benchmark_base() -> AppMain {
         "Benchmark Base",
         None,
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -256,6 +264,7 @@ pub fn benchmark_forces() -> AppMain {
         "Benchmark Forces",
         None,
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -335,6 +344,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
         "Fireworks",
         max_fps(60),
         input_callback,
+        None,
     )
 }
 
@@ -429,6 +439,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
         "Flow",
         max_fps(60),
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -477,6 +488,7 @@ pub fn benchmark_generator() -> AppMain {
         "Benchmark Generator",
         None,
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -544,7 +556,8 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
     });
 
     let gravity = Box::new(Gravity::new(0.1, 2.));
-    let bh_gravity = Box::new(BarnesHutForce::new(QuadTree::new(
+
+    let quadtree = Arc::new(RwLock::new(QuadTree::new(
         Rect::new(
             Vector2::new(0., 0.),
             Vector2::new(width as Scalar, height as Scalar),
@@ -553,6 +566,8 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         gravity.deref().clone(),
         0.5,
     )));
+
+    let bh_gravity = Box::new(BarnesHutForce::new(quadtree.clone()));
     let drag = Box::new(Drag::new(0.006, 12.));
     let repulsion = Box::new(Repulsion::new(0.5, 0.5));
 
@@ -577,5 +592,6 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         "Gravity",
         max_fps(60),
         get_default_input_callback(),
+        Some(quadtree),
     )
 }

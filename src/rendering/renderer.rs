@@ -1,7 +1,7 @@
 use log::debug;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::*;
-use sfml::graphics::{Color, Vertex};
+use sfml::graphics::{Color as SfmlColor, Vertex};
 use sfml::system::Vector2f;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, RwLock};
@@ -11,6 +11,8 @@ use super::input::WindowEvent;
 use super::render_thread::{DrawResult, RenderThread};
 use super::safe_sfml::ViewData;
 use crate::app::AppData;
+use crate::simulation::areas::Rect;
+use crate::simulation::quadtree::QuadTree;
 use crate::utils::timer::Timer;
 
 pub type InputCallback = Box<dyn FnMut(&mut AppData, &mut RenderData, f64, &Vec<WindowEvent>)>;
@@ -24,6 +26,7 @@ pub struct RenderData {
     pub view_data: Arc<RwLock<ViewData>>,
     pub vertex_buffer_a: Arc<RwLock<Vec<Vertex>>>,
     pub vertex_buffer_b: Arc<RwLock<Vec<Vertex>>>,
+    pub quadtree_vertex_buffer: Arc<RwLock<Vec<(Rect, SfmlColor)>>>,
 }
 
 impl RenderData {
@@ -32,11 +35,14 @@ impl RenderData {
             view_data: Arc::new(RwLock::new(view_data)),
             vertex_buffer_a: Arc::new(RwLock::new(Vec::new())),
             vertex_buffer_b: Arc::new(RwLock::new(Vec::new())),
+            quadtree_vertex_buffer: Arc::new(RwLock::new(Vec::new())),
         }
     }
 }
 
 pub struct BasicRenderer {
+    quadtree: Option<Arc<RwLock<QuadTree>>>,
+
     render_thread: RenderThread,
     input_callback: InputCallback,
     min_frame_time: Option<Duration>,
@@ -49,12 +55,14 @@ pub struct BasicRenderer {
 
 impl BasicRenderer {
     pub fn new(
+        quadtree: Option<Arc<RwLock<QuadTree>>>,
         render_thread: RenderThread,
         input_callback: InputCallback,
         min_frame_time: Option<Duration>,
         render_data: RenderData,
     ) -> Self {
         Self {
+            quadtree,
             render_thread,
             input_callback,
             min_frame_time,
@@ -74,6 +82,7 @@ impl BasicRenderer {
 }
 
 impl Renderer for BasicRenderer {
+    // TODO Remove AppData and put dependencies in constructor
     fn render(&mut self, data: &mut AppData) {
         let particles = &data.sim.particles;
 
@@ -89,7 +98,7 @@ impl Renderer for BasicRenderer {
             .zip(buffer.par_iter_mut())
             .for_each(|((position, color), vertex)| {
                 vertex.position = Vector2f::new(position.x as f32, position.y as f32);
-                vertex.color = Color::rgba(
+                vertex.color = SfmlColor::rgba(
                     (color.r * 255.) as u8,
                     (color.g * 255.) as u8,
                     (color.b * 255.) as u8,
@@ -99,6 +108,44 @@ impl Renderer for BasicRenderer {
 
         // Unlock buffer
         drop(buffer);
+
+        // Quadtree
+        if let Some(quadtree) = &self.quadtree {
+            let qt = quadtree.read().unwrap();
+
+            // Lock buffer
+            let mut buffer = self.render_data.quadtree_vertex_buffer.write().unwrap();
+            buffer.clear();
+
+            // Build vertex buffer
+            let k = 0.5; // Rate of color change
+
+            let mut stack = vec![(&qt.root, 0)];
+            while let Some((node, depth)) = stack.pop() {
+                // Get rect params
+                let rect = node.rect.clone();
+
+                // Color based on depth (from green to red)
+                let capped_depth = 1. - (1. / (k * (depth as f64) + 1.));
+                let color = SfmlColor::rgba(
+                    (capped_depth * 255.) as u8,
+                    ((1. - capped_depth) * 255.) as u8,
+                    0,
+                    255,
+                );
+
+                // Draw rect vertices
+                buffer.push((rect, color));
+
+                // Draw children
+                for child in &node.childs {
+                    stack.push((child, depth + 1));
+                }
+            }
+
+            // Unlock buffer
+            drop(buffer);
+        }
 
         // Swap buffers
         std::mem::swap(
@@ -130,6 +177,7 @@ impl Renderer for BasicRenderer {
         // Send next draw command to render thread
         self.draw_result = Some(self.render_thread.draw(
             self.render_data.vertex_buffer_b.clone(),
+            self.render_data.quadtree_vertex_buffer.clone(),
             self.render_data.view_data.clone(),
         ));
 

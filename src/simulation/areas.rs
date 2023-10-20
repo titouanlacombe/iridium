@@ -47,6 +47,22 @@ impl Rect {
     pub fn new(position: Position, size: Vector2<Length>) -> Self {
         Self { position, size }
     }
+
+    pub fn top_left(&self) -> Position {
+        self.position
+    }
+
+    pub fn top_right(&self) -> Position {
+        self.position + Vector2::new(self.size.x, 0.)
+    }
+
+    pub fn bottom_left(&self) -> Position {
+        self.position + Vector2::new(0., self.size.y)
+    }
+
+    pub fn bottom_right(&self) -> Position {
+        self.position + self.size
+    }
 }
 
 impl Area for Rect {

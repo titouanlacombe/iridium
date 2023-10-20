@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use nalgebra::Vector2;
 use rayon::prelude::*;
 
@@ -102,7 +104,7 @@ impl QuadTreeNode {
 }
 
 pub struct QuadTree {
-    root: QuadTreeNode,
+    pub root: QuadTreeNode,
     // allocator: Arena<QuadTreeNode>,
     max_particles: usize,
     gravity: Gravity,
@@ -188,18 +190,19 @@ impl QuadTree {
 }
 
 pub struct BarnesHutForce {
-    quadtree: QuadTree,
+    quadtree: Arc<RwLock<QuadTree>>,
 }
 
 impl BarnesHutForce {
-    pub fn new(quadtree: QuadTree) -> Self {
+    pub fn new(quadtree: Arc<RwLock<QuadTree>>) -> Self {
         Self { quadtree }
     }
 }
 
 impl ForceTrait for BarnesHutForce {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
-        self.quadtree.insert_particles(particles);
-        self.quadtree.barnes_hut_particles(particles, forces);
+        let mut quadtree = self.quadtree.write().unwrap();
+        quadtree.insert_particles(particles);
+        quadtree.barnes_hut_particles(particles, forces);
     }
 }
