@@ -80,6 +80,7 @@ impl RenderThread {
                     rect.top_right(),
                     rect.bottom_right(),
                     rect.bottom_left(),
+                    rect.top_left(),
                 ];
 
                 let vertices = positions
