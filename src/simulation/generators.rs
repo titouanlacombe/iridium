@@ -22,6 +22,22 @@ pub trait Generator<T> {
     }
 }
 
+pub struct IterGenerator<T: Iterator> {
+    pub iter: T,
+}
+
+impl<T: Iterator> IterGenerator<T> {
+    pub fn new(iter: T) -> Self {
+        Self { iter }
+    }
+}
+
+impl<T: Iterator> Generator<T::Item> for IterGenerator<T> {
+    fn generate(&mut self) -> T::Item {
+        self.iter.next().expect("Iterator is empty")
+    }
+}
+
 pub struct ConstantGenerator<T: Clone> {
     pub value: T,
 }
