@@ -20,7 +20,8 @@ fn generate_particles(n: usize) -> Particles {
 
     gen_planet(
         Vector2::new(500., 500.),
-        100.,
+        Vector2::new(0., 0.),
+        500.,
         1.,
         Color::BLACK,
         n,
@@ -36,12 +37,12 @@ fn benchmark_qt(c: &mut Criterion) {
     group.warm_up_time(Duration::from_millis(400));
     group.measurement_time(Duration::from_secs(4));
 
-    let particles = generate_particles(1500);
-    let max_particles = 20;
+    let particles = generate_particles(3000);
+    let max_particles = 100;
     let theta = 0.5;
     let gravity = Gravity::new(1., 0.);
     let repulsion = Repulsion::new(1., 0.);
-    let drag = Drag::new(0.006, 12.);
+    let drag = Drag::new(1., 0.);
     let rect = Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0));
 
     group.bench_function("insertion", |b| {
@@ -79,6 +80,8 @@ fn benchmark_qt(c: &mut Criterion) {
     group.bench_function("naive", |b| {
         b.iter(|| {
             gravity.clone().apply(&particles, &mut forces);
+            repulsion.clone().apply(&particles, &mut forces);
+            drag.clone().apply(&particles, &mut forces);
         })
     });
 

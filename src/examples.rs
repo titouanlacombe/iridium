@@ -497,6 +497,7 @@ pub fn benchmark_generator() -> AppMain {
 // Temporary facade to generate a planet
 pub fn gen_planet(
     position: Vector2<Scalar>,
+    velocity: Vector2<Scalar>,
     radius: Scalar,
     mass: Scalar,
     color: Color,
@@ -509,69 +510,85 @@ pub fn gen_planet(
             Disk::new(position, radius),
             rng_gen.next(),
         )),
-        Box::new(ConstantGenerator::new(Vector2::zeros())),
-        Box::new(ConstantGenerator::new(mass)),
+        Box::new(ConstantGenerator::new(velocity)),
+        Box::new(ConstantGenerator::new(mass / n as Scalar)),
         Box::new(ConstantGenerator::new(color)),
     )
     .create(n, particles);
 }
 
 pub fn benchmark_gravity() -> AppMain {
-    let width = 500;
-    let height = 500;
-    let n = 2000;
+    let width = 800;
+    let height = 800;
+    let dt = 0.5;
 
     let mut rng_gen = RngGenerator::new(0);
-    let center = Vector2::new(width as Scalar / 2., height as Scalar / 2.);
+    let sim_space = Rect::new(
+        Vector2::new(0., 0.),
+        Vector2::new(width as Scalar, height as Scalar),
+    );
+    let center = sim_space.center();
 
     let mut particles = Particles::new_empty();
 
-    let offset = Vector2::new(width as Scalar / 3., 0.);
+    let offset = Vector2::new(300., 50.);
+    let velocity = Vector2::new(0.7, 0.);
 
-    // Generate stars
+    // Generate planet
     gen_planet(
         center + offset,
-        center.min() / 4.,
-        1.,
-        Color::WHITE,
-        n,
+        -velocity,
+        100.,
+        1500.,
+        Color::CYAN,
+        2000,
+        &mut rng_gen,
+        &mut particles,
+    );
+
+    // Generate planet 2
+    gen_planet(
+        center - offset,
+        velocity,
+        90.,
+        700.,
+        Color::YELLOW,
+        1000,
         &mut rng_gen,
         &mut particles,
     );
 
     // Generate black hole
-    gen_planet(
-        center - offset,
-        0.,
-        n as Scalar,
-        Color::RED,
-        1,
-        &mut rng_gen,
-        &mut particles,
-    );
+    // gen_planet(
+    //     center - offset,
+    //     velocity,
+    //     0.,
+    //     n as Scalar,
+    //     Color::RED,
+    //     1,
+    //     &mut rng_gen,
+    //     &mut particles,
+    // );
 
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
         x_max: width as Scalar,
         y_max: height as Scalar,
-        restitution: 1.,
+        restitution: 0.,
     });
 
-    let gravity = Box::new(Gravity::new(0.05, 2.));
-    let repulsion = Box::new(Repulsion::new(0.5, 0.5));
-    let drag = Box::new(Drag::new(0.006, 12.));
+    let gravity = Box::new(Gravity::new(0.05, 1.5));
+    let repulsion = Box::new(Repulsion::new(0.5, 1.2));
+    let drag = Box::new(Drag::new(0.001, 15.));
 
     let quadtree = Arc::new(RwLock::new(QuadTree::new(
-        Rect::new(
-            Vector2::new(0., 0.),
-            Vector2::new(width as Scalar, height as Scalar),
-        ),
+        sim_space,
         100,
         gravity.deref().clone(),
         repulsion.deref().clone(),
         drag.deref().clone(),
-        0.5,
+        1.,
     )));
 
     let quadtree_forces = Box::new(QuadtreeForces::new(quadtree.clone()));
@@ -587,7 +604,7 @@ pub fn benchmark_gravity() -> AppMain {
 
     let sim = Simulation::new(particles, systems, None);
 
-    let sim_runner = Box::new(ConstantSimulationRunner::new(0.08));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(dt));
 
     base_iridium_app(
         width,
