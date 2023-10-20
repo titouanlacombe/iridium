@@ -152,8 +152,8 @@ impl Drag {
             return ForceType::zeros();
         }
 
-        // Linear interpolation between 0 (f_distance) and 1 (0)
-        let dist_coef = 1.0 - distance / self.distance;
+        // Quadratic interpolation between 0 (f_distance) and 1 (0)
+        let dist_coef = 1.0 - (distance / self.distance).powi(2);
         let velocity_diff = vel1 - vel2;
         (-self.coef * dist_coef) * velocity_diff
     }
