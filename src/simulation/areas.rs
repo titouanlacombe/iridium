@@ -63,6 +63,10 @@ impl Rect {
     pub fn bottom_right(&self) -> Position {
         self.position + self.size
     }
+
+    pub fn center(&self) -> Position {
+        self.position + self.size / 2.
+    }
 }
 
 impl Area for Rect {
