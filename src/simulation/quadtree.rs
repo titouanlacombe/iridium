@@ -5,9 +5,9 @@ use rayon::prelude::*;
 
 use super::{
     areas::{Area, Rect},
-    forces::{Force as ForceTrait, Gravity},
+    forces::{Drag, Force as ForceTrait, Gravity, Repulsion},
     particles::Particles,
-    types::{Force, Mass, Position},
+    types::{Force, Mass, Position, Velocity},
 };
 
 pub struct QuadTreeNode {
@@ -17,6 +17,7 @@ pub struct QuadTreeNode {
 
     // For Barnes-Hut
     pub center_of_mass: Position,
+    pub average_velocity: Velocity,
     pub total_mass: Mass,
     pub scale: f64,
 }
@@ -29,6 +30,7 @@ impl QuadTreeNode {
             particles: Vec::new(),
             childs: Vec::new(),
             center_of_mass: Vector2::new(0.0, 0.0),
+            average_velocity: Vector2::new(0.0, 0.0),
             total_mass: 0.0,
             scale,
         }
@@ -50,19 +52,23 @@ impl QuadTreeNode {
         &mut self,
         mut indexes: Vec<usize>,
         positions: &Vec<Position>,
+        velocities: &Vec<Velocity>,
         masses: &Vec<Mass>,
         max_particles: usize,
     ) {
         // Reset node
         self.center_of_mass = Vector2::new(0.0, 0.0);
+        self.average_velocity = Vector2::new(0.0, 0.0);
         self.total_mass = 0.0;
 
         // Compute center of mass and total mass
         indexes.iter().for_each(|&particle_index| {
             self.center_of_mass += positions[particle_index] * masses[particle_index];
+            self.average_velocity += velocities[particle_index];
             self.total_mass += masses[particle_index];
         });
         self.center_of_mass /= self.total_mass;
+        self.average_velocity /= indexes.len() as f64;
 
         if indexes.len() <= max_particles {
             // Leaf node
@@ -98,7 +104,7 @@ impl QuadTreeNode {
         // Insert particles in childs
         // TODO maybe parallelize
         for (child, indexes) in self.childs.iter_mut().zip(childs_indexes) {
-            child.insert_particles(indexes, positions, masses, max_particles);
+            child.insert_particles(indexes, positions, velocities, masses, max_particles);
         }
     }
 }
@@ -108,16 +114,27 @@ pub struct QuadTree {
     // allocator: Arena<QuadTreeNode>,
     max_particles: usize,
     gravity: Gravity,
+    repulsion: Repulsion,
+    drag: Drag,
     theta: f64, // Barnes-Hut (0.0: no approximation, 1.0: full approximation)
 }
 
 impl QuadTree {
-    pub fn new(rect: Rect, max_particles: usize, gravity: Gravity, theta: f64) -> Self {
+    pub fn new(
+        rect: Rect,
+        max_particles: usize,
+        gravity: Gravity,
+        repulsion: Repulsion,
+        drag: Drag,
+        theta: f64,
+    ) -> Self {
         Self {
             root: QuadTreeNode::new(rect),
             // allocator: Arena::new(),
             max_particles,
             gravity,
+            repulsion,
+            drag,
             theta,
         }
     }
@@ -127,6 +144,7 @@ impl QuadTree {
         self.root.insert_particles(
             (0..particles.len()).collect::<Vec<_>>(),
             &particles.positions,
+            &particles.velocities,
             &particles.masses,
             self.max_particles,
         );
@@ -136,9 +154,12 @@ impl QuadTree {
     fn barnes_hut(
         root: &QuadTreeNode,
         gravity: &Gravity,
+        repulsion: &Repulsion,
+        drag: &Drag,
         theta: f64,
         particle: usize,
         positions: &Vec<Position>,
+        velocities: &Vec<Velocity>,
         masses: &Vec<Mass>,
         force: &mut Force,
     ) {
@@ -146,6 +167,7 @@ impl QuadTree {
         stack.push(root);
 
         let pos = positions[particle];
+        let vel = velocities[particle];
         let mass = masses[particle];
 
         while let Some(node) = stack.pop() {
@@ -156,11 +178,15 @@ impl QuadTree {
                         continue;
                     }
 
-                    *force += gravity.newton(pos, positions[other], mass, masses[other]);
+                    *force += gravity.calc_force(pos, positions[other], mass, masses[other]);
+                    *force += repulsion.calc_force(pos, positions[other]);
+                    *force += drag.calc_force(pos, positions[other], vel, velocities[other]);
                 }
             } else if (node.scale / (node.center_of_mass - pos).norm()) < theta {
                 // Barnes-Hut criterion satisfied: Approximate the force
-                *force += gravity.newton(pos, node.center_of_mass, mass, node.total_mass);
+                *force += gravity.calc_force(pos, node.center_of_mass, mass, node.total_mass);
+                *force += repulsion.calc_force(pos, node.center_of_mass);
+                *force += drag.calc_force(pos, node.center_of_mass, vel, node.average_velocity);
             } else {
                 // Barnes-Hut criterion not satisfied: Traverse the children
                 for child in node.childs.iter() {
@@ -171,17 +197,16 @@ impl QuadTree {
     }
 
     pub fn barnes_hut_particles(&self, particles: &Particles, forces: &mut Vec<Force>) {
-        let root = &self.root;
-        let gravity = &self.gravity;
-        let theta = self.theta;
-
         forces.par_iter_mut().enumerate().for_each(|(i, force)| {
             Self::barnes_hut(
-                root,
-                gravity,
-                theta,
+                &self.root,
+                &self.gravity,
+                &self.repulsion,
+                &self.drag,
+                self.theta,
                 i,
                 &particles.positions,
+                &particles.velocities,
                 &particles.masses,
                 force,
             );
@@ -189,17 +214,17 @@ impl QuadTree {
     }
 }
 
-pub struct BarnesHutForce {
+pub struct QuadtreeForces {
     quadtree: Arc<RwLock<QuadTree>>,
 }
 
-impl BarnesHutForce {
+impl QuadtreeForces {
     pub fn new(quadtree: Arc<RwLock<QuadTree>>) -> Self {
         Self { quadtree }
     }
 }
 
-impl ForceTrait for BarnesHutForce {
+impl ForceTrait for QuadtreeForces {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
         let mut quadtree = self.quadtree.write().unwrap();
         quadtree.insert_particles(particles);

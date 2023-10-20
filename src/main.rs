@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use iridium::examples::gravity1;
+use iridium::examples::benchmark_gravity;
 use log::info;
 
 fn main() {
@@ -13,8 +13,8 @@ fn main() {
         .init();
 
     // Create the app
-    let mut app = gravity1(500, 500);
-    // let mut app = benchmark2();
+    // let mut app = gravity1(500, 500);
+    let mut app = benchmark_gravity();
 
     info!("App startup took {} ms", t.elapsed().as_millis());
 

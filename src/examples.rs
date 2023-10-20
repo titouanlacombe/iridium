@@ -29,7 +29,7 @@ use crate::{
         },
         integrator::GaussianIntegrator,
         particles::{GeneratorFactory, ParticleFactory, Particles},
-        quadtree::{BarnesHutForce, QuadTree},
+        quadtree::{QuadTree, QuadtreeForces},
         random::RngGenerator,
         sim_events::{DefaultSimEventsHandler, SimEvent},
         simulation::{ConstantSimulationRunner, Simulation, SimulationRunner},
@@ -516,8 +516,11 @@ pub fn gen_planet(
     .create(n, particles);
 }
 
-// TODO convert to benchmark_gravity
-pub fn gravity1(width: u32, height: u32) -> AppMain {
+pub fn benchmark_gravity() -> AppMain {
+    let width = 500;
+    let height = 500;
+    let n = 2000;
+
     let mut rng_gen = RngGenerator::new(0);
     let center = Vector2::new(width as Scalar / 2., height as Scalar / 2.);
 
@@ -531,7 +534,7 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         center.min() / 4.,
         1.,
         Color::WHITE,
-        1_500,
+        n,
         &mut rng_gen,
         &mut particles,
     );
@@ -540,7 +543,7 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
     gen_planet(
         center - offset,
         0.,
-        200.,
+        n as Scalar,
         Color::RED,
         1,
         &mut rng_gen,
@@ -555,24 +558,26 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         restitution: 1.,
     });
 
-    let gravity = Box::new(Gravity::new(0.1, 2.));
+    let gravity = Box::new(Gravity::new(0.05, 2.));
+    let repulsion = Box::new(Repulsion::new(0.5, 0.5));
+    let drag = Box::new(Drag::new(0.006, 12.));
 
     let quadtree = Arc::new(RwLock::new(QuadTree::new(
         Rect::new(
             Vector2::new(0., 0.),
             Vector2::new(width as Scalar, height as Scalar),
         ),
-        20,
+        100,
         gravity.deref().clone(),
+        repulsion.deref().clone(),
+        drag.deref().clone(),
         0.5,
     )));
 
-    let bh_gravity = Box::new(BarnesHutForce::new(quadtree.clone()));
-    let drag = Box::new(Drag::new(0.006, 12.));
-    let repulsion = Box::new(Repulsion::new(0.5, 0.5));
+    let quadtree_forces = Box::new(QuadtreeForces::new(quadtree.clone()));
 
     let physics = Box::new(Physics::new(
-        vec![bh_gravity, drag, repulsion],
+        vec![quadtree_forces],
         Box::new(GaussianIntegrator),
     ));
 
@@ -590,7 +595,7 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         sim,
         sim_runner,
         "Gravity",
-        max_fps(60),
+        None,
         get_default_input_callback(),
         Some(quadtree),
     )

@@ -54,6 +54,14 @@ impl RenderThread {
         Self { thread }
     }
 
+    fn flip_y(window: &mut RenderWindow, vertices: &mut Vec<Vertex>) {
+        // Flip y axis
+        let size_y = window.size().y as f32;
+        vertices.par_iter_mut().for_each(|v| {
+            v.position.y = size_y - v.position.y;
+        });
+    }
+
     pub fn draw(
         &self,
         buffer: Arc<RwLock<Vec<Vertex>>>,
@@ -83,10 +91,13 @@ impl RenderThread {
                     rect.top_left(),
                 ];
 
-                let vertices = positions
+                let mut vertices = positions
                     .iter()
                     .map(|p| Vertex::with_pos_color(nalgebra64_to_sfml(*p), *color))
                     .collect::<Vec<_>>();
+
+                // Flip y axis
+                Self::flip_y(window, &mut vertices);
 
                 window.draw_primitives(
                     vertices.as_slice(),
@@ -99,10 +110,7 @@ impl RenderThread {
             let mut vertices = buffer.write().unwrap();
 
             // Flip y axis
-            let size_y = window.size().y as f32;
-            vertices.par_iter_mut().for_each(|v| {
-                v.position.y = size_y - v.position.y;
-            });
+            Self::flip_y(window, &mut vertices);
 
             // Draw buffer
             window.draw_primitives(&vertices, PrimitiveType::POINTS, &RenderStates::default());

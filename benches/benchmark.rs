@@ -7,7 +7,7 @@ use iridium::{
     simulation::{
         areas::Rect,
         color::Color,
-        forces::{Force, Gravity},
+        forces::{Drag, Force, Gravity, Repulsion},
         particles::Particles,
         quadtree::QuadTree,
         random::RngGenerator,
@@ -40,16 +40,32 @@ fn benchmark_qt(c: &mut Criterion) {
     let max_particles = 20;
     let theta = 0.5;
     let gravity = Gravity::new(1., 0.);
+    let repulsion = Repulsion::new(1., 0.);
+    let drag = Drag::new(0.006, 12.);
     let rect = Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0));
 
     group.bench_function("insertion", |b| {
         b.iter(|| {
-            let mut quadtree = QuadTree::new(rect.clone(), max_particles, gravity.clone(), theta);
+            let mut quadtree = QuadTree::new(
+                rect.clone(),
+                max_particles,
+                gravity.clone(),
+                repulsion.clone(),
+                drag.clone(),
+                theta,
+            );
             quadtree.insert_particles(&particles);
         })
     });
 
-    let mut quadtree = QuadTree::new(rect, max_particles, gravity.clone(), theta);
+    let mut quadtree = QuadTree::new(
+        rect,
+        max_particles,
+        gravity.clone(),
+        repulsion.clone(),
+        drag.clone(),
+        theta,
+    );
     quadtree.insert_particles(&particles);
 
     group.bench_function("re-insertion", |b| {

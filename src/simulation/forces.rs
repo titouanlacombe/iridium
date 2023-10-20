@@ -66,7 +66,13 @@ impl Gravity {
     }
 
     #[inline]
-    pub fn newton(&self, pos1: Position, pos2: Position, mass1: Mass, mass2: Mass) -> ForceType {
+    pub fn calc_force(
+        &self,
+        pos1: Position,
+        pos2: Position,
+        mass1: Mass,
+        mass2: Mass,
+    ) -> ForceType {
         let distance_v = pos1 - pos2;
         let distance = distance_v.norm();
 
@@ -100,7 +106,7 @@ impl Force for Gravity {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
                     for i in start..end {
                         for j in (i + 1)..particles.positions.len() {
-                            let force = immut_self.newton(
+                            let force = immut_self.calc_force(
                                 particles.positions[i],
                                 particles.positions[j],
                                 particles.masses[i],
@@ -121,6 +127,7 @@ impl Force for Gravity {
     }
 }
 
+#[derive(Clone)]
 pub struct Drag {
     pub coef: Scalar,
     pub distance: Scalar,
@@ -129,6 +136,26 @@ pub struct Drag {
 impl Drag {
     pub fn new(coef: Scalar, distance: Scalar) -> Self {
         Self { coef, distance }
+    }
+
+    #[inline]
+    pub fn calc_force(
+        &self,
+        pos1: Position,
+        pos2: Position,
+        vel1: Velocity,
+        vel2: Velocity,
+    ) -> ForceType {
+        let distance = (pos1 - pos2).norm();
+
+        if distance > self.distance || distance == 0.0 {
+            return ForceType::zeros();
+        }
+
+        // Linear interpolation between 0 (f_distance) and 1 (0)
+        let dist_coef = 1.0 - distance / self.distance;
+        let velocity_diff = vel1 - vel2;
+        (-self.coef * dist_coef) * velocity_diff
     }
 }
 
@@ -150,18 +177,12 @@ impl Force for Drag {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
                     for i in start..end {
                         for j in (i + 1)..particles.positions.len() {
-                            let distance_v = particles.positions[i] - particles.positions[j];
-
-                            let distance = distance_v.norm();
-
-                            if distance > immut_self.distance || distance == 0.0 {
-                                continue;
-                            }
-
-                            // Linear interpolation between 0 (f_distance) and 1 (0)
-                            let dist_coef = 1.0 - distance / immut_self.distance;
-                            let velocity_diff = particles.velocities[i] - particles.velocities[j];
-                            let force = (-immut_self.coef * dist_coef) * velocity_diff;
+                            let force = immut_self.calc_force(
+                                particles.positions[i],
+                                particles.positions[j],
+                                particles.velocities[i],
+                                particles.velocities[j],
+                            );
 
                             local_forces[i] += force;
                             local_forces[j] -= force;
@@ -177,6 +198,7 @@ impl Force for Drag {
     }
 }
 
+#[derive(Clone)]
 pub struct Repulsion {
     pub coef: Scalar,
     pub epsilon: Scalar,
@@ -185,6 +207,18 @@ pub struct Repulsion {
 impl Repulsion {
     pub fn new(coef: Scalar, epsilon: Scalar) -> Self {
         Self { coef, epsilon }
+    }
+
+    #[inline]
+    pub fn calc_force(&self, pos1: Position, pos2: Position) -> ForceType {
+        let distance_v = pos1 - pos2;
+        let distance = distance_v.norm();
+
+        if distance < self.epsilon {
+            return ForceType::zeros();
+        }
+
+        self.coef * distance_v / distance.powi(4)
     }
 }
 
@@ -206,14 +240,8 @@ impl Force for Repulsion {
                     let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
                     for i in start..end {
                         for j in (i + 1)..particles.positions.len() {
-                            let distance_v = particles.positions[i] - particles.positions[j];
-                            let distance = distance_v.norm();
-
-                            if distance < immut_self.epsilon {
-                                continue;
-                            }
-
-                            let force = immut_self.coef * distance_v / distance.powi(4);
+                            let force = immut_self
+                                .calc_force(particles.positions[i], particles.positions[j]);
 
                             local_forces[i] += force;
                             local_forces[j] -= force;
