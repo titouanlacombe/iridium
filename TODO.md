@@ -1,9 +1,6 @@
 finish QT {
-	remove recursion
 	create a function to return list of refs instead of iter (qt.leaves())
-	draw qt (Rc..., more depth = more red)
 	bench & opti
-	implement coulomb, friction with quadtree
 	allocator (custom vec allocator using swap remove?)
 }
 

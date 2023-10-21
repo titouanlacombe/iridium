@@ -48,8 +48,9 @@ impl QuadTreeNode {
         }
     }
 
-    pub fn insert_particles(
-        &mut self,
+    fn _insert_particles<'a>(
+        &'a mut self,
+        stack: &mut Vec<(&'a mut Self, Vec<usize>)>,
         mut indexes: Vec<usize>,
         positions: &Vec<Position>,
         velocities: &Vec<Velocity>,
@@ -102,9 +103,32 @@ impl QuadTreeNode {
         }
 
         // Insert particles in childs
-        // TODO maybe parallelize
         for (child, indexes) in self.childs.iter_mut().zip(childs_indexes) {
-            child.insert_particles(indexes, positions, velocities, masses, max_particles);
+            stack.push((child, indexes));
+        }
+    }
+
+    pub fn insert_particles<'a>(
+        &'a mut self,
+        indexes: Vec<usize>,
+        positions: &Vec<Position>,
+        velocities: &Vec<Velocity>,
+        masses: &Vec<Mass>,
+        max_particles: usize,
+    ) {
+        let mut stack = Vec::new();
+        stack.push((self, indexes));
+
+        // TODO maybe parallelize
+        while let Some((node, indexes)) = stack.pop() {
+            node._insert_particles(
+                &mut stack,
+                indexes,
+                positions,
+                velocities,
+                masses,
+                max_particles,
+            );
         }
     }
 }
