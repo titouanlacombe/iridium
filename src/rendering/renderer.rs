@@ -118,11 +118,19 @@ impl Renderer for BasicRenderer {
             buffer.clear();
 
             // Build vertex buffer
-            let k = 0.5; // Rate of color change
+            let k = 0.3; // Rate of color change
 
             let mut stack = vec![(&qt.root, 0)];
             while let Some((node, depth)) = stack.pop() {
-                // Get rect params
+                // Branch: Traverse children
+                if !node.childs.is_empty() {
+                    for child in &node.childs {
+                        stack.push((child, depth + 1));
+                    }
+                    continue;
+                }
+
+                // Leaf: Draw rect vertices
                 let rect = node.rect.clone();
 
                 // Color based on depth (from green to red)
@@ -134,13 +142,7 @@ impl Renderer for BasicRenderer {
                     255,
                 );
 
-                // Draw rect vertices
                 buffer.push((rect, color));
-
-                // Draw children
-                for child in &node.childs {
-                    stack.push((child, depth + 1));
-                }
             }
 
             // Unlock buffer
