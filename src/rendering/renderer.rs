@@ -74,6 +74,7 @@ impl BasicRenderer {
 
     // Wait for render thread to finish drawing
     fn wait_for_draw(&mut self) -> DrawResult {
+        let _span = tracy_client::span!("Wait for draw");
         if let Some(draw_result) = self.draw_result.take() {
             return draw_result.recv().unwrap();
         }
@@ -84,6 +85,8 @@ impl BasicRenderer {
 impl Renderer for BasicRenderer {
     // TODO Remove AppData and put dependencies in constructor
     fn render(&mut self, data: &mut AppData) {
+        let _span = tracy_client::span!("Render");
+
         let particles = &data.sim.particles;
 
         // Lock & reserve buffer & coord system

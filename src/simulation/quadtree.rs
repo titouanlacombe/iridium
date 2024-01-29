@@ -116,6 +116,8 @@ impl QuadTreeNode {
         masses: &Vec<Mass>,
         max_particles: usize,
     ) {
+        let _span = tracy_client::span!("Insert Particles");
+
         let mut stack = Vec::new();
         stack.push((self, indexes));
 
@@ -222,6 +224,8 @@ impl QuadTree {
     }
 
     pub fn barnes_hut_particles(&self, particles: &Particles, forces: &mut Vec<Force>) {
+        let _span = tracy_client::span!("Barnes-Hut");
+
         forces.par_iter_mut().enumerate().for_each(|(i, force)| {
             Self::barnes_hut(
                 &self.root,

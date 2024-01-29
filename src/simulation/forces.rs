@@ -7,6 +7,10 @@ use super::{
 
 pub trait Force {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>);
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub struct UniformGravity {

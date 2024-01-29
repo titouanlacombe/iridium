@@ -25,19 +25,11 @@ cargo bench
 
 ### Profiling
 
-Setup:
-```sh
-sudo apt install -y perf
-```
+This project is using [Tracy](https://github.com/wolfpld/tracy) to profile the build.
 
-Run:
-```sh
-cargo build --release
-perf record -g ./target/release/iridium
-perf script > profile.linux-perf.txt
-```
+Build the Tracy server, run it.
 
-See result with [Speedscope](https://www.speedscope.app/).
+Then run the application, it should connect to the tracy server.
 
 ## Features
 

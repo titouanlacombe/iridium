@@ -85,6 +85,7 @@ impl GeneratorFactory {
 
 impl ParticleFactory for GeneratorFactory {
     fn create(&mut self, n: usize, particles: &mut Particles) {
+        let _span = tracy_client::span!("Particle Factory");
         self.position_generator
             .generate_n(n, &mut particles.positions);
         self.velocity_generator

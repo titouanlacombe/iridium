@@ -6,18 +6,30 @@ use log::info;
 fn main() {
     let t = Instant::now();
 
+    // Start the Tracy client
+    tracy_client::Client::start();
+
+    let _span = tracy_client::span!("Main");
+
     // Configure logging
     env_logger::builder()
         .format_timestamp(None)
         .format_level(true)
         .init();
 
-    // Create the app
-    // let mut app = gravity1(500, 500);
-    let mut app = benchmark_gravity();
+    let mut app = {
+        let _span = tracy_client::span!("App startup");
+
+        // Create the app
+        // gravity1(500, 500)
+        benchmark_gravity()
+    };
 
     info!("App startup took {} ms", t.elapsed().as_millis());
 
     // Run the app
-    app.run();
+    {
+        let _span = tracy_client::span!("App run");
+        app.run();
+    }
 }
