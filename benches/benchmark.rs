@@ -32,6 +32,7 @@ fn generate_particles(n: usize) -> Particles {
     particles
 }
 
+// TODO add benchmark for more parameters (theta, max_particles)
 fn benchmark_qt(c: &mut Criterion) {
     let mut group = c.benchmark_group("quadtree");
     group.warm_up_time(Duration::from_millis(400));
