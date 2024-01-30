@@ -201,7 +201,7 @@ impl QuadTree {
         particles: &Particles,
         force: &mut Force,
     ) {
-        let _span = tracy_client::span!("Particle");
+        // let _span = tracy_client::span!("Particle");
 
         // We know the maximum number of nodes we will traverse, so we can preallocate the stack
         let mut stack = Vec::with_capacity(max_depth * 3 + 1);
@@ -213,8 +213,8 @@ impl QuadTree {
 
         while let Some(node) = stack.pop() {
             if node.childs.is_empty() {
-                let _span = tracy_client::span!("Leaf");
-                _span.emit_value(node.particles.len() as u64);
+                // let _span = tracy_client::span!("Leaf");
+                // _span.emit_value(node.particles.len() as u64);
 
                 // Leaf node: Calculate the force directly between the particles if not the same particle
                 for (((&other, &other_pos), &other_vel), &other_mass) in node
