@@ -1,3 +1,7 @@
+opti barnes hut
+
+github, logo & readme
+
 finish QT {
 	create a function to return list of refs instead of iter (qt.leaves())
 	bench & opti
