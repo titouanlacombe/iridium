@@ -78,6 +78,8 @@ impl QuadTreeNode {
             self.particles.copy_from_indexes(&indexes, particles);
             self.indexes = indexes; // Take ownership of indexes
             self.indexes.shrink_to_fit();
+            self.childs.clear(); // Drop childs if necessary (pruning)
+            self.childs.shrink_to_fit();
             return;
         }
 
@@ -227,12 +229,6 @@ impl QuadTree {
                     if other == particle {
                         continue;
                     }
-
-                    let (other_pos, other_vel, other_mass) = (
-                        particles.positions[other],
-                        particles.velocities[other],
-                        particles.masses[other],
-                    );
 
                     *force += gravity.calc_force(pos, other_pos, mass, other_mass);
                     *force += repulsion.calc_force(pos, other_pos);
