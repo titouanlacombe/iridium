@@ -202,7 +202,8 @@ impl QuadTree {
         particles: &Particles,
         force: &mut Force,
     ) {
-        // let _span = tracy_client::span!("Particle");
+        let _span = tracy_client::span!("Particle");
+        let (mut leaf, mut approx, mut traverse) = (0, 0, 0);
 
         // We know the maximum number of nodes we will traverse, so we can preallocate the stack
         let mut stack = Vec::with_capacity(max_depth * 3 + 1);
@@ -214,10 +215,8 @@ impl QuadTree {
 
         while let Some(node) = stack.pop() {
             if node.childs.is_empty() {
-                // let _span = tracy_client::span!("Leaf");
-                // _span.emit_value(node.particles.len() as u64);
-
                 // Leaf node: Calculate the force directly between the particles if not the same particle
+                leaf += 1;
                 for (((&other, &other_pos), &other_vel), &other_mass) in node
                     .indexes
                     .iter()
@@ -229,22 +228,34 @@ impl QuadTree {
                         continue;
                     }
 
+                    let (other_pos, other_vel, other_mass) = (
+                        particles.positions[other],
+                        particles.velocities[other],
+                        particles.masses[other],
+                    );
+
                     *force += gravity.calc_force(pos, other_pos, mass, other_mass);
                     *force += repulsion.calc_force(pos, other_pos);
                     *force += drag.calc_force(pos, other_pos, vel, other_vel);
                 }
             } else if (node.scale / (node.center_of_mass - pos).norm()) < theta {
                 // Barnes-Hut criterion satisfied: Approximate the force
+                approx += 1;
                 *force += gravity.calc_force(pos, node.center_of_mass, mass, node.total_mass);
                 *force += repulsion.calc_force(pos, node.center_of_mass);
                 *force += drag.calc_force(pos, node.center_of_mass, vel, node.average_velocity);
             } else {
                 // Barnes-Hut criterion not satisfied: Traverse the children
+                traverse += 1;
                 for child in node.childs.iter() {
                     stack.push(child);
                 }
             }
         }
+
+        _span.emit_text(
+            format!("Leaf: {}, Approx: {}, Traverse: {}", leaf, approx, traverse).as_str(),
+        );
     }
 
     pub fn barnes_hut_particles(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
