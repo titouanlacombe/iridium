@@ -74,6 +74,7 @@ impl QuadTreeNode {
 
         if indexes.len() <= max_particles {
             // Leaf node
+            // Copy particles (worth the spent time here when iterating in barnes hut)
             self.particles.copy_from_indexes(&indexes, particles);
             self.indexes = indexes; // Take ownership of indexes
             self.indexes.shrink_to_fit();
