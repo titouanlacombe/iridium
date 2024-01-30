@@ -12,7 +12,8 @@ use super::{
 
 pub struct QuadTreeNode {
     pub rect: Rect,
-    pub particles: Vec<usize>,
+    pub particles: Particles,
+    pub indexes: Vec<usize>,
     pub childs: Vec<QuadTreeNode>,
 
     // For Barnes-Hut
@@ -27,7 +28,8 @@ impl QuadTreeNode {
         let scale = rect.size.norm();
         Self {
             rect,
-            particles: Vec::new(),
+            particles: Particles::new_empty(),
+            indexes: Vec::new(),
             childs: Vec::new(),
             center_of_mass: Vector2::new(0.0, 0.0),
             average_velocity: Vector2::new(0.0, 0.0),
@@ -38,7 +40,7 @@ impl QuadTreeNode {
 
     pub fn create_childs(&mut self) {
         let half_size = self.rect.size / 2.0;
-        self.childs.reserve(4);
+        self.childs.reserve_exact(4);
         for i in 0..4 {
             self.childs.push(QuadTreeNode::new(Rect::new(
                 self.rect.position
@@ -52,9 +54,7 @@ impl QuadTreeNode {
         &'a mut self,
         stack: &mut Vec<(&'a mut Self, Vec<usize>)>,
         mut indexes: Vec<usize>,
-        positions: &Vec<Position>,
-        velocities: &Vec<Velocity>,
-        masses: &Vec<Mass>,
+        particles: &Particles,
         max_particles: usize,
     ) {
         // Reset node
@@ -64,24 +64,27 @@ impl QuadTreeNode {
 
         // Compute center of mass and total mass
         indexes.iter().for_each(|&particle_index| {
-            self.center_of_mass += positions[particle_index] * masses[particle_index];
-            self.average_velocity += velocities[particle_index];
-            self.total_mass += masses[particle_index];
+            self.center_of_mass +=
+                particles.positions[particle_index] * particles.masses[particle_index];
+            self.average_velocity += particles.velocities[particle_index];
+            self.total_mass += particles.masses[particle_index];
         });
         self.center_of_mass /= self.total_mass;
         self.average_velocity /= indexes.len() as f64;
 
         if indexes.len() <= max_particles {
             // Leaf node
-            self.particles = indexes; // Take ownership of indexes
-            self.childs.clear(); // Drop childs if necessary (pruning)
-            self.childs.shrink_to_fit();
+            self.particles.copy_from_indexes(&indexes, particles);
+            self.indexes = indexes; // Take ownership of indexes
+            self.indexes.shrink_to_fit();
             return;
         }
 
         // Branch node
         self.particles.clear(); // Drop particles if necessary
         self.particles.shrink_to_fit();
+        self.indexes.clear(); // Drop indexes if necessary
+        self.indexes.shrink_to_fit();
 
         // Create childs if necessary
         if self.childs.is_empty() {
@@ -94,7 +97,7 @@ impl QuadTreeNode {
         for particle_index in indexes.drain(..) {
             let mut child_num = 0;
             for (i, child) in self.childs.iter().skip(1).enumerate() {
-                if child.rect.contain(positions[particle_index]) {
+                if child.rect.contain(particles.positions[particle_index]) {
                     child_num = i + 1;
                     break;
                 }
@@ -111,9 +114,7 @@ impl QuadTreeNode {
     pub fn insert_particles<'a>(
         &'a mut self,
         indexes: Vec<usize>,
-        positions: &Vec<Position>,
-        velocities: &Vec<Velocity>,
-        masses: &Vec<Mass>,
+        particles: &Particles,
         max_particles: usize,
     ) {
         let _span = tracy_client::span!("Insert Particles");
@@ -123,14 +124,7 @@ impl QuadTreeNode {
 
         // TODO maybe parallelize
         while let Some((node, indexes)) = stack.pop() {
-            node._insert_particles(
-                &mut stack,
-                indexes,
-                positions,
-                velocities,
-                masses,
-                max_particles,
-            );
+            node._insert_particles(&mut stack, indexes, &particles, max_particles);
         }
     }
 }
@@ -166,15 +160,33 @@ impl QuadTree {
         }
     }
 
-    pub fn insert_particles(&mut self, particles: &Particles) {
+    fn insert_particles(&mut self, particles: &Particles) {
         // Insert particles (will prune the tree if necessary)
         self.root.insert_particles(
             (0..particles.len()).collect::<Vec<_>>(),
-            &particles.positions,
-            &particles.velocities,
-            &particles.masses,
+            &particles,
             self.max_particles,
         );
+    }
+
+    // Traverse the tree and return max_depth and total number of nodes
+    fn get_infos(&self) -> (usize, usize) {
+        let mut stack = Vec::new();
+        stack.push(&self.root);
+
+        let mut max_depth = 0;
+        let mut nodes = 0;
+
+        while let Some(node) = stack.pop() {
+            max_depth = max_depth.max(node.childs.len());
+            nodes += 1;
+            stack.reserve(node.childs.len());
+            for child in node.childs.iter() {
+                stack.push(child);
+            }
+        }
+
+        (max_depth, nodes)
     }
 
     #[inline]
@@ -184,30 +196,41 @@ impl QuadTree {
         repulsion: &Repulsion,
         drag: &Drag,
         theta: f64,
+        max_depth: usize,
         particle: usize,
-        positions: &Vec<Position>,
-        velocities: &Vec<Velocity>,
-        masses: &Vec<Mass>,
+        particles: &Particles,
         force: &mut Force,
     ) {
-        let mut stack = Vec::new();
+        let _span = tracy_client::span!("Particle");
+
+        // We know the maximum number of nodes we will traverse, so we can preallocate the stack
+        let mut stack = Vec::with_capacity(max_depth * 3 + 1);
         stack.push(root);
 
-        let pos = positions[particle];
-        let vel = velocities[particle];
-        let mass = masses[particle];
+        let pos = particles.positions[particle];
+        let vel = particles.velocities[particle];
+        let mass = particles.masses[particle];
 
         while let Some(node) = stack.pop() {
             if node.childs.is_empty() {
+                let _span = tracy_client::span!("Leaf");
+                _span.emit_value(node.particles.len() as u64);
+
                 // Leaf node: Calculate the force directly between the particles if not the same particle
-                for &other in &node.particles {
+                for (((&other, &other_pos), &other_vel), &other_mass) in node
+                    .indexes
+                    .iter()
+                    .zip(&node.particles.positions)
+                    .zip(&node.particles.velocities)
+                    .zip(&node.particles.masses)
+                {
                     if other == particle {
                         continue;
                     }
 
-                    *force += gravity.calc_force(pos, positions[other], mass, masses[other]);
-                    *force += repulsion.calc_force(pos, positions[other]);
-                    *force += drag.calc_force(pos, positions[other], vel, velocities[other]);
+                    *force += gravity.calc_force(pos, other_pos, mass, other_mass);
+                    *force += repulsion.calc_force(pos, other_pos);
+                    *force += drag.calc_force(pos, other_pos, vel, other_vel);
                 }
             } else if (node.scale / (node.center_of_mass - pos).norm()) < theta {
                 // Barnes-Hut criterion satisfied: Approximate the force
@@ -223,8 +246,15 @@ impl QuadTree {
         }
     }
 
-    pub fn barnes_hut_particles(&self, particles: &Particles, forces: &mut Vec<Force>) {
+    pub fn barnes_hut_particles(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
         let _span = tracy_client::span!("Barnes-Hut");
+        _span.emit_value(particles.len() as u64);
+
+        // Make sure quadtree is up to date
+        self.insert_particles(particles);
+
+        // Compute max depth and total number of nodes
+        let (max_depth, _nodes) = self.get_infos();
 
         forces.par_iter_mut().enumerate().for_each(|(i, force)| {
             Self::barnes_hut(
@@ -233,10 +263,9 @@ impl QuadTree {
                 &self.repulsion,
                 &self.drag,
                 self.theta,
+                max_depth,
                 i,
-                &particles.positions,
-                &particles.velocities,
-                &particles.masses,
+                particles,
                 force,
             );
         });
@@ -256,7 +285,6 @@ impl QuadtreeForces {
 impl ForceTrait for QuadtreeForces {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<Force>) {
         let mut quadtree = self.quadtree.write().unwrap();
-        quadtree.insert_particles(particles);
         quadtree.barnes_hut_particles(particles, forces);
     }
 }

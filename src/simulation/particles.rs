@@ -48,11 +48,29 @@ impl Particles {
         self.colors.clear();
     }
 
-    pub fn reserve(&mut self, n: usize) {
-        self.positions.reserve(n);
-        self.velocities.reserve(n);
-        self.masses.reserve(n);
-        self.colors.reserve(n);
+    pub fn reserve_exact(&mut self, n: usize) {
+        self.positions.reserve_exact(n);
+        self.velocities.reserve_exact(n);
+        self.masses.reserve_exact(n);
+        self.colors.reserve_exact(n);
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        self.positions.shrink_to_fit();
+        self.velocities.shrink_to_fit();
+        self.masses.shrink_to_fit();
+        self.colors.shrink_to_fit();
+    }
+
+    pub fn copy_from_indexes(&mut self, indexes: &Vec<usize>, particles: &Particles) {
+        self.clear();
+        self.reserve_exact(indexes.len());
+        indexes.iter().for_each(|&i| {
+            self.positions.push(particles.positions[i]);
+            self.velocities.push(particles.velocities[i]);
+            self.masses.push(particles.masses[i]);
+            self.colors.push(particles.colors[i]);
+        });
     }
 }
 
