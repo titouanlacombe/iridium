@@ -38,6 +38,9 @@ fn benchmark_qt(c: &mut Criterion) {
     group.warm_up_time(Duration::from_millis(400));
     group.measurement_time(Duration::from_secs(4));
 
+    // Start the Tracy client
+    tracy_client::Client::start();
+
     let particles = generate_particles(3000);
     let max_particles = 100;
     let theta = 0.5;
