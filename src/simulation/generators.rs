@@ -14,7 +14,7 @@ pub trait Generator<T> {
     fn generate(&mut self) -> T;
 
     fn generate_n(&mut self, n: usize, vec: &mut Vec<T>) {
-        vec.reserve(n);
+        vec.reserve_exact(n);
         // TODO parallelize
         for _ in 0..n {
             vec.push(self.generate());
@@ -101,7 +101,7 @@ impl Generator<Vector2<Scalar>> for Vector2Generator {
         self.y_generator.generate_n(n, &mut y);
 
         // TODO parallelize
-        vec.reserve(n);
+        vec.reserve_exact(n);
         for (x, y) in x.into_iter().zip(y.into_iter()) {
             vec.push(Vector2::new(x, y));
         }
@@ -140,7 +140,7 @@ impl Generator<Vector2<Scalar>> for Vector2PolarGenerator {
         self.theta_generator.generate_n(n, &mut theta);
 
         // TODO parallelize
-        vec.reserve(n);
+        vec.reserve_exact(n);
         for (r, theta) in r.into_iter().zip(theta.into_iter()) {
             vec.push(Vector2::new(r * theta.cos(), r * theta.sin()));
         }
@@ -247,7 +247,7 @@ impl Generator<Color> for RGBAGenerator {
         self.a_generator.generate_n(n, &mut a);
 
         // TODO parallelize
-        vec.reserve(n);
+        vec.reserve_exact(n);
         for ((r, g), (b, a)) in r
             .into_iter()
             .zip(g.into_iter())
@@ -300,7 +300,7 @@ impl Generator<Color> for HSVAGenerator {
         self.a_generator.generate_n(n, &mut a);
 
         // TODO parallelize
-        vec.reserve(n);
+        vec.reserve_exact(n);
         for ((h, s), (v, a)) in h
             .into_iter()
             .zip(s.into_iter())
