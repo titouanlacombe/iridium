@@ -163,7 +163,7 @@ impl QuadTree {
         }
     }
 
-    fn insert_particles(&mut self, particles: &Particles) {
+    pub fn insert_particles(&mut self, particles: &Particles) {
         // Insert particles (will prune the tree if necessary)
         self.root.insert_particles(
             (0..particles.len()).collect::<Vec<_>>(),
