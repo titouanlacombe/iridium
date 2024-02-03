@@ -1,6 +1,7 @@
 use log::info;
 use psutil::process::Process;
 use std::time::{Duration, Instant};
+use tracy_client::frame_mark;
 
 use crate::{
     rendering::renderer::Renderer,
@@ -80,6 +81,8 @@ impl AppMain {
 
             self.renderer.render(&mut self.data);
             render_elapsed += prof_timer.lap();
+
+            frame_mark();
 
             let log_elapsed = last_log.elapsed();
             if log_elapsed >= self.data.log_interval {
