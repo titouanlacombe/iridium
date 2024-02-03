@@ -205,12 +205,17 @@ impl Force for Drag {
 #[derive(Clone)]
 pub struct Repulsion {
     pub coef: Scalar,
+    pub power: i32,
     pub epsilon: Scalar,
 }
 
 impl Repulsion {
-    pub fn new(coef: Scalar, epsilon: Scalar) -> Self {
-        Self { coef, epsilon }
+    pub fn new(coef: Scalar, power: i32, epsilon: Scalar) -> Self {
+        Self {
+            coef,
+            power,
+            epsilon,
+        }
     }
 
     #[inline]
@@ -222,7 +227,7 @@ impl Repulsion {
             return ForceType::zeros();
         }
 
-        self.coef * distance_v / distance.powi(4)
+        self.coef * distance_v / distance.powi(self.power)
     }
 }
 

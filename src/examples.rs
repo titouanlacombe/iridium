@@ -5,6 +5,7 @@ use sfml::{
     window::{Event as SfmlEvent, Key},
 };
 use std::{
+    cmp::max,
     f64::consts::PI,
     ops::Deref,
     sync::{Arc, RwLock},
@@ -58,6 +59,7 @@ fn get_default_input_callback() -> InputCallback {
             keys_state.update(&event);
 
             match event.original {
+                // TODO: Key to disable/enable quadtree rendering
                 SfmlEvent::Closed => {
                     data.stop = true;
                 }
@@ -495,6 +497,7 @@ pub fn benchmark_generator() -> AppMain {
 // pub fn events() {}
 
 // Temporary facade to generate a planet
+// TODO improve algorithm to avoid overlapping (add method to disk, Area.uniform(n)?)
 pub fn gen_planet(
     position: Vector2<Scalar>,
     velocity: Vector2<Scalar>,
@@ -518,7 +521,7 @@ pub fn gen_planet(
 }
 
 pub fn benchmark_gravity() -> AppMain {
-    let width = 800;
+    let width = 1200;
     let height = 800;
     let dt = 0.5;
 
@@ -531,17 +534,17 @@ pub fn benchmark_gravity() -> AppMain {
 
     let mut particles = Particles::new_empty();
 
-    let offset = Vector2::new(300., 50.);
-    let velocity = Vector2::new(0.7, 0.);
+    let offset = Vector2::new(450., 0.);
+    let velocity = Vector2::new(0.45, -0.07);
 
     // Generate planet
     gen_planet(
         center + offset,
         -velocity,
-        100.,
+        90.,
         1500.,
         Color::CYAN,
-        2000,
+        1800,
         &mut rng_gen,
         &mut particles,
     );
@@ -550,10 +553,10 @@ pub fn benchmark_gravity() -> AppMain {
     gen_planet(
         center - offset,
         velocity,
-        90.,
-        700.,
+        80.,
+        1500.,
         Color::YELLOW,
-        1000,
+        1200,
         &mut rng_gen,
         &mut particles,
     );
@@ -578,17 +581,24 @@ pub fn benchmark_gravity() -> AppMain {
         restitution: 0.,
     });
 
-    let gravity = Box::new(Gravity::new(0.05, 1.5));
-    let repulsion = Box::new(Repulsion::new(0.5, 1.2));
-    let drag = Box::new(Drag::new(0.001, 15.));
+    let gravity = Box::new(Gravity::new(0.03, 3.));
+    let repulsion = Box::new(Repulsion::new(10., 6, 1.5));
+    let drag = Box::new(Drag::new(0.0013, 15.));
+
+    // Quatree wraps simulation space
+    let qt_size = max(width, height) as Scalar;
+    let quadtree_rect = Rect::new(
+        center - Vector2::new(qt_size / 2., qt_size / 2.),
+        Vector2::new(qt_size, qt_size),
+    );
 
     let quadtree = Arc::new(RwLock::new(QuadTree::new(
-        sim_space,
-        100,
+        quadtree_rect,
+        10,
         gravity.deref().clone(),
         repulsion.deref().clone(),
         drag.deref().clone(),
-        1.,
+        1.5,
     )));
 
     let quadtree_forces = Box::new(QuadtreeForces::new(quadtree.clone()));
@@ -612,7 +622,7 @@ pub fn benchmark_gravity() -> AppMain {
         sim,
         sim_runner,
         "Gravity",
-        None,
+        max_fps(144),
         get_default_input_callback(),
         Some(quadtree),
     )
