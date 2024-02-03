@@ -45,7 +45,7 @@ fn benchmark_qt(c: &mut Criterion) {
     let max_particles = 100;
     let theta = 0.5;
     let gravity = Gravity::new(1., 0.);
-    let repulsion = Repulsion::new(1., 0.);
+    let repulsion = Repulsion::new(1., 6, 0.);
     let drag = Drag::new(1., 0.);
     let rect = Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0));
 
