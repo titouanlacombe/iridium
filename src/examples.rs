@@ -154,7 +154,26 @@ pub fn base_iridium_app(
     )
 }
 
-// TODO benchmark empty simulation
+pub fn benchmark_empty() -> AppMain {
+    let width = 500;
+    let height = 500;
+
+    let sim = Simulation::new(Particles::new_empty(), vec![], None);
+
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
+
+    base_iridium_app(
+        width,
+        height,
+        sim,
+        sim_runner,
+        "Benchmark Empty",
+        None,
+        get_default_input_callback(),
+        None,
+    )
+}
+
 pub fn benchmark_base() -> AppMain {
     let width = 500;
     let height = 500;
