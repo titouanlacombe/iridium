@@ -132,6 +132,7 @@ impl QuadTreeNode {
     }
 }
 
+// TODO security feature: max_depth => change output to Result<...>
 pub struct QuadTree {
     pub root: QuadTreeNode,
     // allocator: Arena<QuadTreeNode>,
