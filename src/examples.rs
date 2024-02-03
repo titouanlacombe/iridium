@@ -68,7 +68,7 @@ fn get_default_input_callback() -> InputCallback {
                     Key::Space => {
                         data.running = !data.running;
                     }
-                    Key::S => {
+                    Key::S | Key::N => {
                         data.running = true;
                         single_step = true;
                     }
