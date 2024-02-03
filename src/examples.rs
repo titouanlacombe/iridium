@@ -618,6 +618,8 @@ pub fn benchmark_gravity() -> AppMain {
         repulsion.deref().clone(),
         drag.deref().clone(),
         1.5,
+        Some(50),
+        false,
     )));
 
     let quadtree_forces = Box::new(QuadtreeForces::new(quadtree.clone()));

@@ -52,10 +52,13 @@ impl QuadTreeNode {
 
     fn _insert_particles<'a>(
         &'a mut self,
-        stack: &mut Vec<(&'a mut Self, Vec<usize>)>,
+        stack: &mut Vec<(usize, &'a mut Self, Vec<usize>)>,
         mut indexes: Vec<usize>,
         particles: &Particles,
         max_particles: usize,
+        depth: usize,
+        max_depth: Option<usize>,
+        max_depth_panics: bool,
     ) {
         // Reset node
         self.center_of_mass = Vector2::new(0.0, 0.0);
@@ -72,7 +75,18 @@ impl QuadTreeNode {
         self.center_of_mass /= self.total_mass;
         self.average_velocity /= indexes.len() as f64;
 
-        if indexes.len() <= max_particles {
+        // Check if we reached the maximum depth
+        let mut forced_leaf = false;
+        if let Some(max_depth) = max_depth {
+            if depth >= max_depth {
+                if max_depth_panics {
+                    panic!("Max depth reached");
+                }
+                forced_leaf = true;
+            }
+        }
+
+        if forced_leaf || indexes.len() <= max_particles {
             // Leaf node
             // Copy particles (worth the spent time here when iterating in barnes hut)
             self.particles.copy_from_indexes(&indexes, particles);
@@ -110,7 +124,7 @@ impl QuadTreeNode {
 
         // Insert particles in childs
         for (child, indexes) in self.childs.iter_mut().zip(childs_indexes) {
-            stack.push((child, indexes));
+            stack.push((depth + 1, child, indexes));
         }
     }
 
@@ -119,20 +133,29 @@ impl QuadTreeNode {
         indexes: Vec<usize>,
         particles: &Particles,
         max_particles: usize,
+        max_depth: Option<usize>,
+        max_depth_panics: bool,
     ) {
         let _span = tracy_client::span!("Insert Particles");
 
         let mut stack = Vec::new();
-        stack.push((self, indexes));
+        stack.push((0, self, indexes));
 
         // TODO maybe parallelize
-        while let Some((node, indexes)) = stack.pop() {
-            node._insert_particles(&mut stack, indexes, &particles, max_particles);
+        while let Some((depth, node, indexes)) = stack.pop() {
+            node._insert_particles(
+                &mut stack,
+                indexes,
+                &particles,
+                max_particles,
+                depth,
+                max_depth,
+                max_depth_panics,
+            );
         }
     }
 }
 
-// TODO security feature: max_depth => change output to Result<...>
 pub struct QuadTree {
     pub root: QuadTreeNode,
     // allocator: Arena<QuadTreeNode>,
@@ -142,6 +165,10 @@ pub struct QuadTree {
     repulsion: Repulsion,
     drag: Drag,
     theta: f64, // Barnes-Hut (0.0: no approximation, 1.0: full approximation)
+
+    // Max depth behavior
+    max_depth: Option<usize>,
+    max_depth_panics: bool,
 }
 
 impl QuadTree {
@@ -152,6 +179,8 @@ impl QuadTree {
         repulsion: Repulsion,
         drag: Drag,
         theta: f64,
+        max_depth: Option<usize>,
+        max_depth_panics: bool,
     ) -> Self {
         Self {
             root: QuadTreeNode::new(rect),
@@ -161,6 +190,8 @@ impl QuadTree {
             repulsion,
             drag,
             theta,
+            max_depth,
+            max_depth_panics,
         }
     }
 
@@ -170,6 +201,8 @@ impl QuadTree {
             (0..particles.len()).collect::<Vec<_>>(),
             &particles,
             self.max_particles,
+            self.max_depth,
+            self.max_depth_panics,
         );
     }
 
