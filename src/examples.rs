@@ -555,7 +555,6 @@ pub fn test_uniform_generators() -> AppMain {
 // pub fn events() {}
 
 // Temporary facade to generate a planet
-// TODO improve algorithm to avoid overlapping (add method to disk, Area.uniform(n)?)
 pub fn gen_planet(
     position: Vector2<Scalar>,
     velocity: Vector2<Scalar>,
