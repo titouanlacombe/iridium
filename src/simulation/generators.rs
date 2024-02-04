@@ -153,18 +153,18 @@ impl Generator<Vector2<Scalar>> for Vector2PolarGenerator {
     }
 }
 
-pub struct RectGenerator {
+pub struct RandomRectPointGenerator {
     rect: Rect,
     rng: Pcg64Mcg,
 }
 
-impl RectGenerator {
+impl RandomRectPointGenerator {
     pub fn new(rect: Rect, rng: Pcg64Mcg) -> Self {
         Self { rect, rng }
     }
 }
 
-impl Generator<Vector2<Scalar>> for RectGenerator {
+impl Generator<Vector2<Scalar>> for RandomRectPointGenerator {
     fn generate(&mut self) -> Vector2<Scalar> {
         Vector2::new(
             self.rng.gen::<Scalar>() * self.rect.size.x + self.rect.position.x,
@@ -173,18 +173,70 @@ impl Generator<Vector2<Scalar>> for RectGenerator {
     }
 }
 
-pub struct DiskGenerator {
+pub struct UniformRectPointsGenerator {
+    rect: Rect,
+}
+
+impl UniformRectPointsGenerator {
+    pub fn new(rect: Rect) -> Self {
+        Self { rect }
+    }
+}
+
+impl Generator<Vector2<Scalar>> for UniformRectPointsGenerator {
+    fn generate(&mut self) -> Vector2<Scalar> {
+        self.rect.center()
+    }
+
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<Scalar>>) {
+        vec.reserve_exact(n);
+
+        // TODO area::area() ?
+        let area_per_point = (self.rect.size.x * self.rect.size.y) / n as f64;
+        let distance_increment = area_per_point.sqrt();
+
+        let nx = (self.rect.size.x / distance_increment).floor() as usize;
+        let ny = (self.rect.size.y / distance_increment).floor() as usize;
+
+        let dx = self.rect.size.x / (nx + 1) as f64;
+        let dy = self.rect.size.y / (ny + 1) as f64;
+
+        // Distribute points in the grid
+        for i in 0..nx {
+            for j in 0..ny {
+                vec.push(Vector2::new(
+                    self.rect.position.x + i as f64 * dx + dx / 2.0,
+                    self.rect.position.y + j as f64 * dy + dy / 2.0,
+                ));
+            }
+        }
+
+        // Handle remainders
+        let remainder = n - nx * ny;
+        if remainder > 0 {
+            let dx_remainder = self.rect.size.x / remainder as f64;
+            for i in 0..remainder {
+                vec.push(Vector2::new(
+                    self.rect.position.x + i as f64 * dx_remainder + dx_remainder / 2.0,
+                    self.rect.position.y + self.rect.size.y - dy / 2.0,
+                ));
+            }
+        }
+    }
+}
+
+pub struct RandomDiskPointGenerator {
     disk: Disk,
     rng: Pcg64Mcg,
 }
 
-impl DiskGenerator {
+impl RandomDiskPointGenerator {
     pub fn new(disk: Disk, rng: Pcg64Mcg) -> Self {
         Self { disk, rng }
     }
 }
 
-impl Generator<Vector2<Scalar>> for DiskGenerator {
+impl Generator<Vector2<Scalar>> for RandomDiskPointGenerator {
     fn generate(&mut self) -> Vector2<Scalar> {
         let angle = self.rng.gen::<Scalar>() * 2.0 * PI;
         let radius = (self.rng.gen::<Scalar>() * self.disk.radius_squared).sqrt();
@@ -192,6 +244,47 @@ impl Generator<Vector2<Scalar>> for DiskGenerator {
             self.disk.position.x + radius * angle.cos(),
             self.disk.position.y + radius * angle.sin(),
         )
+    }
+}
+
+pub struct UniformDiskPointsGenerator {
+    disk: Disk,
+}
+
+impl UniformDiskPointsGenerator {
+    pub fn new(disk: Disk) -> Self {
+        Self { disk }
+    }
+}
+
+impl Generator<Vector2<Scalar>> for UniformDiskPointsGenerator {
+    fn generate(&mut self) -> Vector2<Scalar> {
+        self.disk.position
+    }
+
+    fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<Scalar>>) {
+        vec.reserve_exact(n);
+
+        let total_area = PI * self.disk.radius_squared;
+        let area_per_point = total_area / n as f64;
+        let distance_increment = area_per_point.sqrt();
+
+        let nr = (self.disk.radius_squared.sqrt() / distance_increment).ceil() as usize;
+        let mut placed = 0;
+        for i in 0..nr {
+            let r = (i as f64 + 0.5) * distance_increment;
+            let circumference = 2.0 * PI * r;
+            let points_on_this_radius =
+                std::cmp::min(n - placed, (circumference / distance_increment) as usize);
+            let angle_increment = 2.0 * PI / points_on_this_radius as f64;
+            for j in 0..points_on_this_radius {
+                let angle = j as f64 * angle_increment;
+                let x = r * angle.cos();
+                let y = r * angle.sin();
+                vec.push(Vector2::new(x, y) + self.disk.position);
+            }
+            placed += points_on_this_radius;
+        }
     }
 }
 

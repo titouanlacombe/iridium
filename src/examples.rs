@@ -5,7 +5,6 @@ use sfml::{
     window::{Event as SfmlEvent, Key},
 };
 use std::{
-    cmp::max,
     f64::consts::PI,
     ops::Deref,
     sync::{Arc, RwLock},
@@ -25,8 +24,9 @@ use crate::{
         color::Color,
         forces::{Drag, Gravity, Repulsion, UniformDrag, UniformGravity},
         generators::{
-            ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RectGenerator,
-            UniformGenerator, Vector2PolarGenerator,
+            ConstantGenerator, HSVAGenerator, PointGenerator, RandomDiskPointGenerator,
+            RandomRectPointGenerator, UniformDiskPointsGenerator, UniformGenerator,
+            Vector2PolarGenerator,
         },
         integrator::GaussianIntegrator,
         particles::{GeneratorFactory, ParticleFactory, Particles},
@@ -180,7 +180,7 @@ pub fn benchmark_base() -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
 
     let mut factory = GeneratorFactory::new(
-        Box::new(DiskGenerator::new(
+        Box::new(RandomDiskPointGenerator::new(
             Disk::new(Vector2::new(200., 300.), 100.),
             rng_gen.next(),
         )),
@@ -227,7 +227,7 @@ pub fn benchmark_forces() -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
 
     let mut factory = GeneratorFactory::new(
-        Box::new(DiskGenerator::new(
+        Box::new(RandomDiskPointGenerator::new(
             Disk::new(Vector2::new(200., 300.), 100.),
             rng_gen.next(),
         )),
@@ -374,7 +374,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
-            Box::new(DiskGenerator::new(
+            Box::new(RandomDiskPointGenerator::new(
                 Disk::new(
                     Vector2::new(
                         width as Scalar / 10.,
@@ -484,7 +484,7 @@ pub fn benchmark_generator() -> AppMain {
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
-            Box::new(RectGenerator::new(area, rng_gen.next())),
+            Box::new(RandomRectPointGenerator::new(area, rng_gen.next())),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(ConstantGenerator::new(0.5)),
                 Box::new(ConstantGenerator::new(0.1 * PI)),
@@ -513,6 +513,45 @@ pub fn benchmark_generator() -> AppMain {
     )
 }
 
+pub fn test_uniform_generators() -> AppMain {
+    let width = 500;
+    let height = 500;
+
+    let area = Rect {
+        position: Vector2::new(0., 0.),
+        size: Vector2::new(width as Scalar, height as Scalar),
+    };
+
+    let dim = std::cmp::min(width, height) as Scalar;
+    let disk = Disk::new(area.center(), dim / 2.);
+
+    let mut particles = Particles::new_empty();
+
+    let mut particle_factory = GeneratorFactory::new(
+        Box::new(UniformDiskPointsGenerator::new(disk)),
+        Box::new(ConstantGenerator::new(Vector2::new(0., 0.))),
+        Box::new(ConstantGenerator::new(1.)),
+        Box::new(ConstantGenerator::new(Color::WHITE)),
+    );
+
+    particle_factory.create(10000, &mut particles);
+
+    let sim = Simulation::new(particles, vec![], None);
+
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
+
+    base_iridium_app(
+        width,
+        height,
+        sim,
+        sim_runner,
+        "Benchmark Generator",
+        None,
+        get_default_input_callback(),
+        None,
+    )
+}
+
 // pub fn events() {}
 
 // Temporary facade to generate a planet
@@ -524,14 +563,10 @@ pub fn gen_planet(
     mass: Scalar,
     color: Color,
     n: usize,
-    rng_gen: &mut RngGenerator,
     particles: &mut Particles,
 ) {
     GeneratorFactory::new(
-        Box::new(DiskGenerator::new(
-            Disk::new(position, radius),
-            rng_gen.next(),
-        )),
+        Box::new(UniformDiskPointsGenerator::new(Disk::new(position, radius))),
         Box::new(ConstantGenerator::new(velocity)),
         Box::new(ConstantGenerator::new(mass / n as Scalar)),
         Box::new(ConstantGenerator::new(color)),
@@ -544,7 +579,6 @@ pub fn benchmark_gravity() -> AppMain {
     let height = 800;
     let dt = 0.5;
 
-    let mut rng_gen = RngGenerator::new(0);
     let sim_space = Rect::new(
         Vector2::new(0., 0.),
         Vector2::new(width as Scalar, height as Scalar),
@@ -560,11 +594,10 @@ pub fn benchmark_gravity() -> AppMain {
     gen_planet(
         center + offset,
         -velocity,
-        90.,
+        70.,
         1500.,
         Color::CYAN,
         1800,
-        &mut rng_gen,
         &mut particles,
     );
 
@@ -572,11 +605,10 @@ pub fn benchmark_gravity() -> AppMain {
     gen_planet(
         center - offset,
         velocity,
-        80.,
+        50.,
         1500.,
         Color::YELLOW,
         1200,
-        &mut rng_gen,
         &mut particles,
     );
 
@@ -604,8 +636,8 @@ pub fn benchmark_gravity() -> AppMain {
     let repulsion = Box::new(Repulsion::new(10., 6, 1.5));
     let drag = Box::new(Drag::new(0.0013, 15.));
 
-    // Quatree wraps simulation space
-    let qt_size = max(width, height) as Scalar;
+    // Quadtree wraps simulation space
+    let qt_size = std::cmp::max(width, height) as Scalar;
     let quadtree_rect = Rect::new(
         center - Vector2::new(qt_size / 2., qt_size / 2.),
         Vector2::new(qt_size, qt_size),
