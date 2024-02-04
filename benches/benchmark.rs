@@ -10,12 +10,10 @@ use iridium::{
         forces::{Drag, Force, Gravity, Repulsion},
         particles::Particles,
         quadtree::QuadTree,
-        random::RngGenerator,
     },
 };
 
 fn generate_particles(n: usize) -> Particles {
-    let mut rng_gen = RngGenerator::new(0);
     let mut particles = Particles::new_empty();
 
     gen_planet(
@@ -25,7 +23,6 @@ fn generate_particles(n: usize) -> Particles {
         1.,
         Color::BLACK,
         n,
-        &mut rng_gen,
         &mut particles,
     );
 
@@ -58,6 +55,8 @@ fn benchmark_qt(c: &mut Criterion) {
                 repulsion.clone(),
                 drag.clone(),
                 theta,
+                None,
+                false,
             );
             quadtree.insert_particles(&particles);
         })
@@ -70,6 +69,8 @@ fn benchmark_qt(c: &mut Criterion) {
         repulsion.clone(),
         drag.clone(),
         theta,
+        None,
+        false,
     );
     quadtree.insert_particles(&particles);
 
