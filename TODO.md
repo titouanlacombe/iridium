@@ -1,5 +1,7 @@
 opti barnes hut
 
+use arrow for vector operations?
+
 github, logo & readme
 
 finish QT {
