@@ -13,7 +13,7 @@ psutil = "*"
 rand = "*"
 rand_pcg = "*"
 rayon = "*"
-sfml = "0.20.0"
+sfml = "*"
 tracy-client = { version = "0.17.0", features = [
 	"ondemand",
 	# "flush-on-exit",
