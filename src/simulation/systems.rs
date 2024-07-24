@@ -14,8 +14,8 @@ use crate::utils::smooth_rate::SmoothRate;
 pub trait System {
     fn update(&mut self, particles: &mut Particles, dt: Time);
 
-    fn get_name(&self) -> String {
-        std::any::type_name::<Self>().to_string()
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
     }
 }
 
@@ -141,8 +141,8 @@ impl System for Void {
         self.area.contains(&particles.positions, &mut to_remove);
 
         // TODO parallelize????????
-        for i in to_remove {
-            particles.swap_remove(i);
+        for i in to_remove.iter().rev() {
+            particles.swap_remove(*i);
         }
     }
 }
@@ -171,7 +171,10 @@ impl System for Physics {
         self.forces_buffer.clear();
         self.forces_buffer.resize(particles.len(), Vector2::zeros());
 
-        for force in self.forces.iter() {
+        for (i, force) in self.forces.iter_mut().enumerate() {
+            let span = tracy_client::span!("Force");
+            span.emit_text(&format!("[{}] {}", i, force.type_name()));
+
             force.apply(particles, &mut self.forces_buffer);
         }
 

@@ -37,6 +37,7 @@ pub trait Area: Sync {
     }
 }
 
+#[derive(Clone)]
 pub struct Rect {
     pub position: Position,
     pub size: Vector2<Length>,
@@ -46,9 +47,30 @@ impl Rect {
     pub fn new(position: Position, size: Vector2<Length>) -> Self {
         Self { position, size }
     }
+
+    pub fn top_left(&self) -> Position {
+        self.position
+    }
+
+    pub fn top_right(&self) -> Position {
+        self.position + Vector2::new(self.size.x, 0.)
+    }
+
+    pub fn bottom_left(&self) -> Position {
+        self.position + Vector2::new(0., self.size.y)
+    }
+
+    pub fn bottom_right(&self) -> Position {
+        self.position + self.size
+    }
+
+    pub fn center(&self) -> Position {
+        self.position + self.size / 2.
+    }
 }
 
 impl Area for Rect {
+    #[inline]
     fn contain(&self, position: Position) -> bool {
         position.x >= self.position.x
             && position.x <= self.position.x + self.size.x
@@ -72,6 +94,7 @@ impl Disk {
 }
 
 impl Area for Disk {
+    #[inline]
     fn contain(&self, position: Position) -> bool {
         (position - self.position).norm_squared() <= self.radius_squared
     }
@@ -88,6 +111,7 @@ impl Point {
 }
 
 impl Area for Point {
+    #[inline]
     fn contain(&self, position: Position) -> bool {
         position == self.position
     }

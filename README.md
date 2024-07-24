@@ -19,19 +19,17 @@ cargo run
 
 ### Benchmarking
 
-Setup:
 ```sh
-sudo apt install -y perf
+cargo bench
 ```
 
-Run:
-```sh
-cargo build --release
-perf record -g ./target/release/iridium
-perf script > profile.linux-perf.txt
-```
+### Profiling
 
-See result with [Speedscope](https://www.speedscope.app/).
+This project is using [Tracy](https://github.com/wolfpld/tracy) to profile the build.
+
+Build the Tracy server, run it.
+
+Then run the application, it should connect to the tracy server.
 
 ## Features
 
@@ -45,6 +43,8 @@ Forces:
 - Coulomb (particle to particle)
 - Drag (uniform)
 - Drag (particle to particle)
+
+Quadtree: fast collision detection and force computation
 
 ## Development
 

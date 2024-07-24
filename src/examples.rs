@@ -4,7 +4,12 @@ use sfml::{
     system::Vector2f,
     window::{Event as SfmlEvent, Key},
 };
-use std::{f64::consts::PI, time::Duration};
+use std::{
+    f64::consts::PI,
+    ops::Deref,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use crate::{
     app::{max_fps, AppData, AppMain},
@@ -19,11 +24,13 @@ use crate::{
         color::Color,
         forces::{Drag, Gravity, Repulsion, UniformDrag, UniformGravity},
         generators::{
-            ConstantGenerator, DiskGenerator, HSVAGenerator, PointGenerator, RectGenerator,
-            UniformGenerator, Vector2PolarGenerator,
+            ConstantGenerator, HSVAGenerator, PointGenerator, RandomDiskPointGenerator,
+            RandomRectPointGenerator, UniformDiskPointsGenerator, UniformGenerator,
+            Vector2PolarGenerator,
         },
         integrator::GaussianIntegrator,
         particles::{GeneratorFactory, ParticleFactory, Particles},
+        quadtree::{QuadTree, QuadtreeForces},
         random::RngGenerator,
         sim_events::{DefaultSimEventsHandler, SimEvent},
         simulation::{ConstantSimulationRunner, Simulation, SimulationRunner},
@@ -52,6 +59,7 @@ fn get_default_input_callback() -> InputCallback {
             keys_state.update(&event);
 
             match event.original {
+                // TODO: Key to disable/enable quadtree rendering
                 SfmlEvent::Closed => {
                     data.stop = true;
                 }
@@ -62,7 +70,7 @@ fn get_default_input_callback() -> InputCallback {
                     Key::Space => {
                         data.running = !data.running;
                     }
-                    Key::S => {
+                    Key::S | Key::N => {
                         data.running = true;
                         single_step = true;
                     }
@@ -111,6 +119,7 @@ pub fn base_iridium_app(
     sim_name: &str,
     min_frame_time: Option<Duration>,
     input_callback: InputCallback,
+    quadtree: Option<Arc<RwLock<QuadTree>>>,
 ) -> AppMain {
     let view_data = ViewData::new(
         Vector2f::new(width as f32 / 2., height as f32 / 2.),
@@ -133,6 +142,7 @@ pub fn base_iridium_app(
     AppMain::new(
         sim,
         Box::new(BasicRenderer::new(
+            quadtree,
             render_thread,
             input_callback,
             min_frame_time,
@@ -144,14 +154,33 @@ pub fn base_iridium_app(
     )
 }
 
-// TODO benchmark empty simulation
+pub fn benchmark_empty() -> AppMain {
+    let width = 500;
+    let height = 500;
+
+    let sim = Simulation::new(Particles::new_empty(), vec![], None);
+
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
+
+    base_iridium_app(
+        width,
+        height,
+        sim,
+        sim_runner,
+        "Benchmark Empty",
+        None,
+        get_default_input_callback(),
+        None,
+    )
+}
+
 pub fn benchmark_base() -> AppMain {
     let width = 500;
     let height = 500;
     let mut rng_gen = RngGenerator::new(0);
 
     let mut factory = GeneratorFactory::new(
-        Box::new(DiskGenerator::new(
+        Box::new(RandomDiskPointGenerator::new(
             Disk::new(Vector2::new(200., 300.), 100.),
             rng_gen.next(),
         )),
@@ -188,6 +217,7 @@ pub fn benchmark_base() -> AppMain {
         "Benchmark Base",
         None,
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -197,7 +227,7 @@ pub fn benchmark_forces() -> AppMain {
     let mut rng_gen = RngGenerator::new(0);
 
     let mut factory = GeneratorFactory::new(
-        Box::new(DiskGenerator::new(
+        Box::new(RandomDiskPointGenerator::new(
             Disk::new(Vector2::new(200., 300.), 100.),
             rng_gen.next(),
         )),
@@ -255,6 +285,7 @@ pub fn benchmark_forces() -> AppMain {
         "Benchmark Forces",
         None,
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -334,6 +365,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
         "Fireworks",
         max_fps(60),
         input_callback,
+        None,
     )
 }
 
@@ -342,7 +374,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
-            Box::new(DiskGenerator::new(
+            Box::new(RandomDiskPointGenerator::new(
                 Disk::new(
                     Vector2::new(
                         width as Scalar / 10.,
@@ -428,6 +460,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
         "Flow",
         max_fps(60),
         get_default_input_callback(),
+        None,
     )
 }
 
@@ -451,7 +484,7 @@ pub fn benchmark_generator() -> AppMain {
 
     let emitter = Box::new(ConstantEmitter::new(
         Box::new(GeneratorFactory::new(
-            Box::new(RectGenerator::new(area, rng_gen.next())),
+            Box::new(RandomRectPointGenerator::new(area, rng_gen.next())),
             Box::new(Vector2PolarGenerator::new(
                 Box::new(ConstantGenerator::new(0.5)),
                 Box::new(ConstantGenerator::new(0.1 * PI)),
@@ -476,78 +509,154 @@ pub fn benchmark_generator() -> AppMain {
         "Benchmark Generator",
         None,
         get_default_input_callback(),
+        None,
+    )
+}
+
+pub fn test_uniform_generators() -> AppMain {
+    let width = 500;
+    let height = 500;
+
+    let area = Rect {
+        position: Vector2::new(0., 0.),
+        size: Vector2::new(width as Scalar, height as Scalar),
+    };
+
+    let dim = std::cmp::min(width, height) as Scalar;
+    let disk = Disk::new(area.center(), dim / 2.);
+
+    let mut particles = Particles::new_empty();
+
+    let mut particle_factory = GeneratorFactory::new(
+        Box::new(UniformDiskPointsGenerator::new(disk)),
+        Box::new(ConstantGenerator::new(Vector2::new(0., 0.))),
+        Box::new(ConstantGenerator::new(1.)),
+        Box::new(ConstantGenerator::new(Color::WHITE)),
+    );
+
+    particle_factory.create(10000, &mut particles);
+
+    let sim = Simulation::new(particles, vec![], None);
+
+    let sim_runner = Box::new(ConstantSimulationRunner::new(1.));
+
+    base_iridium_app(
+        width,
+        height,
+        sim,
+        sim_runner,
+        "Benchmark Generator",
+        None,
+        get_default_input_callback(),
+        None,
     )
 }
 
 // pub fn events() {}
 
 // Temporary facade to generate a planet
-fn gen_planet(
+pub fn gen_planet(
     position: Vector2<Scalar>,
+    velocity: Vector2<Scalar>,
     radius: Scalar,
     mass: Scalar,
     color: Color,
     n: usize,
-    rng_gen: &mut RngGenerator,
     particles: &mut Particles,
 ) {
     GeneratorFactory::new(
-        Box::new(DiskGenerator::new(
-            Disk::new(position, radius),
-            rng_gen.next(),
-        )),
-        Box::new(ConstantGenerator::new(Vector2::zeros())),
-        Box::new(ConstantGenerator::new(mass)),
+        Box::new(UniformDiskPointsGenerator::new(Disk::new(position, radius))),
+        Box::new(ConstantGenerator::new(velocity)),
+        Box::new(ConstantGenerator::new(mass / n as Scalar)),
         Box::new(ConstantGenerator::new(color)),
     )
     .create(n, particles);
 }
 
-// TODO convert to benchmark_gravity
-pub fn gravity1(width: u32, height: u32) -> AppMain {
-    let mut rng_gen = RngGenerator::new(0);
-    let center = Vector2::new(width as Scalar / 2., height as Scalar / 2.);
+pub fn benchmark_gravity() -> AppMain {
+    let width = 1200;
+    let height = 800;
+    let dt = 0.5;
+
+    let sim_space = Rect::new(
+        Vector2::new(0., 0.),
+        Vector2::new(width as Scalar, height as Scalar),
+    );
+    let center = sim_space.center();
 
     let mut particles = Particles::new_empty();
 
-    let offset = Vector2::new(width as Scalar / 3., 0.);
+    let offset = Vector2::new(450., 0.);
+    let velocity = Vector2::new(0.45, -0.07);
 
-    // Generate stars
+    // Generate planet
     gen_planet(
         center + offset,
-        center.min() / 4.,
-        1.,
-        Color::WHITE,
-        1_500,
-        &mut rng_gen,
+        -velocity,
+        70.,
+        1500.,
+        Color::CYAN,
+        1800,
+        &mut particles,
+    );
+
+    // Generate planet 2
+    gen_planet(
+        center - offset,
+        velocity,
+        50.,
+        1500.,
+        Color::YELLOW,
+        1200,
         &mut particles,
     );
 
     // Generate black hole
-    gen_planet(
-        center - offset,
-        0.,
-        200.,
-        Color::RED,
-        1,
-        &mut rng_gen,
-        &mut particles,
-    );
+    // gen_planet(
+    //     center - offset,
+    //     velocity,
+    //     0.,
+    //     n as Scalar,
+    //     Color::RED,
+    //     1,
+    //     &mut rng_gen,
+    //     &mut particles,
+    // );
 
     let limit_cond = Box::new(Wall {
         x_min: 0.,
         y_min: 0.,
         x_max: width as Scalar,
         y_max: height as Scalar,
-        restitution: 1.,
+        restitution: 0.,
     });
 
-    let gravity = Box::new(Gravity::new(0.1, 2.));
-    let drag = Box::new(Drag::new(0.006, 12.));
-    let repulsion = Box::new(Repulsion::new(0.5, 0.5));
+    let gravity = Box::new(Gravity::new(0.03, 3.));
+    let repulsion = Box::new(Repulsion::new(10., 6, 1.5));
+    let drag = Box::new(Drag::new(0.0013, 15.));
+
+    // Quadtree wraps simulation space
+    let qt_size = std::cmp::max(width, height) as Scalar;
+    let quadtree_rect = Rect::new(
+        center - Vector2::new(qt_size / 2., qt_size / 2.),
+        Vector2::new(qt_size, qt_size),
+    );
+
+    let quadtree = Arc::new(RwLock::new(QuadTree::new(
+        quadtree_rect,
+        10,
+        gravity.deref().clone(),
+        repulsion.deref().clone(),
+        drag.deref().clone(),
+        1.5,
+        Some(50),
+        false,
+    )));
+
+    let quadtree_forces = Box::new(QuadtreeForces::new(quadtree.clone()));
 
     let physics = Box::new(Physics::new(
-        vec![gravity, drag, repulsion],
+        vec![quadtree_forces],
         Box::new(GaussianIntegrator),
     ));
 
@@ -557,7 +666,7 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
 
     let sim = Simulation::new(particles, systems, None);
 
-    let sim_runner = Box::new(ConstantSimulationRunner::new(0.08));
+    let sim_runner = Box::new(ConstantSimulationRunner::new(dt));
 
     base_iridium_app(
         width,
@@ -565,7 +674,8 @@ pub fn gravity1(width: u32, height: u32) -> AppMain {
         sim,
         sim_runner,
         "Gravity",
-        max_fps(60),
+        max_fps(144),
         get_default_input_callback(),
+        Some(quadtree),
     )
 }

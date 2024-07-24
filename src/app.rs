@@ -1,6 +1,7 @@
 use log::info;
 use psutil::process::Process;
 use std::time::{Duration, Instant};
+use tracy_client::frame_mark;
 
 use crate::{
     rendering::renderer::Renderer,
@@ -64,11 +65,15 @@ impl AppMain {
         let mut frame_count = 0;
 
         while !self.data.stop {
+            let _span = tracy_client::span!("Frame");
+
             frame_count += 1;
             prof_timer.lap();
 
             if self.data.running {
                 for _ in 0..self.data.steps_per_frame {
+                    let _span = tracy_client::span!("Simulation step");
+
                     self.data.sim_runner.step(&mut self.data.sim);
                 }
             }
@@ -76,6 +81,8 @@ impl AppMain {
 
             self.renderer.render(&mut self.data);
             render_elapsed += prof_timer.lap();
+
+            frame_mark();
 
             let log_elapsed = last_log.elapsed();
             if log_elapsed >= self.data.log_interval {

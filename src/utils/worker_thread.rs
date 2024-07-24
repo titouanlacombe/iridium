@@ -21,8 +21,16 @@ impl<ThreadData: Default + 'static> WorkerThread<ThreadData> {
             let mut data = ThreadData::default();
             let mut stop = false;
             loop {
-                // Receive & execute command
-                rx.recv().unwrap()(&mut data, &mut stop);
+                let command = {
+                    let _span = tracy_client::span!("Worker thread receive");
+                    rx.recv()
+                };
+
+                {
+                    let _span = tracy_client::span!("Worker thread execute");
+                    command.unwrap()(&mut data, &mut stop);
+                }
+
                 if stop {
                     break;
                 }
