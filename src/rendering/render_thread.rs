@@ -1,5 +1,6 @@
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use sfml::{
+    cpp::FBox,
     graphics::{Color, PrimitiveType, RenderStates, RenderTarget, RenderWindow, Vertex},
     system::Vector2f,
 };
@@ -17,7 +18,7 @@ use crate::{simulation::areas::Rect, utils::worker_thread::WorkerThread};
 pub type DrawResult = Vec<WindowEvent>;
 
 pub struct RenderThreadData {
-    pub window: Option<RenderWindow>,
+    pub window: Option<FBox<RenderWindow>>,
 }
 
 impl Default for RenderThreadData {

@@ -1,7 +1,7 @@
 use sfml::{
-    graphics::{FloatRect, RenderWindow},
+    cpp::FBox,
+    graphics::{FloatRect, RenderWindow, View},
     system::Vector2,
-    SfBox,
 };
 
 // Data without implementation to be sent across threads
@@ -30,10 +30,12 @@ impl WindowData {
         }
     }
 
-    pub fn make(&self) -> RenderWindow {
-        let mut obj = RenderWindow::new(self.size, self.title.as_str(), self.style, &self.settings);
-        obj.set_key_repeat_enabled(self.key_repeat_enabled);
-        obj
+    pub fn make(&self) -> FBox<RenderWindow> {
+        let mut window =
+            RenderWindow::new(self.size, self.title.as_str(), self.style, &self.settings)
+                .expect("Window creation failed");
+        window.set_key_repeat_enabled(self.key_repeat_enabled);
+        window
     }
 }
 
@@ -62,11 +64,12 @@ impl ViewData {
         }
     }
 
-    pub fn make(&self) -> SfBox<sfml::graphics::View> {
-        let mut view = sfml::graphics::View::new(self.center, self.size);
+    pub fn make(&self) -> FBox<View> {
+        let mut view = View::new().expect("Failed to create view");
+        view.set_center(self.center);
+        view.set_size(self.size);
         view.set_viewport(self.viewport);
         view.set_rotation(self.rotation);
-        view.set_size(self.size);
         view.zoom(self.zoom);
         view
     }

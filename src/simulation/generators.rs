@@ -71,7 +71,7 @@ impl UniformGenerator {
 
 impl Generator<Scalar> for UniformGenerator {
     fn generate(&mut self) -> Scalar {
-        self.rng.gen_range(self.min..self.max)
+        self.rng.random_range(self.min..self.max)
     }
 }
 
@@ -167,8 +167,8 @@ impl RandomRectPointGenerator {
 impl Generator<Vector2<Scalar>> for RandomRectPointGenerator {
     fn generate(&mut self) -> Vector2<Scalar> {
         Vector2::new(
-            self.rng.gen::<Scalar>() * self.rect.size.x + self.rect.position.x,
-            self.rng.gen::<Scalar>() * self.rect.size.y + self.rect.position.y,
+            self.rng.random::<Scalar>() * self.rect.size.x + self.rect.position.x,
+            self.rng.random::<Scalar>() * self.rect.size.y + self.rect.position.y,
         )
     }
 }
@@ -238,8 +238,8 @@ impl RandomDiskPointGenerator {
 
 impl Generator<Vector2<Scalar>> for RandomDiskPointGenerator {
     fn generate(&mut self) -> Vector2<Scalar> {
-        let angle = self.rng.gen::<Scalar>() * 2.0 * PI;
-        let radius = (self.rng.gen::<Scalar>() * self.disk.radius_squared).sqrt();
+        let angle = self.rng.random::<Scalar>() * 2.0 * PI;
+        let radius = (self.rng.random::<Scalar>() * self.disk.radius_squared).sqrt();
         Vector2::new(
             self.disk.position.x + radius * angle.cos(),
             self.disk.position.y + radius * angle.sin(),
