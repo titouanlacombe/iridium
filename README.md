@@ -21,10 +21,8 @@ Quadtree: fast collision detection and force computation
 
 ### Dependencies
 
-```sh
-curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh
-sudo apt install -y build-essential git python3 cmake sfml-dev
-```
+- [Rust](https://www.rust-lang.org/tools/install)
+- [SFML Build](https://www.sfml-dev.org/tutorials/3.0/getting-started/build-from-source/#installing-dependencies)
 
 ## Build and run
 
