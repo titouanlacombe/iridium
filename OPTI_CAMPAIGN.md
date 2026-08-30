@@ -151,6 +151,16 @@ Three candidates, measured:
 
 `(1 << count) - 1` for count == 8 yields 0 on u8 (1u8 << 8 == 1 at runtime), so every full f32x8 batch (the last partial batch worked) got a zero root mask -> no forces. f64 never hit it (count <= 4). This also invalidated the earlier "f32 7 ms" measurement. Fixed with `u8::MAX >> (8 - count)`. The f32 test suite now genuinely runs to completion (it had silently stopped at 8/8-passed doc-test lines before).
 
+### NaN explosion in the 2-planet demo (f32), ~5s in
+
+Reproduced in scratch: benchmark_gravity (3000 particles, dt=0.5, theta=1.5, eps: gravity 3.0 / repulsion 1.5), f32 -> NaN at step ~2312 (bh path) / ~1942 (naive path); f64 stable. Bisected: pre-SIMD commit a584c84 runs 3000 steps clean; the SIMD commit introduced it.
+
+Root cause: **inf/NaN * 0.0 = NaN through the validity-mask multiplications**. When planets merge, f32 pairs reach r < ~2.5e-7: repulsion `r^-6` underflows to 0 -> `1/0 = inf`; exact duplicates give gravity `0/0 = NaN`. The kernels multiplied by the 0.0 validity mask (`value * g_valid`), and inf * 0.0 is NaN -> poisoned forces. `masked()` (select-based) already guarded the subtree/self masks but not the validity masks.
+
+Fix: all validity masks in the SIMD kernels (naive forces.rs + bh leaf/approx in quadtree.rs) now use `masked(valid, value)` (select) instead of `value * valid`. Added regression test `coincident_particles_produce_finite_forces`. Scratch (both bh and naive variants) now runs 3000 steps clean under f32.
+
+Side finding: `UniformDiskPointsGenerator` produces ~3 fewer particles than requested under f32 (ring-count rounding) - pre-existing, unrelated.
+
 ### #2 verdict: no measurable gain
 
 AVX2 confirmed in binary (110 ymm instr), yet all benches flat within +-10% noise -> the hot loops are **memory-bandwidth-bound**, not compute-bound. AVX2 doubles lanes but doesn't cut traffic.

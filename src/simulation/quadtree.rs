@@ -342,18 +342,19 @@ impl QuadTree {
                     let r2 = dx * dx + dy * dy;
                     let r = r2.sqrt();
 
-                    // Gravity
+                    // Gravity. Validity masks select, not multiply: near-zero r
+                    // gives inf/NaN, and inf * 0.0 is NaN.
                     let g_valid = mask_to_01(r.mask_ge(V::splat(gravity.epsilon)));
                     let r3 = r * r2;
                     let g_scale = -V::splat(gravity.coef) * mass * V::splat(other_mass) / r3;
-                    fx += masked(q_mask, g_scale * dx * g_valid);
-                    fy += masked(q_mask, g_scale * dy * g_valid);
+                    fx += masked(q_mask, masked(g_valid, g_scale * dx));
+                    fy += masked(q_mask, masked(g_valid, g_scale * dy));
 
-                    // Repulsion
+                    // Repulsion: r^(-power) overflows to inf for tiny r in f32
                     let rep_valid = mask_to_01(r.mask_ge(V::splat(repulsion.epsilon)));
                     let rep_scale = V::splat(repulsion.coef) * repulsion_inv_pow(repulsion.power, r);
-                    fx += masked(q_mask, rep_scale * dx * rep_valid);
-                    fy += masked(q_mask, rep_scale * dy * rep_valid);
+                    fx += masked(q_mask, masked(rep_valid, rep_scale * dx));
+                    fy += masked(q_mask, masked(rep_valid, rep_scale * dy));
 
                     // Drag
                     let drag_valid = mask_to_01(r.mask_le(V::splat(drag.distance)))
@@ -364,8 +365,8 @@ impl QuadTree {
                     let dvx = vx - V::splat(other_vel.x);
                     let dvy = vy - V::splat(other_vel.y);
                     let drag_scale = -V::splat(drag.coef) * dist_coef;
-                    fx += masked(q_mask, drag_scale * dvx * drag_valid);
-                    fy += masked(q_mask, drag_scale * dvy * drag_valid);
+                    fx += masked(q_mask, masked(drag_valid, drag_scale * dvx));
+                    fy += masked(q_mask, masked(drag_valid, drag_scale * dvy));
                 }
             } else {
                 // Barnes-Hut criterion, vectorized across the batch lanes.
@@ -395,19 +396,20 @@ impl QuadTree {
                     }
                 }
 
-                // Approximation contribution, masked to the satisfied lanes
+                // Approximation contribution, masked to the satisfied lanes.
+                // Validity masks select, not multiply: near-zero dist gives inf/NaN.
                 let m = subtree * mask_to_01(met);
 
                 let g_valid = mask_to_01(dist.mask_ge(V::splat(gravity.epsilon)));
                 let r3 = dist * dist2;
                 let g_scale = -V::splat(gravity.coef) * mass * V::splat(node.total_mass) / r3;
-                fx += masked(m, g_scale * dx * g_valid);
-                fy += masked(m, g_scale * dy * g_valid);
+                fx += masked(m, masked(g_valid, g_scale * dx));
+                fy += masked(m, masked(g_valid, g_scale * dy));
 
                 let rep_valid = mask_to_01(dist.mask_ge(V::splat(repulsion.epsilon)));
                 let rep_scale = V::splat(repulsion.coef) * repulsion_inv_pow(repulsion.power, dist);
-                fx += masked(m, rep_scale * dx * rep_valid);
-                fy += masked(m, rep_scale * dy * rep_valid);
+                fx += masked(m, masked(rep_valid, rep_scale * dx));
+                fy += masked(m, masked(rep_valid, rep_scale * dy));
 
                 let drag_valid = mask_to_01(dist.mask_le(V::splat(drag.distance)))
                     * mask_to_01(dist.mask_gt(zero));
@@ -417,8 +419,8 @@ impl QuadTree {
                 let dvx = vx - V::splat(node.average_velocity.x);
                 let dvy = vy - V::splat(node.average_velocity.y);
                 let drag_scale = -V::splat(drag.coef) * dist_coef;
-                fx += masked(m, drag_scale * dvx * drag_valid);
-                fy += masked(m, drag_scale * dvy * drag_valid);
+                fx += masked(m, masked(drag_valid, drag_scale * dvx));
+                fy += masked(m, masked(drag_valid, drag_scale * dvy));
             }
         }
 

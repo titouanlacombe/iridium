@@ -193,6 +193,43 @@ fn barnes_hut_theta_05_is_a_reasonable_approximation() {
 }
 
 #[test]
+fn coincident_particles_produce_finite_forces() {
+    // r = 0 (exact duplicates): f32 repulsion overflows r^-6 to inf and gravity
+    // computes 0/0. The validity masks must discard these by selection, not
+    // multiplication (inf * 0.0 = NaN would poison the whole accumulator).
+    let particles = Particles::new(
+        vec![
+            Vector2::new(1.0, 1.0),
+            Vector2::new(1.0, 1.0),
+            Vector2::new(1.0, 1.0),
+        ],
+        vec![
+            Vector2::new(0.1, 0.0),
+            Vector2::new(-0.1, 0.05),
+            Vector2::new(0.05, -0.1),
+        ],
+        vec![5.0, 7.0, 3.0],
+        vec![Color::BLACK; 3],
+    );
+
+    let mut gravity = Gravity::new(0.03, 3.0);
+    let mut repulsion = Repulsion::new(10.0, 6, 1.5);
+    let mut drag = Drag::new(0.0013, 15.0);
+    let mut forces = vec![Vector2::zeros(); 3];
+
+    gravity.apply(&particles, &mut forces);
+    repulsion.apply(&particles, &mut forces);
+    drag.apply(&particles, &mut forces);
+
+    for force in &forces {
+        assert!(
+            force.x.is_finite() && force.y.is_finite(),
+            "non-finite force from coincident particles: {force:?}"
+        );
+    }
+}
+
+#[test]
 fn morton_sort_is_deterministic_and_preserves_particles() {
     let mut particles = generate_random_particles(500, 21, 1000.0);
     let before = snapshot(&particles);

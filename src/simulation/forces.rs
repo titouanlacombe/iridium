@@ -178,10 +178,15 @@ impl Force for Gravity {
             let dy = Simd::splat(p.y) - jy;
             let r2 = dx * dx + dy * dy;
             let r = r2.sqrt();
+            // Validity mask must select, not multiply: near-zero r gives inf/NaN
+            // (0/0 at exact duplicates), and inf * 0.0 is NaN.
             let g_valid = mask_to_01(r.mask_ge(Simd::splat(immut_self.epsilon)));
             let r3 = r * r2;
             let g_scale = -Simd::splat(immut_self.coef) * Simd::splat(mi) * jm / r3;
-            (g_scale * dx * g_valid, g_scale * dy * g_valid)
+            (
+                masked(g_valid, g_scale * dx),
+                masked(g_valid, g_scale * dy),
+            )
         });
     }
 }
@@ -238,8 +243,8 @@ impl Force for Drag {
             let dvy = Simd::splat(v.y) - jvy;
             let drag_scale = -Simd::splat(immut_self.coef) * dist_coef;
             (
-                drag_scale * dvx * drag_valid,
-                drag_scale * dvy * drag_valid,
+                masked(drag_valid, drag_scale * dvx),
+                masked(drag_valid, drag_scale * dvy),
             )
         });
     }
@@ -284,9 +289,14 @@ impl Force for Repulsion {
             let dy = Simd::splat(p.y) - jy;
             let r2 = dx * dx + dy * dy;
             let r = r2.sqrt();
+            // Validity mask must select, not multiply: r^(-power) overflows to inf
+            // for tiny r in f32, and inf * 0.0 is NaN.
             let rep_valid = mask_to_01(r.mask_ge(Simd::splat(immut_self.epsilon)));
             let rep_scale = Simd::splat(immut_self.coef) * repulsion_inv_pow(immut_self.power, r);
-            (rep_scale * dx * rep_valid, rep_scale * dy * rep_valid)
+            (
+                masked(rep_valid, rep_scale * dx),
+                masked(rep_valid, rep_scale * dy),
+            )
         });
     }
 }
