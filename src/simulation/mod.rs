@@ -3,6 +3,7 @@ pub mod color;
 pub mod forces;
 pub mod generators;
 pub mod integrator;
+pub mod morton;
 pub mod particles;
 pub mod quadtree;
 pub mod random;

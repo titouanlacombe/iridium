@@ -46,7 +46,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | done (see log) |
 | 9 | `Scalar = f32` feature flag | H | L | M | done (see log) |
 | 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | done (see log) |
-| 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | pending |
+| 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | done (see log: correct, but flat without SIMD) |
 | 12 | FMM (ferreus_bbfmm/kifmm research) | H | VH | H | pending |
 | 13 | Integrators (verlet...) + max-dt tests | M | M | L | pending |
 | 14 | Facade + error handling (thiserror) | M | M | L | pending |
@@ -115,6 +115,14 @@ Memory boundedness: `compact()` runs at the end of every insert — drops unreac
 Results: 3k bh 10.6-11.2 ms, 100k bh ~480 ms -> within the 420-490 run-to-run band (machine noise). Same conclusion as #2/#3: allocation churn and pointer-chasing weren't the bottleneck at these sizes. Structural wins remain: index-based traversal (unblocks #11 batching + SIMD), no lifetimes, flat leaves() iteration, bounded arena.
 
 Remaining big lever: #11 batched traversal (100k bh ~480 ms/frame).
+
+### #11 verdict: infrastructure done, batched walk flat (measurement killed a bug)
+
+MortonSort (System, deterministic: index tie-break) + batched barnes-hut (BATCH = 4 f64 / 8 f32, one walk per batch with per-subtree particle bitmask).
+
+- New test `barnes_hut_theta_05_is_a_reasonable_approximation` caught a real bug in the first mask design: a per-particle "done" flag (instead of a per-stack-entry mask) double-approximated nothing but *skipped* sibling subtrees -> forces ~640x too small. Mask travels with the stack entry: fixed. Also caught the earlier 43x "speedup" as garbage.
+- Verdict: correct but FLAT (3k 11.2 ms incl. sort, 100k 460 ms vs 421-490 solo). The bottleneck at theta=0.5 is the leaf-pair arithmetic (each pair computed once per particle, ~independent of batching), not node loads (tree is L3-resident at 100k, 13 MB in 32 MB L3). Batching amortizes node loads only.
+- The real remaining lever for the pair arithmetic: SIMD across the batch lanes (wide crate, f64x4/f32x8) on the pair + criterion loops - compute-bound, unlike the buffer passes. MortonSort is currently neutral (sort ~5-15 ms at 100k) - it stays (standard technique, keeps batches coherent if node loads ever matter).
 
 ### #2 verdict: no measurable gain
 

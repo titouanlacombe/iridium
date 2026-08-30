@@ -41,7 +41,7 @@ fn benchmark_qt_at(c: &mut Criterion, group_name: &str, n: usize) {
     // Start the Tracy client
     tracy_client::Client::start();
 
-    let particles = generate_particles(n);
+    let mut particles = generate_particles(n);
     let max_particles = 100;
     let theta = 0.5;
     let gravity = Gravity::new(1., 0.);
@@ -97,9 +97,11 @@ fn benchmark_qt_at(c: &mut Criterion, group_name: &str, n: usize) {
     }
 
     let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
+    let mut morton_sort = iridium::simulation::morton::MortonSort::new();
 
     group.bench_function("barnes_hut", |b| {
         b.iter(|| {
+            morton_sort.sort(&mut particles);
             quadtree.barnes_hut_particles(&particles, &mut forces);
         })
     });

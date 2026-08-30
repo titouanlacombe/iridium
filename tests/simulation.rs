@@ -8,6 +8,7 @@ use iridium::simulation::{
     color::Color,
     forces::{Drag, Force, Gravity, Repulsion, UniformGravity},
     integrator::GaussianIntegrator,
+    morton::MortonSort,
     particles::Particles,
     quadtree::QuadTree,
     systems::{Physics, System, VelocityIntegrator},
@@ -117,7 +118,12 @@ fn force_symmetry() {
 #[test]
 fn barnes_hut_matches_naive_at_theta_zero() {
     let n = 500;
-    let particles = generate_random_particles(n, 7, 1000.0);
+    let mut particles = generate_random_particles(n, 7, 1000.0);
+
+    // Morton-sorted particles: batched barnes-hut relies on coherence (correctness
+    // does not depend on it, but this exercises the real usage path)
+    MortonSort::new().sort(&mut particles);
+
     let mut forces_naive = vec![Vector2::zeros(); n];
     let mut forces_bh = vec![Vector2::zeros(); n];
 
@@ -146,6 +152,77 @@ fn barnes_hut_matches_naive_at_theta_zero() {
 }
 
 #[test]
+fn barnes_hut_theta_05_is_a_reasonable_approximation() {
+    // Loose sanity check for the approximation path (theta > 0): batched barnes-hut
+    // must stay close to brute force. Catches gross bugs (double-counting, wrong
+    // active[] handling) which the theta=0 test cannot see.
+    let mut particles = generate_random_particles(2000, 11, 1000.0);
+    MortonSort::new().sort(&mut particles);
+
+    let gravity = Gravity::new(1.0, 0.0);
+    let mut forces_naive = vec![Vector2::zeros(); 2000];
+    gravity.clone().apply(&particles, &mut forces_naive);
+
+    let rect = Rect::new(Vector2::new(0.0, 0.0), Vector2::new(1000.0, 1000.0));
+    let mut quadtree = QuadTree::new(
+        rect,
+        16,
+        gravity,
+        Repulsion::new(0.0, 6, 0.0), // zeroed: only gravity is compared against naive
+        Drag::new(0.0, 0.0),
+        0.5,
+        None,
+        false,
+    );
+    let mut forces_bh = vec![Vector2::zeros(); 2000];
+    quadtree.barnes_hut_particles(&particles, &mut forces_bh);
+
+    for i in 0..2000 {
+        let diff = (forces_naive[i] - forces_bh[i]).norm();
+        let scale = forces_naive[i].norm().max(forces_bh[i].norm());
+        // Relative tolerance with an absolute floor: BH relative error blows up on
+        // weak forces (where the true force is ~0), so small absolute errors pass.
+        let tolerance = 5e-2 * scale.max(0.1);
+        assert!(
+            diff < tolerance,
+            "particle {i}: naive {:?} vs bh {:?}",
+            forces_naive[i],
+            forces_bh[i]
+        );
+    }
+}
+
+#[test]
+fn morton_sort_is_deterministic_and_preserves_particles() {
+    let mut particles = generate_random_particles(500, 21, 1000.0);
+    let before = snapshot(&particles);
+
+    let mut sorter = MortonSort::new();
+    sorter.sort(&mut particles);
+    let after_once = snapshot(&particles);
+    sorter.sort(&mut particles);
+    let after_twice = snapshot(&particles);
+
+    assert_eq!(
+        after_once, after_twice,
+        "sort is not deterministic (equal Morton codes must tie-break on index)"
+    );
+    assert_eq!(before, after_once, "sort lost or duplicated particles");
+}
+
+fn snapshot(particles: &Particles) -> Vec<(Scalar, Scalar, Scalar, Scalar, Scalar)> {
+    let mut values: Vec<_> = particles
+        .positions
+        .iter()
+        .zip(&particles.velocities)
+        .zip(&particles.masses)
+        .map(|((position, velocity), mass)| (position.x, position.y, velocity.x, velocity.y, *mass))
+        .collect();
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    values
+}
+
+#[test]
 fn momentum_and_energy_conserved_with_nbody_gravity() {
     let g_coef = 0.05;
     let dt = 0.005;
@@ -164,6 +241,9 @@ fn momentum_and_energy_conserved_with_nbody_gravity() {
         vec![central_mass, test_mass],
         vec![Color::BLACK; 2],
     );
+
+    // Sorting must not corrupt the SoA: conserved quantities are permutation-invariant
+    MortonSort::new().sort(&mut particles);
 
     let momentum0 = total_momentum(&particles);
     let energy0 = total_energy(&particles, g_coef);

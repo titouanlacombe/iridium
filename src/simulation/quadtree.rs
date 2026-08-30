@@ -62,6 +62,14 @@ pub struct QuadTree {
     max_depth_panics: bool,
 }
 
+// Particles sharing one tree traversal. Morton-sorted particles make batches
+// spatially coherent, amortizing node loads ~BATCH times.
+// One AVX2 register per lane count.
+#[cfg(feature = "f32")]
+const BATCH: usize = 8;
+#[cfg(not(feature = "f32"))]
+const BATCH: usize = 4;
+
 impl QuadTree {
     pub fn new(
         rect: Rect,
@@ -252,31 +260,43 @@ impl QuadTree {
     }
 
     #[inline]
-    fn barnes_hut(
+    fn barnes_hut_batch(
         nodes: &[QuadTreeNode],
-        stack: &mut Vec<usize>,
+        stack: &mut Vec<(usize, u8)>,
         gravity: &Gravity,
         repulsion: &Repulsion,
         drag: &Drag,
         theta: Scalar,
-        particle: usize,
+        start: usize,
+        count: usize,
         particles: &Particles,
-        force: &mut Force,
+        forces: &mut [Force],
     ) {
-        let _span = tracy_client::span!("Particle");
+        let _span = tracy_client::span!("Particle Batch");
         let (mut leaf, mut approx, mut traverse) = (0, 0, 0);
 
+        // Batch state. Each stack entry carries a bitmask of the batch particles that
+        // still traverse this subtree: approximating at a node removes a particle
+        // from the mask of its children only, so sibling subtrees are still evaluated
+        // (mirrors the solo walk exactly).
+        let mut pos = [Position::zeros(); BATCH];
+        let mut vel = [Velocity::zeros(); BATCH];
+        let mut mass = [0.0; BATCH];
+
+        for k in 0..count {
+            let i = start + k;
+            pos[k] = particles.positions[i];
+            vel[k] = particles.velocities[i];
+            mass[k] = particles.masses[i];
+        }
+
         stack.clear();
-        stack.push(0); // root
+        stack.push((0, (1 << count) - 1)); // root
 
-        let pos = particles.positions[particle];
-        let vel = particles.velocities[particle];
-        let mass = particles.masses[particle];
-
-        while let Some(node_idx) = stack.pop() {
+        while let Some((node_idx, mask)) = stack.pop() {
             let node = &nodes[node_idx];
             if node.childs.is_empty() {
-                // Leaf node: Calculate the force directly between the particles if not the same particle
+                // Leaf node: direct pairs between batch particles and leaf particles
                 leaf += 1;
                 for (((&other, &other_pos), &other_vel), &other_mass) in node
                     .indexes
@@ -285,25 +305,42 @@ impl QuadTree {
                     .zip(&node.particles.velocities)
                     .zip(&node.particles.masses)
                 {
-                    if other == particle {
+                    for k in 0..count {
+                        if mask & (1 << k) == 0 || other == start + k {
+                            continue;
+                        }
+
+                        forces[k] += gravity.calc_force(pos[k], other_pos, mass[k], other_mass);
+                        forces[k] += repulsion.calc_force(pos[k], other_pos);
+                        forces[k] += drag.calc_force(pos[k], other_pos, vel[k], other_vel);
+                    }
+                }
+            } else {
+                let mut child_mask = 0u8;
+                for k in 0..count {
+                    if mask & (1 << k) == 0 {
                         continue;
                     }
 
-                    *force += gravity.calc_force(pos, other_pos, mass, other_mass);
-                    *force += repulsion.calc_force(pos, other_pos);
-                    *force += drag.calc_force(pos, other_pos, vel, other_vel);
+                    if (node.scale / (node.center_of_mass - pos[k]).norm()) < theta {
+                        // Barnes-Hut criterion satisfied: the approximation covers
+                        // this node's subtree for particle k
+                        approx += 1;
+                        forces[k] +=
+                            gravity.calc_force(pos[k], node.center_of_mass, mass[k], node.total_mass);
+                        forces[k] += repulsion.calc_force(pos[k], node.center_of_mass);
+                        forces[k] +=
+                            drag.calc_force(pos[k], node.center_of_mass, vel[k], node.average_velocity);
+                    } else {
+                        child_mask |= 1 << k;
+                    }
                 }
-            } else if (node.scale / (node.center_of_mass - pos).norm()) < theta {
-                // Barnes-Hut criterion satisfied: Approximate the force
-                approx += 1;
-                *force += gravity.calc_force(pos, node.center_of_mass, mass, node.total_mass);
-                *force += repulsion.calc_force(pos, node.center_of_mass);
-                *force += drag.calc_force(pos, node.center_of_mass, vel, node.average_velocity);
-            } else {
-                // Barnes-Hut criterion not satisfied: Traverse the children
-                traverse += 1;
-                for &child_idx in node.childs.iter() {
-                    stack.push(child_idx);
+
+                if child_mask != 0 {
+                    traverse += 1;
+                    for &child_idx in node.childs.iter() {
+                        stack.push((child_idx, child_mask));
+                    }
                 }
             }
         }
@@ -321,19 +358,22 @@ impl QuadTree {
         let (max_depth_reached, _nodes) = self.insert_particles(particles);
         let nodes = &self.nodes;
 
-        forces.par_iter_mut().enumerate().for_each_init(
-            || Vec::with_capacity(max_depth_reached * 4 + 1),
-            |stack, (i, force)| {
-                Self::barnes_hut(
+        // One tree traversal per batch of BATCH particles. Morton-sorted particles
+        // (see MortonSort) make the batches spatially coherent, amortizing node
+        // loads ~BATCH times.
+        forces.par_chunks_mut(BATCH).enumerate().for_each_init(
+            || Vec::with_capacity(max_depth_reached * 4 + 1),            |stack, (chunk_idx, chunk)| {
+                Self::barnes_hut_batch(
                     nodes,
                     stack,
                     &self.gravity,
                     &self.repulsion,
                     &self.drag,
                     self.theta,
-                    i,
+                    chunk_idx * BATCH,
+                    chunk.len(),
                     particles,
-                    force,
+                    chunk,
                 );
             },
         );

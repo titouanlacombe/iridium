@@ -28,6 +28,7 @@ use crate::{
             Vector2PolarGenerator,
         },
         integrator::GaussianIntegrator,
+        morton::MortonSort,
         particles::{GeneratorFactory, ParticleFactory, Particles},
         quadtree::{QuadTree, QuadtreeForces},
         random::RngGenerator,
@@ -426,6 +427,7 @@ pub fn flow(width: u32, height: u32) -> AppMain {
     let color_wheel = Box::new(ColorWheel { speed: 0.2 });
 
     let systems: Vec<Box<dyn System>> = vec![
+        Box::new(MortonSort::new()),
         emitter,
         consumer,
         limit_cond,
@@ -665,7 +667,12 @@ pub fn benchmark_gravity() -> AppMain {
 
     let velocity_integrator = Box::new(VelocityIntegrator::new(Box::new(GaussianIntegrator)));
 
-    let systems: Vec<Box<dyn System>> = vec![limit_cond, physics, velocity_integrator];
+    let systems: Vec<Box<dyn System>> = vec![
+        Box::new(MortonSort::new()),
+        limit_cond,
+        physics,
+        velocity_integrator,
+    ];
 
     let sim = Simulation::new(particles, systems, None);
 
