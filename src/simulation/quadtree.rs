@@ -98,18 +98,23 @@ impl QuadTree {
     // so re-insertion does not reallocate.
     fn compact(&mut self) {
         let n = self.nodes.len();
-        let mut reachable = vec![false; n];
+        // remap[old] = new position after compaction; usize::MAX = unreachable,
+        // which also serves as the visited marker for the DFS (and makes any
+        // accidental read of a dead child panic loudly via out-of-bounds).
+        let mut remap = vec![usize::MAX; n];
         let mut stack = vec![0usize];
         while let Some(idx) = stack.pop() {
-            reachable[idx] = true;
+            if remap[idx] != usize::MAX {
+                continue;
+            }
+            remap[idx] = 0; // mark visited, actual position assigned below
             stack.extend(self.nodes[idx].childs.iter().copied());
         }
 
-        // Remap old index -> compacted index
-        let mut remap = vec![usize::MAX; n];
+        // Assign final positions in index order (the compaction moves in index order)
         let mut new_len = 0;
-        for (i, is_reachable) in reachable.iter().enumerate() {
-            if *is_reachable {
+        for i in 0..n {
+            if remap[i] != usize::MAX {
                 remap[i] = new_len;
                 new_len += 1;
             }
@@ -117,7 +122,7 @@ impl QuadTree {
 
         // Reindex children before moving nodes around
         for i in 0..n {
-            if reachable[i] {
+            if remap[i] != usize::MAX {
                 for child in &mut self.nodes[i].childs {
                     *child = remap[*child];
                 }
@@ -128,7 +133,7 @@ impl QuadTree {
         // and slots < w have already been vacated (or were dead), so mem::take is safe.
         let mut w = 0;
         for r in 0..n {
-            if reachable[r] {
+            if remap[r] != usize::MAX {
                 if w != r {
                     self.nodes[w] = std::mem::take(&mut self.nodes[r]);
                 }
