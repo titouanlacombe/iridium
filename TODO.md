@@ -37,7 +37,6 @@ finish QT {
 	create a function to return list of refs instead of iter (qt.leaves())
 	bench & opti
 	allocator (custom vec allocator using swap remove?)
-	rename get_infos: returns max child count, not depth (capacity hint only, misleading)
 }
 
 use izip?

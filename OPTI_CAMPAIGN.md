@@ -7,6 +7,7 @@ Track optimization work. Baseline first, one change at a time, measure with `car
 - CPU: AMD Ryzen 5 5600X (6 cores / 12 threads)
 - Threads (rayon default): 12
 - Build: `cargo bench` (release, opt-level 3, debug symbols)
+- NOTE: machine runs `powersave` governor + background load (Brave, load ~6) -> bench noise ~+-10%, treat small diffs as inconclusive
 
 ## Baseline (2026-08-30)
 
@@ -36,8 +37,8 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | # | Task | Impact | Effort | Risk | Status |
 |---|---|---|---|---|---|
 | 1 | Criterion benches (buffer ops) + constant dt | M | L | L | done |
-| 2 | `.cargo/config.toml`: `target-cpu=native` + lto/codegen-units=1 | H | L | L | pending |
-| 3 | Reuse per-thread scratch buffer (barnes-hut stack) | H | L | L | pending |
+| 2 | `.cargo/config.toml`: `target-cpu=native` + lto/codegen-units=1 | H | L | L | done (see log) |
+| 3 | Reuse per-thread scratch buffer (barnes-hut stack) | H | L | L | done (see log) |
 | 4 | `1/mass` multiply instead of divide | M | L | L | pending |
 | 5 | Concrete `Vector2` integrator impl | M | L | L | pending |
 | 6 | Rename `get_infos` + slices (`&[T]`) API | L | L | L | pending |
@@ -55,3 +56,16 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | Date | Change | Before | After | Diff |
 |---|---|---|---|---|
 | 2026-08-30 | baseline | see above | - | - |
+| 2026-08-30 | #2 target-cpu=native + lto + codegen-units=1 | insertion 85.3, re-insertion 74.3, naive 11.6ms, bh 9.6ms, full_step 341-418µs | insertion 94.9, re-insertion 84.9, naive 11.8ms, bh 10.3ms, full_step 367µs | flat (within noise) |
+| 2026-08-30 | #3 per-thread scratch stack in barnes_hut (for_each_init) | bh 10.3-11.3ms (run-to-run) | bh 10.6ms | flat (within noise) |
+| 2026-08-30 | #3 v3 (final): per-thread stack via for_each_init, `<'a>` unified in helper | bh 10.3-11.3ms (run-to-run) | bh 9.3ms | low end of noise range, inconclusive |
+
+### #3 verdict: final, flat (within noise)
+
+Per-thread stack (one `Vec` per rayon thread, `clear()` per particle, capacity hint from `get_infos`). Chosen approach: `for_each_init`. Alternatives considered and rejected: `stack` field (self-referential -> needs lifetime param on QuadTree), recursion (no stack, no lifetime), arena + `Vec<usize>` (task #10 refactor). Allocator cost not visible at 3000 particles; revisit with a 100k-particle barnes_hut bench before judging.
+
+### #2 verdict: no measurable gain
+
+AVX2 confirmed in binary (110 ymm instr), yet all benches flat within +-10% noise -> the hot loops are **memory-bandwidth-bound**, not compute-bound. AVX2 doubles lanes but doesn't cut traffic.
+
+Implication: SIMD compute micro-opts (TODO SIMD section) have limited headroom; the primary lever is **reducing memory traffic** (f32, fewer passes over buffers, scratch reuse). Revisit SIMD only after traffic work.

@@ -128,6 +128,7 @@ impl QuadTreeNode {
         }
     }
 
+    // Returns (max_depth reached, number of nodes) computed during the traversal
     pub fn insert_particles<'a>(
         &'a mut self,
         indexes: Vec<usize>,
@@ -135,14 +136,19 @@ impl QuadTreeNode {
         max_particles: usize,
         max_depth: Option<usize>,
         max_depth_panics: bool,
-    ) {
+    ) -> (usize, usize) {
         let _span = tracy_client::span!("Insert Particles");
 
         let mut stack = Vec::new();
         stack.push((0, self, indexes));
 
+        let (mut max_depth_reached, mut nodes) = (0, 0);
+
         // TODO maybe parallelize
         while let Some((depth, node, indexes)) = stack.pop() {
+            max_depth_reached = max_depth_reached.max(depth);
+            nodes += 1;
+
             node._insert_particles(
                 &mut stack,
                 indexes,
@@ -153,6 +159,8 @@ impl QuadTreeNode {
                 max_depth_panics,
             );
         }
+
+        (max_depth_reached, nodes)
     }
 }
 
@@ -195,7 +203,8 @@ impl QuadTree {
         }
     }
 
-    pub fn insert_particles(&mut self, particles: &Particles) {
+    // Returns (max_depth reached, number of nodes) computed during insertion
+    pub fn insert_particles(&mut self, particles: &Particles) -> (usize, usize) {
         // Insert particles (will prune the tree if necessary)
         self.root.insert_particles(
             (0..particles.len()).collect::<Vec<_>>(),
@@ -203,37 +212,17 @@ impl QuadTree {
             self.max_particles,
             self.max_depth,
             self.max_depth_panics,
-        );
-    }
-
-    // Traverse the tree and return max_depth and total number of nodes
-    fn get_infos(&self) -> (usize, usize) {
-        let mut stack = Vec::new();
-        stack.push(&self.root);
-
-        let mut max_depth = 0;
-        let mut nodes = 0;
-
-        while let Some(node) = stack.pop() {
-            max_depth = max_depth.max(node.childs.len());
-            nodes += 1;
-            stack.reserve(node.childs.len());
-            for child in node.childs.iter() {
-                stack.push(child);
-            }
-        }
-
-        (max_depth, nodes)
+        )
     }
 
     #[inline]
-    fn barnes_hut(
-        root: &QuadTreeNode,
+    fn barnes_hut<'a>(
+        stack: &mut Vec<&'a QuadTreeNode>,
+        root: &'a QuadTreeNode,
         gravity: &Gravity,
         repulsion: &Repulsion,
         drag: &Drag,
         theta: f64,
-        max_depth: usize,
         particle: usize,
         particles: &Particles,
         force: &mut Force,
@@ -241,8 +230,7 @@ impl QuadTree {
         let _span = tracy_client::span!("Particle");
         let (mut leaf, mut approx, mut traverse) = (0, 0, 0);
 
-        // We know the maximum number of nodes we will traverse, so we can preallocate the stack
-        let mut stack = Vec::with_capacity(max_depth * 3 + 1);
+        stack.clear();
         stack.push(root);
 
         let pos = particles.positions[particle];
@@ -292,25 +280,25 @@ impl QuadTree {
         let _span = tracy_client::span!("Barnes-Hut");
         _span.emit_value(particles.len() as u64);
 
-        // Make sure quadtree is up to date
-        self.insert_particles(particles);
+        // Make sure quadtree is up to date, and get the max depth for the stack hint
+        let (max_depth_reached, _nodes) = self.insert_particles(particles);
 
-        // Compute max depth and total number of nodes
-        let (max_depth, _nodes) = self.get_infos();
-
-        forces.par_iter_mut().enumerate().for_each(|(i, force)| {
-            Self::barnes_hut(
-                &self.root,
-                &self.gravity,
-                &self.repulsion,
-                &self.drag,
-                self.theta,
-                max_depth,
-                i,
-                particles,
-                force,
-            );
-        });
+        forces.par_iter_mut().enumerate().for_each_init(
+            || Vec::with_capacity(max_depth_reached * 4 + 1),
+            |stack, (i, force)| {
+                Self::barnes_hut(
+                    stack,
+                    &self.root,
+                    &self.gravity,
+                    &self.repulsion,
+                    &self.drag,
+                    self.theta,
+                    i,
+                    particles,
+                    force,
+                );
+            },
+        );
     }
 }
 
