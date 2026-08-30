@@ -11,32 +11,56 @@ use iridium::simulation::{
     particles::Particles,
     quadtree::QuadTree,
     systems::{Physics, System, VelocityIntegrator},
+    types::Scalar,
 };
 
-fn generate_random_particles(n: usize, seed: u64, size: f64) -> Particles {
+// fp tolerances: f32 has ~7 digits of precision, f64 ~15
+#[cfg(feature = "f32")]
+const TOL_BH: Scalar = 1e-4; // naive vs barnes-hut: different summation order
+#[cfg(feature = "f32")]
+const TOL_MOMENTUM: Scalar = 1e-4;
+#[cfg(feature = "f32")]
+const TOL_ENERGY: Scalar = 5e-2;
+#[cfg(feature = "f32")]
+const TOL_UG: Scalar = 1e-4; // uniform gravity analytic solution
+#[cfg(feature = "f32")]
+const TOL_STRUCT: Scalar = 1e-3; // center of mass / total mass checks
+
+#[cfg(not(feature = "f32"))]
+const TOL_BH: Scalar = 1e-6;
+#[cfg(not(feature = "f32"))]
+const TOL_MOMENTUM: Scalar = 1e-9;
+#[cfg(not(feature = "f32"))]
+const TOL_ENERGY: Scalar = 1e-2;
+#[cfg(not(feature = "f32"))]
+const TOL_UG: Scalar = 1e-9;
+#[cfg(not(feature = "f32"))]
+const TOL_STRUCT: Scalar = 1e-9;
+
+fn generate_random_particles(n: usize, seed: u64, size: Scalar) -> Particles {
     let mut rng = Pcg64Mcg::seed_from_u64(seed);
 
-    let positions: Vec<Vector2<f64>> = (0..n)
+    let positions: Vec<Vector2<Scalar>> = (0..n)
         .map(|_| Vector2::new(rng.random_range(0.0..size), rng.random_range(0.0..size)))
         .collect();
-    let velocities: Vec<Vector2<f64>> = (0..n)
+    let velocities: Vec<Vector2<Scalar>> = (0..n)
         .map(|_| Vector2::new(rng.random_range(-1.0..1.0), rng.random_range(-1.0..1.0)))
         .collect();
-    let masses: Vec<f64> = (0..n).map(|_| rng.random_range(1.0..10.0)).collect();
+    let masses: Vec<Scalar> = (0..n).map(|_| rng.random_range(1.0..10.0)).collect();
 
     Particles::new(positions, velocities, masses, vec![Color::BLACK; n])
 }
 
-fn total_momentum(particles: &Particles) -> Vector2<f64> {
+fn total_momentum(particles: &Particles) -> Vector2<Scalar> {
     particles
         .masses
         .iter()
         .zip(&particles.velocities)
         .map(|(mass, velocity)| *mass * velocity)
-        .sum()
+        .sum::<Vector2<Scalar>>()
 }
 
-fn total_energy(particles: &Particles, g_coef: f64) -> f64 {
+fn total_energy(particles: &Particles, g_coef: Scalar) -> Scalar {
     let mut energy = 0.0;
 
     for i in 0..particles.len() {
@@ -113,7 +137,7 @@ fn barnes_hut_matches_naive_at_theta_zero() {
         let diff = (forces_naive[i] - forces_bh[i]).norm();
         let scale = forces_naive[i].norm().max(forces_bh[i].norm()).max(1e-30);
         assert!(
-            diff / scale < 1e-6,
+            diff / scale < TOL_BH,
             "particle {i}: naive {:?} vs bh {:?}",
             forces_naive[i],
             forces_bh[i]
@@ -131,7 +155,7 @@ fn momentum_and_energy_conserved_with_nbody_gravity() {
     // Close encounters are avoided so the force stays smooth.
     let central_mass = 1000.0;
     let test_mass = 1.0;
-    let radius = 5.0_f64;
+    let radius: Scalar = 5.0;
     let orbital_speed = (g_coef * central_mass / radius).sqrt();
 
     let mut particles = Particles::new(
@@ -159,11 +183,11 @@ fn momentum_and_energy_conserved_with_nbody_gravity() {
     let energy1 = total_energy(&particles, g_coef);
 
     assert!(
-        (momentum1 - momentum0).norm() / momentum0.norm() < 1e-9,
+        (momentum1 - momentum0).norm() / momentum0.norm() < TOL_MOMENTUM,
         "momentum drifted: {momentum0} -> {momentum1}"
     );
     assert!(
-        (energy1 - energy0).abs() / energy0.abs() < 1e-2,
+        (energy1 - energy0).abs() / energy0.abs() < TOL_ENERGY,
         "energy drifted: {energy0} -> {energy1}"
     );
     assert!(
@@ -197,17 +221,17 @@ fn uniform_gravity_matches_analytic_solution() {
         }
 
         // Velocity-leading symplectic Euler: x_n = g * dt^2 * n*(n+1)/2
-        let expected_pos = g * dt * dt * (steps * (steps + 1) / 2) as f64;
-        let expected_vel = g * dt * steps as f64;
+        let expected_pos = g * dt * dt * (steps * (steps + 1) / 2) as Scalar;
+        let expected_vel = g * dt * steps as Scalar;
 
         assert!(
-            (particles.positions[0] - expected_pos).norm() < 1e-9,
+            (particles.positions[0] - expected_pos).norm() < TOL_UG,
             "dt={dt}: pos {:?} vs expected {:?}",
             particles.positions[0],
             expected_pos
         );
         assert!(
-            (particles.velocities[0] - expected_vel).norm() < 1e-9,
+            (particles.velocities[0] - expected_vel).norm() < TOL_UG,
             "dt={dt}: vel {:?} vs expected {:?}",
             particles.velocities[0],
             expected_vel
@@ -286,9 +310,9 @@ fn quadtree_structure_invariants() {
                 total_mass += mass;
             }
 
-            assert!((node.total_mass - total_mass).abs() < 1e-9);
+            assert!((node.total_mass - total_mass).abs() < TOL_STRUCT);
             if total_mass > 0.0 {
-                assert!((node.center_of_mass - center_of_mass / total_mass).norm() < 1e-9);
+                assert!((node.center_of_mass - center_of_mass / total_mass).norm() < TOL_STRUCT);
             }
         } else {
             assert_eq!(node.indexes.len(), 0);

@@ -1,6 +1,11 @@
 use nalgebra::Vector2;
 
+#[cfg(feature = "f32")]
+pub type Scalar = f32;
+#[cfg(not(feature = "f32"))]
 pub type Scalar = f64;
+
+pub const PI: Scalar = std::f64::consts::PI as Scalar;
 
 pub type Mass = Scalar;
 pub type Time = Scalar;

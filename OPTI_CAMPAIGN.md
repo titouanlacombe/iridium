@@ -44,7 +44,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 6 | Rename `get_infos` + slices (`&[T]`) API | L | L | L | pending |
 | 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | done (see log) |
 | 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | done (see log) |
-| 9 | `Scalar = f32` feature flag | H | L | M | pending |
+| 9 | `Scalar = f32` feature flag | H | L | M | done (see log) |
 | 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | pending |
 | 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | pending |
 | 12 | FMM (ferreus_bbfmm/kifmm research) | H | VH | H | pending |
@@ -99,6 +99,12 @@ Replaced `rayon::scope` + `Arc<Mutex>` merge in Gravity/Drag/Repulsion::apply wi
 Caught a real bug the tests exposed: first version *overwrote* (`*force = sum`) instead of *accumulating* (`*force += sum`) -> multi-force setups (Physics::update applies several forces to one buffer) would have kept only the last force's contribution. Tests (barnes_hut vs naive) caught it; fixed.
 
 Perf: naive 11.8 ms / full_step 334 µs -> within noise. The lock wasn't the bottleneck (merges were serialized but cheap vs O(n^2)). Value: determinism + no lock in the hot path.
+
+### #9 verdict: f32 feature flag done
+
+`Scalar` is now cfg-gated (`f32`/`f64` features, default f64). Touched: types.rs, integrator.rs (dt + Mul bound), quadtree.rs (scale/theta), smooth_rate.rs, generators.rs (PI + casts), systems.rs (ColorWheel cast), render_thread.rs (generic `nalgebra_to_sfml`), examples.rs, tests (cfg'd tolerances: f32 has ~7 digits).
+
+Measured (buffer_ops @100k): full_step 313.7 µs vs 334-418 f64 (~10-15% faster), uniform_gravity 46.4 vs ~52, mass_divide 48.2 vs ~55. N-body at 3k flat (within noise). All 6 tests pass under both features. Expected direction (memory-bound -> halving traffic gives partial wins, not 2x). Use `--features f32` in demos; keeps f64 default.
 
 ### #2 verdict: no measurable gain
 

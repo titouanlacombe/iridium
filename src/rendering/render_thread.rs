@@ -35,12 +35,26 @@ pub fn sfml_to_nalgebra(v: Vector2f) -> nalgebra::Vector2<f32> {
     nalgebra::Vector2::new(v.x, v.y)
 }
 
-pub fn nalgebra32_to_sfml(v: nalgebra::Vector2<f32>) -> Vector2f {
-    Vector2f::new(v.x, v.y)
+pub trait ToSfml {
+    fn to_f32(self) -> f32;
 }
 
-pub fn nalgebra64_to_sfml(v: nalgebra::Vector2<f64>) -> Vector2f {
-    Vector2f::new(v.x as f32, v.y as f32)
+impl ToSfml for f32 {
+    fn to_f32(self) -> f32 {
+        self
+    }
+}
+
+impl ToSfml for f64 {
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+}
+
+pub fn nalgebra_to_sfml<S: nalgebra::SimdRealField + ToSfml + Copy>(
+    v: nalgebra::Vector2<S>,
+) -> Vector2f {
+    Vector2f::new(v.x.to_f32(), v.y.to_f32())
 }
 
 impl RenderThread {
@@ -114,7 +128,7 @@ impl RenderThread {
 
                     let mut vertices = positions
                         .iter()
-                        .map(|p| Vertex::with_pos_color(nalgebra64_to_sfml(*p), *color))
+                        .map(|p| Vertex::with_pos_color(nalgebra_to_sfml(*p), *color))
                         .collect::<Vec<_>>();
 
                     // Flip y axis

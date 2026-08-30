@@ -5,7 +5,6 @@ use sfml::{
     window::{Event as SfmlEvent, Key},
 };
 use std::{
-    f64::consts::PI,
     ops::Deref,
     sync::{Arc, RwLock},
     time::Duration,
@@ -38,7 +37,7 @@ use crate::{
             ColorWheel, ConstantConsumer, ConstantEmitter, Physics, System, VelocityIntegrator,
             Wall,
         },
-        types::Scalar,
+        types::{PI, Scalar},
     },
     utils::sorted_vec::SortedVec,
 };
@@ -322,7 +321,7 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
     let input_callback = Box::new(
         move |data: &mut AppData,
               render_data: &mut RenderData,
-              dt: Scalar,
+              dt: f64,
               events: &Vec<WindowEvent>| {
             default_input_callback(data, render_data, dt, events);
 
@@ -332,9 +331,13 @@ pub fn fireworks(width: u32, height: u32) -> AppMain {
                         button: sfml::window::mouse::Button::Left,
                         ..
                     } => {
+                        let mouse_position = event.position.unwrap();
                         let mut firework_factory = GeneratorFactory::new(
                             Box::new(PointGenerator::new(Point {
-                                position: event.position.unwrap(),
+                                position: Vector2::new(
+                                    mouse_position.x as Scalar,
+                                    mouse_position.y as Scalar,
+                                ),
                             })),
                             Box::new(Vector2PolarGenerator::new(
                                 Box::new(UniformGenerator::new(rng_gen.next(), 0., 1.)),

@@ -7,7 +7,7 @@ use super::{
     areas::{Area, Rect},
     forces::{Drag, Force as ForceTrait, Gravity, Repulsion},
     particles::Particles,
-    types::{Force, Mass, Position, Velocity},
+    types::{Force, Mass, Position, Scalar, Velocity},
 };
 
 pub struct QuadTreeNode {
@@ -20,7 +20,7 @@ pub struct QuadTreeNode {
     pub center_of_mass: Position,
     pub average_velocity: Velocity,
     pub total_mass: Mass,
-    pub scale: f64,
+    pub scale: Scalar,
 }
 
 impl QuadTreeNode {
@@ -44,7 +44,7 @@ impl QuadTreeNode {
         for i in 0..4 {
             self.childs.push(QuadTreeNode::new(Rect::new(
                 self.rect.position
-                    + Vector2::new((i % 2) as f64 * half_size.x, (i / 2) as f64 * half_size.y),
+                    + Vector2::new((i % 2) as Scalar * half_size.x, (i / 2) as Scalar * half_size.y),
                 half_size,
             )));
         }
@@ -73,7 +73,7 @@ impl QuadTreeNode {
             self.total_mass += particles.masses[particle_index];
         });
         self.center_of_mass /= self.total_mass;
-        self.average_velocity /= indexes.len() as f64;
+        self.average_velocity /= indexes.len() as Scalar;
 
         // Check if we reached the maximum depth
         let mut forced_leaf = false;
@@ -172,7 +172,7 @@ pub struct QuadTree {
     gravity: Gravity,
     repulsion: Repulsion,
     drag: Drag,
-    theta: f64, // Barnes-Hut (0.0: no approximation, 1.0: full approximation)
+    theta: Scalar, // Barnes-Hut (0.0: no approximation, 1.0: full approximation)
 
     // Max depth behavior
     max_depth: Option<usize>,
@@ -186,7 +186,7 @@ impl QuadTree {
         gravity: Gravity,
         repulsion: Repulsion,
         drag: Drag,
-        theta: f64,
+        theta: Scalar,
         max_depth: Option<usize>,
         max_depth_panics: bool,
     ) -> Self {
@@ -222,7 +222,7 @@ impl QuadTree {
         gravity: &Gravity,
         repulsion: &Repulsion,
         drag: &Drag,
-        theta: f64,
+        theta: Scalar,
         particle: usize,
         particles: &Particles,
         force: &mut Force,

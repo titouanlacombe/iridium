@@ -216,7 +216,7 @@ impl System for ColorWheel {
     fn update(&mut self, particles: &mut Particles, dt: Time) {
         particles.colors.par_iter_mut().for_each(|color| {
             let (h, s, v, a) = color.to_hsva();
-            let h = (h + self.speed * dt) % 360.0;
+            let h = (h + (self.speed * dt) as f64) % 360.0;
             *color = Color::from_hsva(h, s, v, a);
         });
     }

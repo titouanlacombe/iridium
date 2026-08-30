@@ -18,7 +18,7 @@ skip arrow/polars (dataframe libs add boxing/indirection, no SIMD gain over auto
 
 SIMD acceleration of buffer ops {
 	easiest win first: .cargo/config.toml with "-C target-cpu=native" + lto/codegen-units=1, bench it
-	try Scalar = f32 as feature flag (types.rs): halves memory traffic, doubles SIMD lanes, bench precision
+	try Scalar = f32 as feature flag (types.rs): halves memory traffic, doubles SIMD lanes, bench precision [done, ~10-15% on buffer ops]
 	concrete Vector2 integrator impl (generic + Clone inhibits autovectorization)
 	explicit SIMD (wide crate, f64x4) if needed: split positions x/y into separate arrays (true SoA)
 	batched barnes-hut: walk tree once per 4-8 particles, forces lane-parallel

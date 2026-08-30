@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use nalgebra::Vector2;
 use rand::RngExt;
 use rand_pcg::Pcg64Mcg;
@@ -7,7 +5,7 @@ use rand_pcg::Pcg64Mcg;
 use super::{
     areas::{Disk, Point, Rect},
     color::Color,
-    types::Scalar,
+    types::{PI, Scalar},
 };
 
 pub trait Generator<T> {
@@ -192,21 +190,21 @@ impl Generator<Vector2<Scalar>> for UniformRectPointsGenerator {
         vec.reserve_exact(n);
 
         // TODO area::area() ?
-        let area_per_point = (self.rect.size.x * self.rect.size.y) / n as f64;
+        let area_per_point = (self.rect.size.x * self.rect.size.y) / n as Scalar;
         let distance_increment = area_per_point.sqrt();
 
         let nx = (self.rect.size.x / distance_increment).floor() as usize;
         let ny = (self.rect.size.y / distance_increment).floor() as usize;
 
-        let dx = self.rect.size.x / (nx + 1) as f64;
-        let dy = self.rect.size.y / (ny + 1) as f64;
+        let dx = self.rect.size.x / (nx + 1) as Scalar;
+        let dy = self.rect.size.y / (ny + 1) as Scalar;
 
         // Distribute points in the grid
         for i in 0..nx {
             for j in 0..ny {
                 vec.push(Vector2::new(
-                    self.rect.position.x + i as f64 * dx + dx / 2.0,
-                    self.rect.position.y + j as f64 * dy + dy / 2.0,
+                    self.rect.position.x + i as Scalar * dx + dx / 2.0,
+                    self.rect.position.y + j as Scalar * dy + dy / 2.0,
                 ));
             }
         }
@@ -214,10 +212,10 @@ impl Generator<Vector2<Scalar>> for UniformRectPointsGenerator {
         // Handle remainders
         let remainder = n - nx * ny;
         if remainder > 0 {
-            let dx_remainder = self.rect.size.x / remainder as f64;
+            let dx_remainder = self.rect.size.x / remainder as Scalar;
             for i in 0..remainder {
                 vec.push(Vector2::new(
-                    self.rect.position.x + i as f64 * dx_remainder + dx_remainder / 2.0,
+                    self.rect.position.x + i as Scalar * dx_remainder + dx_remainder / 2.0,
                     self.rect.position.y + self.rect.size.y - dy / 2.0,
                 ));
             }
@@ -266,19 +264,19 @@ impl Generator<Vector2<Scalar>> for UniformDiskPointsGenerator {
         vec.reserve_exact(n);
 
         let total_area = PI * self.disk.radius_squared;
-        let area_per_point = total_area / n as f64;
+        let area_per_point = total_area / n as Scalar;
         let distance_increment = area_per_point.sqrt();
 
         let nr = (self.disk.radius_squared.sqrt() / distance_increment).ceil() as usize;
         let mut placed = 0;
         for i in 0..nr {
-            let r = (i as f64 + 0.5) * distance_increment;
+            let r = (i as Scalar + 0.5) * distance_increment;
             let circumference = 2.0 * PI * r;
             let points_on_this_radius =
                 std::cmp::min(n - placed, (circumference / distance_increment) as usize);
-            let angle_increment = 2.0 * PI / points_on_this_radius as f64;
+            let angle_increment = 2.0 * PI / points_on_this_radius as Scalar;
             for j in 0..points_on_this_radius {
-                let angle = j as f64 * angle_increment;
+                let angle = j as Scalar * angle_increment;
                 let x = r * angle.cos();
                 let y = r * angle.sin();
                 vec.push(Vector2::new(x, y) + self.disk.position);
@@ -346,7 +344,7 @@ impl Generator<Color> for RGBAGenerator {
             .zip(g.into_iter())
             .zip(b.into_iter().zip(a.into_iter()))
         {
-            vec.push(Color::from_rgba(r, g, b, a));
+            vec.push(Color::from_rgba(r as f64, g as f64, b as f64, a as f64));
         }
     }
 
@@ -399,7 +397,7 @@ impl Generator<Color> for HSVAGenerator {
             .zip(s.into_iter())
             .zip(v.into_iter().zip(a.into_iter()))
         {
-            vec.push(Color::from_hsva(h, s, v, a));
+            vec.push(Color::from_hsva(h as f64, s as f64, v as f64, a as f64));
         }
     }
 

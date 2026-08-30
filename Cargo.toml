@@ -4,6 +4,11 @@ name = "iridium"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["f64"]
+f64 = []
+f32 = []
+
 [dependencies]
 criterion = "*"
 env_logger = "*"
