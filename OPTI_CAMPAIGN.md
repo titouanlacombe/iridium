@@ -45,7 +45,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | done (see log) |
 | 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | done (see log) |
 | 9 | `Scalar = f32` feature flag | H | L | M | done (see log) |
-| 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | pending |
+| 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | done (see log) |
 | 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | pending |
 | 12 | FMM (ferreus_bbfmm/kifmm research) | H | VH | H | pending |
 | 13 | Integrators (verlet...) + max-dt tests | M | M | L | pending |
@@ -105,6 +105,16 @@ Perf: naive 11.8 ms / full_step 334 µs -> within noise. The lock wasn't the bot
 `Scalar` is now cfg-gated (`f32`/`f64` features, default f64). Touched: types.rs, integrator.rs (dt + Mul bound), quadtree.rs (scale/theta), smooth_rate.rs, generators.rs (PI + casts), systems.rs (ColorWheel cast), render_thread.rs (generic `nalgebra_to_sfml`), examples.rs, tests (cfg'd tolerances: f32 has ~7 digits).
 
 Measured (buffer_ops @100k): full_step 313.7 µs vs 334-418 f64 (~10-15% faster), uniform_gravity 46.4 vs ~52, mass_divide 48.2 vs ~55. N-body at 3k flat (within noise). All 6 tests pass under both features. Expected direction (memory-bound -> halving traffic gives partial wins, not 2x). Use `--features f32` in demos; keeps f64 default.
+
+### #10 verdict: arena done, flat (within noise)
+
+Quadtree nodes now live in one contiguous `QuadTree::nodes: Vec<QuadTreeNode>` arena, `childs` are `Vec<usize>` indices. Traversal stack is now `Vec<usize>` (no `<'a>`). Added `root()` + `leaves()` accessors; renderer + tests walk the arena.
+
+Memory boundedness: `compact()` runs at the end of every insert — drops unreachable (dead) subtrees via an in-place mark/remap/move pass, truncating the arena. Capacity is retained so re-insertion doesn't reallocate; leaf = `childs.is_empty()` again (no `is_leaf` flag). Arena growth is now bounded by peak live nodes, freed at least once per update.
+
+Results: 3k bh 10.6-11.2 ms, 100k bh ~480 ms -> within the 420-490 run-to-run band (machine noise). Same conclusion as #2/#3: allocation churn and pointer-chasing weren't the bottleneck at these sizes. Structural wins remain: index-based traversal (unblocks #11 batching + SIMD), no lifetimes, flat leaves() iteration, bounded arena.
+
+Remaining big lever: #11 batched traversal (100k bh ~480 ms/frame).
 
 ### #2 verdict: no measurable gain
 

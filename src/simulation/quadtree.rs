@@ -14,13 +14,20 @@ pub struct QuadTreeNode {
     pub rect: Rect,
     pub particles: Particles,
     pub indexes: Vec<usize>,
-    pub childs: Vec<QuadTreeNode>,
+    // Indices into QuadTree::nodes (arena). Empty for leaves.
+    pub childs: Vec<usize>,
 
     // For Barnes-Hut
     pub center_of_mass: Position,
     pub average_velocity: Velocity,
     pub total_mass: Mass,
     pub scale: Scalar,
+}
+
+impl Default for QuadTreeNode {
+    fn default() -> Self {
+        Self::new(Rect::new(Vector2::new(0.0, 0.0), Vector2::new(0.0, 0.0)))
+    }
 }
 
 impl QuadTreeNode {
@@ -37,136 +44,12 @@ impl QuadTreeNode {
             scale,
         }
     }
-
-    pub fn create_childs(&mut self) {
-        let half_size = self.rect.size / 2.0;
-        self.childs.reserve_exact(4);
-        for i in 0..4 {
-            self.childs.push(QuadTreeNode::new(Rect::new(
-                self.rect.position
-                    + Vector2::new((i % 2) as Scalar * half_size.x, (i / 2) as Scalar * half_size.y),
-                half_size,
-            )));
-        }
-    }
-
-    fn _insert_particles<'a>(
-        &'a mut self,
-        stack: &mut Vec<(usize, &'a mut Self, Vec<usize>)>,
-        mut indexes: Vec<usize>,
-        particles: &Particles,
-        max_particles: usize,
-        depth: usize,
-        max_depth: Option<usize>,
-        max_depth_panics: bool,
-    ) {
-        // Reset node
-        self.center_of_mass = Vector2::new(0.0, 0.0);
-        self.average_velocity = Vector2::new(0.0, 0.0);
-        self.total_mass = 0.0;
-
-        // Compute center of mass and total mass
-        indexes.iter().for_each(|&particle_index| {
-            self.center_of_mass +=
-                particles.positions[particle_index] * particles.masses[particle_index];
-            self.average_velocity += particles.velocities[particle_index];
-            self.total_mass += particles.masses[particle_index];
-        });
-        self.center_of_mass /= self.total_mass;
-        self.average_velocity /= indexes.len() as Scalar;
-
-        // Check if we reached the maximum depth
-        let mut forced_leaf = false;
-        if let Some(max_depth) = max_depth {
-            if depth >= max_depth {
-                if max_depth_panics {
-                    panic!("Max depth reached");
-                }
-                forced_leaf = true;
-            }
-        }
-
-        if forced_leaf || indexes.len() <= max_particles {
-            // Leaf node
-            // Copy particles (worth the spent time here when iterating in barnes hut)
-            self.particles.copy_from_indexes(&indexes, particles);
-            self.indexes = indexes; // Take ownership of indexes
-            self.indexes.shrink_to_fit();
-            self.childs.clear(); // Drop childs if necessary (pruning)
-            self.childs.shrink_to_fit();
-            return;
-        }
-
-        // Branch node
-        self.particles.clear(); // Drop particles if necessary
-        self.particles.shrink_to_fit();
-        self.indexes.clear(); // Drop indexes if necessary
-        self.indexes.shrink_to_fit();
-
-        // Create childs if necessary
-        if self.childs.is_empty() {
-            self.create_childs();
-        }
-
-        // Particle redistribution
-        // TODO parallelize
-        let mut childs_indexes = vec![Vec::new(); 4];
-        for particle_index in indexes.drain(..) {
-            let mut child_num = 0;
-            for (i, child) in self.childs.iter().skip(1).enumerate() {
-                if child.rect.contain(particles.positions[particle_index]) {
-                    child_num = i + 1;
-                    break;
-                }
-            }
-            childs_indexes[child_num].push(particle_index);
-        }
-
-        // Insert particles in childs
-        for (child, indexes) in self.childs.iter_mut().zip(childs_indexes) {
-            stack.push((depth + 1, child, indexes));
-        }
-    }
-
-    // Returns (max_depth reached, number of nodes) computed during the traversal
-    pub fn insert_particles<'a>(
-        &'a mut self,
-        indexes: Vec<usize>,
-        particles: &Particles,
-        max_particles: usize,
-        max_depth: Option<usize>,
-        max_depth_panics: bool,
-    ) -> (usize, usize) {
-        let _span = tracy_client::span!("Insert Particles");
-
-        let mut stack = Vec::new();
-        stack.push((0, self, indexes));
-
-        let (mut max_depth_reached, mut nodes) = (0, 0);
-
-        // TODO maybe parallelize
-        while let Some((depth, node, indexes)) = stack.pop() {
-            max_depth_reached = max_depth_reached.max(depth);
-            nodes += 1;
-
-            node._insert_particles(
-                &mut stack,
-                indexes,
-                &particles,
-                max_particles,
-                depth,
-                max_depth,
-                max_depth_panics,
-            );
-        }
-
-        (max_depth_reached, nodes)
-    }
 }
 
 pub struct QuadTree {
-    pub root: QuadTreeNode,
-    // allocator: Arena<QuadTreeNode>,
+    // Arena: all nodes live in one contiguous Vec, referenced by index.
+    // nodes[0] is always the root.
+    pub nodes: Vec<QuadTreeNode>,
     max_particles: usize,
     // TODO refactor forces (optional)
     gravity: Gravity,
@@ -191,8 +74,7 @@ impl QuadTree {
         max_depth_panics: bool,
     ) -> Self {
         Self {
-            root: QuadTreeNode::new(rect),
-            // allocator: Arena::new(),
+            nodes: vec![QuadTreeNode::new(rect)],
             max_particles,
             gravity,
             repulsion,
@@ -203,22 +85,171 @@ impl QuadTree {
         }
     }
 
-    // Returns (max_depth reached, number of nodes) computed during insertion
+    pub fn root(&self) -> &QuadTreeNode {
+        &self.nodes[0]
+    }
+
+    pub fn leaves(&self) -> impl Iterator<Item = &QuadTreeNode> {
+        self.nodes.iter().filter(|node| node.childs.is_empty())
+    }
+
+    // Drop unreachable nodes (dead subtrees) and reindex the arena.
+    // Runs once per insert so the arena stays bounded; its capacity is retained
+    // so re-insertion does not reallocate.
+    fn compact(&mut self) {
+        let n = self.nodes.len();
+        let mut reachable = vec![false; n];
+        let mut stack = vec![0usize];
+        while let Some(idx) = stack.pop() {
+            reachable[idx] = true;
+            stack.extend(self.nodes[idx].childs.iter().copied());
+        }
+
+        // Remap old index -> compacted index
+        let mut remap = vec![usize::MAX; n];
+        let mut new_len = 0;
+        for (i, is_reachable) in reachable.iter().enumerate() {
+            if *is_reachable {
+                remap[i] = new_len;
+                new_len += 1;
+            }
+        }
+
+        // Reindex children before moving nodes around
+        for i in 0..n {
+            if reachable[i] {
+                for child in &mut self.nodes[i].childs {
+                    *child = remap[*child];
+                }
+            }
+        }
+
+        // Compact in place: position r still holds its original node at iteration r,
+        // and slots < w have already been vacated (or were dead), so mem::take is safe.
+        let mut w = 0;
+        for r in 0..n {
+            if reachable[r] {
+                if w != r {
+                    self.nodes[w] = std::mem::take(&mut self.nodes[r]);
+                }
+                w += 1;
+            }
+        }
+        self.nodes.truncate(w);
+    }
+
+    // Returns (max_depth reached, number of nodes) computed during the traversal
     pub fn insert_particles(&mut self, particles: &Particles) -> (usize, usize) {
-        // Insert particles (will prune the tree if necessary)
-        self.root.insert_particles(
-            (0..particles.len()).collect::<Vec<_>>(),
-            &particles,
-            self.max_particles,
-            self.max_depth,
-            self.max_depth_panics,
-        )
+        let _span = tracy_client::span!("Insert Particles");
+
+        let mut stack = Vec::new();
+        stack.push((0, 0usize, (0..particles.len()).collect::<Vec<_>>()));
+
+        let (mut max_depth_reached, mut nodes) = (0, 0);
+
+        // TODO maybe parallelize
+        while let Some((depth, node_idx, indexes)) = stack.pop() {
+            max_depth_reached = max_depth_reached.max(depth);
+            nodes += 1;
+            let mut is_leaf = false;
+            {
+                let node = &mut self.nodes[node_idx];
+
+                // Reset node
+                node.center_of_mass = Vector2::new(0.0, 0.0);
+                node.average_velocity = Vector2::new(0.0, 0.0);
+                node.total_mass = 0.0;
+
+                // Compute center of mass and total mass
+                indexes.iter().for_each(|&particle_index| {
+                    node.center_of_mass +=
+                        particles.positions[particle_index] * particles.masses[particle_index];
+                    node.average_velocity += particles.velocities[particle_index];
+                    node.total_mass += particles.masses[particle_index];
+                });
+                node.center_of_mass /= node.total_mass;
+                node.average_velocity /= indexes.len() as Scalar;
+
+                // Check if we reached the maximum depth
+                if let Some(max_depth) = self.max_depth {
+                    if depth >= max_depth {
+                        if self.max_depth_panics {
+                            panic!("Max depth reached");
+                        }
+                        is_leaf = true;
+                    }
+                }
+
+                if !is_leaf && indexes.len() <= self.max_particles {
+                    is_leaf = true;
+                }
+
+                if is_leaf {
+                    // Leaf node
+                    // Copy particles (worth the spent time here when iterating in barnes hut)
+                    node.particles.copy_from_indexes(&indexes, particles);
+                    node.indexes = indexes;
+                    node.childs.clear(); // dead children are freed by compaction
+                    continue;
+                }
+
+                // Branch node
+                node.particles.clear();
+                node.indexes.clear();
+            }
+
+            // Ensure 4 children exist in the arena (reuse them from previous frames)
+            if self.nodes[node_idx].childs.is_empty() {
+                let (position, size) = {
+                    let node = &self.nodes[node_idx];
+                    (node.rect.position, node.rect.size)
+                };
+                let half_size = size / 2.0;
+                let child_start = self.nodes.len();
+                for i in 0..4 {
+                    self.nodes.push(QuadTreeNode::new(Rect::new(
+                        position
+                            + Vector2::new(
+                                (i % 2) as Scalar * half_size.x,
+                                (i / 2) as Scalar * half_size.y,
+                            ),
+                        half_size,
+                    )));
+                }
+                let node = &mut self.nodes[node_idx];
+                node.childs.extend(child_start..child_start + 4);
+            }
+
+            // Particle redistribution
+            // TODO parallelize
+            let mut childs_indexes = vec![Vec::new(); 4];
+            for particle_index in indexes.into_iter() {
+                let mut child_num = 0;
+                for (i, child_idx) in self.nodes[node_idx].childs.iter().skip(1).enumerate() {
+                    if self.nodes[*child_idx].rect.contain(particles.positions[particle_index]) {
+                        child_num = i + 1;
+                        break;
+                    }
+                }
+                childs_indexes[child_num].push(particle_index);
+            }
+
+            // Insert particles in children
+            for (i, sub_indexes) in childs_indexes.into_iter().enumerate() {
+                let child_idx = self.nodes[node_idx].childs[i];
+                stack.push((depth + 1, child_idx, sub_indexes));
+            }
+        }
+
+        self.compact();
+
+        (max_depth_reached, nodes)
     }
 
     #[inline]
-    fn barnes_hut<'a>(
-        stack: &mut Vec<&'a QuadTreeNode>,
-        root: &'a QuadTreeNode,
+    fn barnes_hut(
+        nodes: &[QuadTreeNode],
+        stack: &mut Vec<usize>,
         gravity: &Gravity,
         repulsion: &Repulsion,
         drag: &Drag,
@@ -231,13 +262,14 @@ impl QuadTree {
         let (mut leaf, mut approx, mut traverse) = (0, 0, 0);
 
         stack.clear();
-        stack.push(root);
+        stack.push(0); // root
 
         let pos = particles.positions[particle];
         let vel = particles.velocities[particle];
         let mass = particles.masses[particle];
 
-        while let Some(node) = stack.pop() {
+        while let Some(node_idx) = stack.pop() {
+            let node = &nodes[node_idx];
             if node.childs.is_empty() {
                 // Leaf node: Calculate the force directly between the particles if not the same particle
                 leaf += 1;
@@ -265,8 +297,8 @@ impl QuadTree {
             } else {
                 // Barnes-Hut criterion not satisfied: Traverse the children
                 traverse += 1;
-                for child in node.childs.iter() {
-                    stack.push(child);
+                for &child_idx in node.childs.iter() {
+                    stack.push(child_idx);
                 }
             }
         }
@@ -282,13 +314,14 @@ impl QuadTree {
 
         // Make sure quadtree is up to date, and get the max depth for the stack hint
         let (max_depth_reached, _nodes) = self.insert_particles(particles);
+        let nodes = &self.nodes;
 
         forces.par_iter_mut().enumerate().for_each_init(
             || Vec::with_capacity(max_depth_reached * 4 + 1),
             |stack, (i, force)| {
                 Self::barnes_hut(
+                    nodes,
                     stack,
-                    &self.root,
                     &self.gravity,
                     &self.repulsion,
                     &self.drag,

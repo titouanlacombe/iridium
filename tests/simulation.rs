@@ -288,9 +288,11 @@ fn quadtree_structure_invariants() {
     // Every particle index must appear in exactly one leaf, inside its rect
     let mut seen = vec![false; n];
     let mut leaf_count = 0;
-    let mut stack = vec![&quadtree.root];
+    let mut stack = vec![0usize];
 
-    while let Some(node) = stack.pop() {
+    while let Some(node_idx) = stack.pop() {
+        let node = &quadtree.nodes[node_idx];
+
         if node.childs.is_empty() {
             leaf_count += 1;
             assert!(node.indexes.len() <= max_particles);
@@ -303,7 +305,7 @@ fn quadtree_structure_invariants() {
                 assert!(!seen[i], "index {i} in multiple leaves");
                 seen[i] = true;
                 assert!(node.rect.contain(particles.positions[i]));
-                assert!((particles.positions[i] - pos).norm() < 1e-12);
+                assert!((particles.positions[i] - pos).norm() < TOL_STRUCT);
 
                 let mass = particles.masses[i];
                 center_of_mass += pos * mass;
@@ -316,7 +318,7 @@ fn quadtree_structure_invariants() {
             }
         } else {
             assert_eq!(node.indexes.len(), 0);
-            stack.extend(node.childs.iter());
+            stack.extend(node.childs.iter().copied());
         }
     }
 

@@ -123,12 +123,14 @@ impl Renderer for BasicRenderer {
             // Build vertex buffer
             let k = 0.3; // Rate of color change
 
-            let mut stack = vec![(&qt.root, 0)];
-            while let Some((node, depth)) = stack.pop() {
+            let mut stack = vec![(0usize, 0)];
+            while let Some((node_idx, depth)) = stack.pop() {
+                let node = &qt.nodes[node_idx];
+
                 // Branch: Traverse children
                 if !node.childs.is_empty() {
-                    for child in &node.childs {
-                        stack.push((child, depth + 1));
+                    for &child_idx in &node.childs {
+                        stack.push((child_idx, depth + 1));
                     }
                     continue;
                 }

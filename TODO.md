@@ -34,9 +34,9 @@ tests {
 github, logo & readme
 
 finish QT {
-	create a function to return list of refs instead of iter (qt.leaves())
+	qt.leaves() [done with the arena refactor]
 	bench & opti
-	allocator (custom vec allocator using swap remove?)
+	arena allocator [done: nodes in one Vec, childs = indices, is_leaf flag, nodes reused across frames]
 }
 
 use izip?
