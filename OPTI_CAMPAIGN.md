@@ -42,7 +42,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 4 | `1/mass` multiply instead of divide | M | L | L | done (see log) |
 | 5 | Concrete `Vector2` integrator impl | M | L | L | done (reverted: no gain, see log) |
 | 6 | Rename `get_infos` + slices (`&[T]`) API | L | L | L | pending |
-| 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | pending |
+| 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | done (see log) |
 | 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | pending |
 | 9 | `Scalar = f32` feature flag | H | L | M | pending |
 | 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | pending |
@@ -85,6 +85,12 @@ Caveat: `masses` is still `pub` — a direct write to `particles.masses[i]` woul
 ### #5 verdict: reverted, keep the generic impl
 
 Concrete `impl Integrator<Vector2<f64>>` cannot coexist with the generic `impl<T: ...> Integrator<T>` — coherence rejects the overlap (E0119, no stable specialization). The generic impl is strictly more general. Measured the concrete version before reverting: integrate 52.7 µs vs 52-59 µs generic -> flat (Clone is a no-op for Copy types; LLVM eliminates it). Conclusion: the generic impl is the right API and not a bottleneck.
+
+### #7 verdict: test suite added (tests/simulation.rs)
+
+5 tests: force symmetry (gravity/repulsion/drag antisymmetric), barnes-hut theta=0 vs naive equivalence, momentum+energy conservation on a circular 2-body orbit (incl. orbit-radius drift check), uniform-gravity vs analytic solution at two dt values (dt-independence), quadtree structure invariants (leaf capacity, disjoint index coverage, rect containment, center-of-mass/total-mass consistency). All pass.
+
+Gotcha found while writing: random N-body with epsilon=0 allows close encounters -> energy spikes legitimately (momentum still conserved); switched to a circular orbit setup to keep the force smooth.
 
 ### #2 verdict: no measurable gain
 
