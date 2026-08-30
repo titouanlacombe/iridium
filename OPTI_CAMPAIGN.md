@@ -43,7 +43,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 5 | Concrete `Vector2` integrator impl | M | L | L | done (reverted: no gain, see log) |
 | 6 | Rename `get_infos` + slices (`&[T]`) API | L | L | L | pending |
 | 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | done (see log) |
-| 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | pending |
+| 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | done (see log) |
 | 9 | `Scalar = f32` feature flag | H | L | M | pending |
 | 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | pending |
 | 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | pending |
@@ -91,6 +91,14 @@ Concrete `impl Integrator<Vector2<f64>>` cannot coexist with the generic `impl<T
 5 tests: force symmetry (gravity/repulsion/drag antisymmetric), barnes-hut theta=0 vs naive equivalence, momentum+energy conservation on a circular 2-body orbit (incl. orbit-radius drift check), uniform-gravity vs analytic solution at two dt values (dt-independence), quadtree structure invariants (leaf capacity, disjoint index coverage, rect containment, center-of-mass/total-mass consistency). All pass.
 
 Gotcha found while writing: random N-body with epsilon=0 allows close encounters -> energy spikes legitimately (momentum still conserved); switched to a circular orbit setup to keep the force smooth.
+
+### #8 verdict: done, lock-free + deterministic (bug caught by the new tests)
+
+Replaced `rayon::scope` + `Arc<Mutex>` merge in Gravity/Drag/Repulsion::apply with `into_par_iter().map(...)` local buffers + a merge that sums in fixed per-index order -> bitwise-deterministic results (new `force_computation_is_deterministic` test).
+
+Caught a real bug the tests exposed: first version *overwrote* (`*force = sum`) instead of *accumulating* (`*force += sum`) -> multi-force setups (Physics::update applies several forces to one buffer) would have kept only the last force's contribution. Tests (barnes_hut vs naive) caught it; fixed.
+
+Perf: naive 11.8 ms / full_step 334 µs -> within noise. The lock wasn't the bottleneck (merges were serialized but cheap vs O(n^2)). Value: determinism + no lock in the hot path.
 
 ### #2 verdict: no measurable gain
 

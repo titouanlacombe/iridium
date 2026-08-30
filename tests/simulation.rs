@@ -216,6 +216,30 @@ fn uniform_gravity_matches_analytic_solution() {
 }
 
 #[test]
+fn force_computation_is_deterministic() {
+    let particles = generate_random_particles(200, 42, 100.0);
+
+    let mut forces_a = vec![Vector2::zeros(); 200];
+    let mut forces_b = vec![Vector2::zeros(); 200];
+
+    let mut gravity = Gravity::new(1.0, 0.0);
+    let mut repulsion = Repulsion::new(1.0, 6, 0.0);
+    let mut drag = Drag::new(1.0, 10.0);
+
+    gravity.clone().apply(&particles, &mut forces_a);
+    repulsion.clone().apply(&particles, &mut forces_a);
+    drag.clone().apply(&particles, &mut forces_a);
+
+    gravity.apply(&particles, &mut forces_b);
+    repulsion.apply(&particles, &mut forces_b);
+    drag.apply(&particles, &mut forces_b);
+
+    for i in 0..200 {
+        assert_eq!(forces_a[i], forces_b[i], "non-deterministic force at {i}");
+    }
+}
+
+#[test]
 fn quadtree_structure_invariants() {
     let n = 1000;
     let max_particles = 4;

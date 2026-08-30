@@ -13,6 +13,42 @@ pub trait Force {
     }
 }
 
+// Shared machinery for O(n^2) pairwise forces: each rayon thread computes its own
+// local buffer (no shared state), then merges in a fixed per-index order so results
+// are deterministic. Accumulates: forces may already hold contributions from other
+// force types. `calc(i, j)` returns the force that particle i exerts on j.
+fn apply_pairwise<F>(n: usize, forces: &mut Vec<ForceType>, calc: F)
+where
+    F: Fn(usize, usize) -> ForceType + Sync,
+{
+    let num_threads = rayon::current_num_threads();
+    let particles_per_thread = (n + num_threads - 1) / num_threads;
+    let calc = &calc;
+
+    let local_forces: Vec<Vec<ForceType>> = (0..num_threads)
+        .into_par_iter()
+        .map(|thread_id| {
+            let start = thread_id * particles_per_thread;
+            let end = (start + particles_per_thread).min(n);
+
+            let mut local = vec![ForceType::zeros(); n];
+            for i in start..end {
+                for j in (i + 1)..n {
+                    let force = calc(i, j);
+
+                    local[i] += force;
+                    local[j] -= force;
+                }
+            }
+            local
+        })
+        .collect::<Vec<_>>();
+
+    forces.par_iter_mut().enumerate().for_each(|(i, force)| {
+        *force += local_forces.iter().map(|local| local[i]).sum::<ForceType>();
+    });
+}
+
 pub struct UniformGravity {
     pub acceleration: Acceleration,
 }
@@ -90,39 +126,15 @@ impl Gravity {
 
 impl Force for Gravity {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
-        rayon::scope(|s| {
-            let num_threads = rayon::current_num_threads();
-            let particles_per_thread = (particles.positions.len() + num_threads - 1) / num_threads;
+        let immut_self = &*self;
 
-            let force_arc = std::sync::Arc::new(std::sync::Mutex::new(forces));
-
-            for thread_id in 0..num_threads {
-                let force_clone = force_arc.clone();
-                let start = thread_id * particles_per_thread;
-                let end = std::cmp::min(start + particles_per_thread, particles.positions.len());
-                let immut_self = &*self;
-
-                s.spawn(move |_| {
-                    let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
-                    for i in start..end {
-                        for j in (i + 1)..particles.positions.len() {
-                            let force = immut_self.calc_force(
-                                particles.positions[i],
-                                particles.positions[j],
-                                particles.masses[i],
-                                particles.masses[j],
-                            );
-
-                            local_forces[i] += force;
-                            local_forces[j] -= force;
-                        }
-                    }
-                    let mut global_forces = force_clone.lock().unwrap();
-                    for (i, force) in local_forces.into_iter().enumerate() {
-                        global_forces[i] += force;
-                    }
-                });
-            }
+        apply_pairwise(particles.len(), forces, |i, j| {
+            immut_self.calc_force(
+                particles.positions[i],
+                particles.positions[j],
+                particles.masses[i],
+                particles.masses[j],
+            )
         });
     }
 }
@@ -161,39 +173,15 @@ impl Drag {
 
 impl Force for Drag {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
-        rayon::scope(|s| {
-            let num_threads = rayon::current_num_threads();
-            let particles_per_thread = (particles.positions.len() + num_threads - 1) / num_threads;
+        let immut_self = &*self;
 
-            let force_arc = std::sync::Arc::new(std::sync::Mutex::new(forces));
-
-            for thread_id in 0..num_threads {
-                let force_clone = force_arc.clone();
-                let start = thread_id * particles_per_thread;
-                let end = std::cmp::min(start + particles_per_thread, particles.positions.len());
-                let immut_self = &*self;
-
-                s.spawn(move |_| {
-                    let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
-                    for i in start..end {
-                        for j in (i + 1)..particles.positions.len() {
-                            let force = immut_self.calc_force(
-                                particles.positions[i],
-                                particles.positions[j],
-                                particles.velocities[i],
-                                particles.velocities[j],
-                            );
-
-                            local_forces[i] += force;
-                            local_forces[j] -= force;
-                        }
-                    }
-                    let mut global_forces = force_clone.lock().unwrap();
-                    for (i, force) in local_forces.into_iter().enumerate() {
-                        global_forces[i] += force;
-                    }
-                });
-            }
+        apply_pairwise(particles.len(), forces, |i, j| {
+            immut_self.calc_force(
+                particles.positions[i],
+                particles.positions[j],
+                particles.velocities[i],
+                particles.velocities[j],
+            )
         });
     }
 }
@@ -229,35 +217,10 @@ impl Repulsion {
 
 impl Force for Repulsion {
     fn apply(&mut self, particles: &Particles, forces: &mut Vec<ForceType>) {
-        rayon::scope(|s| {
-            let num_threads = rayon::current_num_threads();
-            let particles_per_thread = (particles.positions.len() + num_threads - 1) / num_threads;
+        let immut_self = &*self;
 
-            let force_arc = std::sync::Arc::new(std::sync::Mutex::new(forces));
-
-            for thread_id in 0..num_threads {
-                let force_clone = force_arc.clone();
-                let start = thread_id * particles_per_thread;
-                let end = std::cmp::min(start + particles_per_thread, particles.positions.len());
-                let immut_self = &*self;
-
-                s.spawn(move |_| {
-                    let mut local_forces = vec![ForceType::zeros(); particles.positions.len()];
-                    for i in start..end {
-                        for j in (i + 1)..particles.positions.len() {
-                            let force = immut_self
-                                .calc_force(particles.positions[i], particles.positions[j]);
-
-                            local_forces[i] += force;
-                            local_forces[j] -= force;
-                        }
-                    }
-                    let mut global_forces = force_clone.lock().unwrap();
-                    for (i, force) in local_forces.into_iter().enumerate() {
-                        global_forces[i] += force;
-                    }
-                });
-            }
+        apply_pairwise(particles.len(), forces, |i, j| {
+            immut_self.calc_force(particles.positions[i], particles.positions[j])
         });
     }
 }
