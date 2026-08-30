@@ -43,6 +43,7 @@ use izip?
 change particles to Rc (remove simulation data altogether, only use systems)
 implement particles lifetimes (new buffer) ?
 sim events can control window (close, resize, etc)???
+seal masses/inv_masses (private + accessors + push_mass/extend_masses) so the 1/m invariant is compiler-enforced; factory needs temp vec
 
 iridium big facade to make it easy to use
 more integrators option (euler, verlet, etc) & test biggest dt possible?

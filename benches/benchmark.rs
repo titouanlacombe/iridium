@@ -135,8 +135,8 @@ fn benchmark_buffer_ops(c: &mut Criterion) {
         b.iter(|| {
             forces
                 .par_iter_mut()
-                .zip(particles.masses.par_iter())
-                .for_each(|(force, mass)| *force /= *mass);
+                .zip(particles.inv_masses.par_iter())
+                .for_each(|(force, inv_mass)| *force *= *inv_mass);
         })
     });
 

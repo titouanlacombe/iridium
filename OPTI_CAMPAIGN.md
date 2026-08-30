@@ -39,7 +39,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 1 | Criterion benches (buffer ops) + constant dt | M | L | L | done |
 | 2 | `.cargo/config.toml`: `target-cpu=native` + lto/codegen-units=1 | H | L | L | done (see log) |
 | 3 | Reuse per-thread scratch buffer (barnes-hut stack) | H | L | L | done (see log) |
-| 4 | `1/mass` multiply instead of divide | M | L | L | pending |
+| 4 | `1/mass` multiply instead of divide | M | L | L | done (see log) |
 | 5 | Concrete `Vector2` integrator impl | M | L | L | pending |
 | 6 | Rename `get_infos` + slices (`&[T]`) API | L | L | L | pending |
 | 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | pending |
@@ -73,6 +73,14 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 The insertion delta (~7%) on *identical* code measures run-to-run noise. barnes_hut at ~8% is the same magnitude -> real effect likely 0-8%, smaller than hoped (small allocs are cheap on glibc tcache; tree walk + memory traffic dominate). Keep the per-thread stack (removes 100k allocs/frame, no cost); don't expect it to show up visually.
 
 Also: barnes_hut at 100k = 422 ms/frame (naive would be ~12.7 s) -> still far from realtime for large counts; that's the batched traversal / FMM headroom.
+
+### #4 verdict: inv_masses in Particles, done
+
+Tried 3 shapes:
+1. per-frame reciprocal buffer in Physics (reciprocal pass + mul pass): mass_divide 106 µs vs 58-73 divide -> **~50% slower** (extra pass costs memory traffic; confirms memory-bound).
+2. `inv_masses` stored in Particles SoA, computed once at creation (`Particles::new`, `swap_remove`, `clear`, `reserve_exact`, `shrink_to_fit`, `copy_from_indexes`, `GeneratorFactory::create`): mass_divide 56.3 µs, full_step 370 µs -> small win at best (within noise), zero divisions per frame.
+
+Caveat: `masses` is still `pub` — a direct write to `particles.masses[i]` would desync `inv_masses` (documented on the field). If it ever becomes a problem, seal via accessors.
 
 ### #2 verdict: no measurable gain
 
