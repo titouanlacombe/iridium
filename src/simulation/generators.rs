@@ -1,7 +1,7 @@
 use std::f64::consts::PI;
 
 use nalgebra::Vector2;
-use rand::Rng;
+use rand::RngExt;
 use rand_pcg::Pcg64Mcg;
 
 use super::{

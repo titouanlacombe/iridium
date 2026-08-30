@@ -1,4 +1,4 @@
-use rand::{RngCore, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64Mcg;
 
 pub struct RngGenerator {
