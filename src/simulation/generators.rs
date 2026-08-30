@@ -263,17 +263,21 @@ impl Generator<Vector2<Scalar>> for UniformDiskPointsGenerator {
     fn generate_n(&mut self, n: usize, vec: &mut Vec<Vector2<Scalar>>) {
         vec.reserve_exact(n);
 
-        let total_area = PI * self.disk.radius_squared;
-        let area_per_point = total_area / n as Scalar;
+        // Ring counts are computed in f64: f32 rounding on (circumference /
+        // distance_increment) could drop points (sum < n). Positions stay in Scalar.
+        let radius_squared = self.disk.radius_squared as f64;
+        let total_area = std::f64::consts::PI * radius_squared;
+        let area_per_point = total_area / n as f64;
         let distance_increment = area_per_point.sqrt();
+        let nr = (radius_squared.sqrt() / distance_increment).ceil() as usize;
 
-        let nr = (self.disk.radius_squared.sqrt() / distance_increment).ceil() as usize;
         let mut placed = 0;
         for i in 0..nr {
-            let r = (i as Scalar + 0.5) * distance_increment;
-            let circumference = 2.0 * PI * r;
+            let r = ((i as f64) + 0.5) * distance_increment;
+            let circumference = 2.0 * std::f64::consts::PI * r;
             let points_on_this_radius =
                 std::cmp::min(n - placed, (circumference / distance_increment) as usize);
+            let r = r as Scalar;
             let angle_increment = 2.0 * PI / points_on_this_radius as Scalar;
             for j in 0..points_on_this_radius {
                 let angle = j as Scalar * angle_increment;
@@ -282,6 +286,19 @@ impl Generator<Vector2<Scalar>> for UniformDiskPointsGenerator {
                 vec.push(Vector2::new(x, y) + self.disk.position);
             }
             placed += points_on_this_radius;
+        }
+
+        // Guarantee exactly n points: ring-count truncation may still fall short
+        if placed < n {
+            let r = (nr as Scalar - 0.5) * distance_increment as Scalar;
+            let remaining = n - placed;
+            let angle_increment = 2.0 * PI / remaining as Scalar;
+            for j in 0..remaining {
+                let angle = j as Scalar * angle_increment;
+                let x = r * angle.cos();
+                let y = r * angle.sin();
+                vec.push(Vector2::new(x, y) + self.disk.position);
+            }
         }
     }
 }

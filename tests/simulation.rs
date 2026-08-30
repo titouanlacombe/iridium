@@ -4,9 +4,10 @@ use rand::SeedableRng;
 use rand_pcg::Pcg64Mcg;
 
 use iridium::simulation::{
-    areas::{Area, Rect},
+    areas::{Area, Disk, Rect},
     color::Color,
     forces::{Drag, Force, Gravity, Repulsion, UniformGravity},
+    generators::{Generator, UniformDiskPointsGenerator},
     integrator::GaussianIntegrator,
     morton::MortonSort,
     particles::Particles,
@@ -226,6 +227,18 @@ fn coincident_particles_produce_finite_forces() {
             force.x.is_finite() && force.y.is_finite(),
             "non-finite force from coincident particles: {force:?}"
         );
+    }
+}
+
+#[test]
+fn generators_produce_exact_count() {
+    // f32 ring-count rounding used to drop particles (2997 instead of 3000)
+    for n in [1usize, 7, 100, 1800, 1200, 10000] {
+        let disk = Disk::new(Vector2::new(600.0, 400.0), 70.0);
+        let mut generator = UniformDiskPointsGenerator::new(disk);
+        let mut positions: Vec<Vector2<Scalar>> = Vec::new();
+        generator.generate_n(n, &mut positions);
+        assert_eq!(positions.len(), n, "generator produced {} of {n}", positions.len());
     }
 }
 
