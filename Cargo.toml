@@ -23,6 +23,7 @@ tracy-client = { version = "0.17.0", features = [
 	"ondemand",
 	# "flush-on-exit",
 ] }
+wide = "*"
 
 [profile.dev]
 opt-level = 1

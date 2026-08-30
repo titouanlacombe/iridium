@@ -402,6 +402,9 @@ fn quadtree_structure_invariants() {
         }
     }
 
-    assert!(seen.iter().all(|&s| s), "some particles missing from leaves");
+    assert!(
+        seen.iter().all(|&s| s),
+        "some particles missing from leaves"
+    );
     assert!(leaf_count > 1);
 }

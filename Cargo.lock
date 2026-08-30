@@ -499,6 +499,7 @@ dependencies = [
  "rayon",
  "sfml",
  "tracy-client",
+ "wide",
 ]
 
 [[package]]

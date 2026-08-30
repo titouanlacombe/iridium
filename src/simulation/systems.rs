@@ -178,16 +178,14 @@ impl System for Physics {
             force.apply(particles, &mut self.forces_buffer);
         }
 
-        // Scale forces by mass to get acceleration (inv_masses is maintained in Particles)
-        self.forces_buffer
-            .par_iter_mut()
-            .zip(particles.inv_masses.par_iter())
-            .for_each(|(force, inv_mass)| {
-                *force *= *inv_mass;
-            });
-
-        self.integrator
-            .integrate_vec(&self.forces_buffer, &mut particles.velocities, dt);
+        // Scale forces by mass and integrate in one fused pass:
+        // velocities += forces * inv_masses * dt (skips the separate scaling pass)
+        self.integrator.integrate_vec(
+            &self.forces_buffer,
+            Some(&particles.inv_masses),
+            &mut particles.velocities,
+            dt,
+        );
     }
 }
 
@@ -203,8 +201,13 @@ impl VelocityIntegrator {
 
 impl System for VelocityIntegrator {
     fn update(&mut self, particles: &mut Particles, dt: Time) {
-        self.integrator
-            .integrate_vec(&particles.velocities, &mut particles.positions, dt);
+        // Unscaled: positions += velocities * dt
+        self.integrator.integrate_vec(
+            &particles.velocities,
+            None,
+            &mut particles.positions,
+            dt,
+        );
     }
 }
 

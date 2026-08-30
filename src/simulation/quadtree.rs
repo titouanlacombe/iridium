@@ -7,8 +7,16 @@ use super::{
     areas::{Area, Rect},
     forces::{Drag, Force as ForceTrait, Gravity, Repulsion},
     particles::Particles,
-    types::{Force, Mass, Position, Scalar, Velocity},
+    types::{
+        mask_to_01, masked, repulsion_inv_pow, Force, Mass, Position, Scalar, Simd, SimdVec,
+        Velocity,
+    },
 };
+
+// Particles sharing one tree traversal. Morton-sorted particles make batches
+// spatially coherent; the batch is one SIMD register (f64x4 for f64, f32x8 for
+// f32) so pair forces vectorize across the lanes.
+const BATCH: usize = <Simd as SimdVec>::LANES;
 
 pub struct QuadTreeNode {
     pub rect: Rect,
@@ -61,14 +69,6 @@ pub struct QuadTree {
     max_depth: Option<usize>,
     max_depth_panics: bool,
 }
-
-// Particles sharing one tree traversal. Morton-sorted particles make batches
-// spatially coherent, amortizing node loads ~BATCH times.
-// One AVX2 register per lane count.
-#[cfg(feature = "f32")]
-const BATCH: usize = 8;
-#[cfg(not(feature = "f32"))]
-const BATCH: usize = 4;
 
 impl QuadTree {
     pub fn new(
@@ -260,7 +260,7 @@ impl QuadTree {
     }
 
     #[inline]
-    fn barnes_hut_batch(
+    fn barnes_hut_batch<V: SimdVec<Scalar = Scalar>>(
         nodes: &[QuadTreeNode],
         stack: &mut Vec<(usize, u8)>,
         gravity: &Gravity,
@@ -275,28 +275,52 @@ impl QuadTree {
         let _span = tracy_client::span!("Particle Batch");
         let (mut leaf, mut approx, mut traverse) = (0, 0, 0);
 
-        // Batch state. Each stack entry carries a bitmask of the batch particles that
-        // still traverse this subtree: approximating at a node removes a particle
-        // from the mask of its children only, so sibling subtrees are still evaluated
-        // (mirrors the solo walk exactly).
-        let mut pos = [Position::zeros(); BATCH];
-        let mut vel = [Velocity::zeros(); BATCH];
-        let mut mass = [0.0; BATCH];
-
+        // Packed batch state: one SIMD register per component.
+        let mut px = [0.0; 8];
+        let mut py = [0.0; 8];
+        let mut vx = [0.0; 8];
+        let mut vy = [0.0; 8];
+        let mut mass = [0.0; 8];
         for k in 0..count {
             let i = start + k;
-            pos[k] = particles.positions[i];
-            vel[k] = particles.velocities[i];
+            px[k] = particles.positions[i].x;
+            py[k] = particles.positions[i].y;
+            vx[k] = particles.velocities[i].x;
+            vy[k] = particles.velocities[i].y;
             mass[k] = particles.masses[i];
         }
+        let (px, py, vx, vy, mass) = (
+            V::from_8(&px),
+            V::from_8(&py),
+            V::from_8(&vx),
+            V::from_8(&vy),
+            V::from_8(&mass),
+        );
+        let mut fx = V::splat(0.0);
+        let mut fy = V::splat(0.0);
+        let one = V::splat(1.0);
+        let zero = V::splat(0.0);
 
         stack.clear();
-        stack.push((0, (1 << count) - 1)); // root
+        // Root mask: first `count` bits set. u8::MAX >> (8 - count) instead of
+        // (1 << count) - 1: for count == 8 the latter yields 0 (1u8 << 8 == 1).
+        stack.push((0, u8::MAX >> (8 - count)));
 
         while let Some((node_idx, mask)) = stack.pop() {
             let node = &nodes[node_idx];
+
+            // 1.0 for the lanes still traversing this subtree (from the stack entry mask)
+            let mut subtree = [0.0; 8];
+            for k in 0..count {
+                if mask & (1 << k) != 0 {
+                    subtree[k] = 1.0;
+                }
+            }
+            let subtree = V::from_8(&subtree);
+
             if node.childs.is_empty() {
-                // Leaf node: direct pairs between batch particles and leaf particles
+                // Leaf node: direct pairs between batch particles and leaf particles,
+                // vectorized across the batch lanes
                 leaf += 1;
                 for (((&other, &other_pos), &other_vel), &other_mass) in node
                     .indexes
@@ -304,45 +328,108 @@ impl QuadTree {
                     .zip(&node.particles.positions)
                     .zip(&node.particles.velocities)
                     .zip(&node.particles.masses)
-                {
-                    for k in 0..count {
-                        if mask & (1 << k) == 0 || other == start + k {
-                            continue;
-                        }
-
-                        forces[k] += gravity.calc_force(pos[k], other_pos, mass[k], other_mass);
-                        forces[k] += repulsion.calc_force(pos[k], other_pos);
-                        forces[k] += drag.calc_force(pos[k], other_pos, vel[k], other_vel);
+                {                    // Zero the lane of the batch's own particle (self-interaction)
+                    let mut q_mask = subtree;
+                    if other >= start && other < start + count {
+                        let mut arr = [0.0; 8];
+                        q_mask.write_8(&mut arr);
+                        arr[other - start] = 0.0;
+                        q_mask = V::from_8(&arr);
                     }
+
+                    let dx = px - V::splat(other_pos.x);
+                    let dy = py - V::splat(other_pos.y);
+                    let r2 = dx * dx + dy * dy;
+                    let r = r2.sqrt();
+
+                    // Gravity
+                    let g_valid = mask_to_01(r.mask_ge(V::splat(gravity.epsilon)));
+                    let r3 = r * r2;
+                    let g_scale = -V::splat(gravity.coef) * mass * V::splat(other_mass) / r3;
+                    fx += masked(q_mask, g_scale * dx * g_valid);
+                    fy += masked(q_mask, g_scale * dy * g_valid);
+
+                    // Repulsion
+                    let rep_valid = mask_to_01(r.mask_ge(V::splat(repulsion.epsilon)));
+                    let rep_scale = V::splat(repulsion.coef) * repulsion_inv_pow(repulsion.power, r);
+                    fx += masked(q_mask, rep_scale * dx * rep_valid);
+                    fy += masked(q_mask, rep_scale * dy * rep_valid);
+
+                    // Drag
+                    let drag_valid = mask_to_01(r.mask_le(V::splat(drag.distance)))
+                        * mask_to_01(r.mask_gt(zero));
+                    // Mask the ratio first: distance == 0 would divide by zero
+                    let dist_ratio = masked(drag_valid, r / V::splat(drag.distance));
+                    let dist_coef = one - dist_ratio * dist_ratio;
+                    let dvx = vx - V::splat(other_vel.x);
+                    let dvy = vy - V::splat(other_vel.y);
+                    let drag_scale = -V::splat(drag.coef) * dist_coef;
+                    fx += masked(q_mask, drag_scale * dvx * drag_valid);
+                    fy += masked(q_mask, drag_scale * dvy * drag_valid);
                 }
             } else {
+                // Barnes-Hut criterion, vectorized across the batch lanes.
+                // dx = pos - com (matches calc_force's distance_v = pos1 - pos2)
+                let dx = px - V::splat(node.center_of_mass.x);
+                let dy = py - V::splat(node.center_of_mass.y);
+                let dist2 = dx * dx + dy * dy;
+                let dist = dist2.sqrt();
+                let met = (V::splat(node.scale) / dist).mask_lt(V::splat(theta));
+                let met_bits = met.to_bitmask();
+
                 let mut child_mask = 0u8;
                 for k in 0..count {
                     if mask & (1 << k) == 0 {
                         continue;
                     }
-
-                    if (node.scale / (node.center_of_mass - pos[k]).norm()) < theta {
-                        // Barnes-Hut criterion satisfied: the approximation covers
-                        // this node's subtree for particle k
+                    if met_bits & (1 << k) != 0 {
                         approx += 1;
-                        forces[k] +=
-                            gravity.calc_force(pos[k], node.center_of_mass, mass[k], node.total_mass);
-                        forces[k] += repulsion.calc_force(pos[k], node.center_of_mass);
-                        forces[k] +=
-                            drag.calc_force(pos[k], node.center_of_mass, vel[k], node.average_velocity);
                     } else {
                         child_mask |= 1 << k;
                     }
                 }
-
                 if child_mask != 0 {
                     traverse += 1;
                     for &child_idx in node.childs.iter() {
                         stack.push((child_idx, child_mask));
                     }
                 }
+
+                // Approximation contribution, masked to the satisfied lanes
+                let m = subtree * mask_to_01(met);
+
+                let g_valid = mask_to_01(dist.mask_ge(V::splat(gravity.epsilon)));
+                let r3 = dist * dist2;
+                let g_scale = -V::splat(gravity.coef) * mass * V::splat(node.total_mass) / r3;
+                fx += masked(m, g_scale * dx * g_valid);
+                fy += masked(m, g_scale * dy * g_valid);
+
+                let rep_valid = mask_to_01(dist.mask_ge(V::splat(repulsion.epsilon)));
+                let rep_scale = V::splat(repulsion.coef) * repulsion_inv_pow(repulsion.power, dist);
+                fx += masked(m, rep_scale * dx * rep_valid);
+                fy += masked(m, rep_scale * dy * rep_valid);
+
+                let drag_valid = mask_to_01(dist.mask_le(V::splat(drag.distance)))
+                    * mask_to_01(dist.mask_gt(zero));
+                // Mask the ratio first: distance == 0 would divide by zero
+                let dist_ratio = masked(drag_valid, dist / V::splat(drag.distance));
+                let dist_coef = one - dist_ratio * dist_ratio;
+                let dvx = vx - V::splat(node.average_velocity.x);
+                let dvy = vy - V::splat(node.average_velocity.y);
+                let drag_scale = -V::splat(drag.coef) * dist_coef;
+                fx += masked(m, drag_scale * dvx * drag_valid);
+                fy += masked(m, drag_scale * dvy * drag_valid);
             }
+        }
+
+        // Write back. Accumulates: forces may already hold contributions from
+        // other force types (Physics applies several forces to one buffer).
+        let mut fx_arr = [0.0; 8];
+        let mut fy_arr = [0.0; 8];
+        fx.write_8(&mut fx_arr);
+        fy.write_8(&mut fy_arr);
+        for k in 0..count {
+            forces[k] += Vector2::new(fx_arr[k], fy_arr[k]);
         }
 
         _span.emit_text(
@@ -359,11 +446,12 @@ impl QuadTree {
         let nodes = &self.nodes;
 
         // One tree traversal per batch of BATCH particles. Morton-sorted particles
-        // (see MortonSort) make the batches spatially coherent, amortizing node
-        // loads ~BATCH times.
+        // (see MortonSort) make the batches spatially coherent; the batch is one
+        // SIMD register, so pair forces vectorize across the lanes.
         forces.par_chunks_mut(BATCH).enumerate().for_each_init(
-            || Vec::with_capacity(max_depth_reached * 4 + 1),            |stack, (chunk_idx, chunk)| {
-                Self::barnes_hut_batch(
+            || Vec::with_capacity(max_depth_reached * 4 + 1),
+            |stack, (chunk_idx, chunk)| {
+                Self::barnes_hut_batch::<Simd>(
                     nodes,
                     stack,
                     &self.gravity,

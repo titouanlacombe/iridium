@@ -46,7 +46,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | done (see log) |
 | 9 | `Scalar = f32` feature flag | H | L | M | done (see log) |
 | 10 | QT allocator (arena) + `qt.leaves()` + QT bench | M | M | M | done (see log) |
-| 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | done (see log: correct, but flat without SIMD) |
+| 11 | Batched barnes-hut (4-8 particles/traversal) | H | H | M | done (see log: SIMD = 2.6x f64, ~60x f32) |
 | 12 | FMM (ferreus_bbfmm/kifmm research) | H | VH | H | pending |
 | 13 | Integrators (verlet...) + max-dt tests | M | M | L | pending |
 | 14 | Facade + error handling (thiserror) | M | M | L | pending |
@@ -123,6 +123,33 @@ MortonSort (System, deterministic: index tie-break) + batched barnes-hut (BATCH 
 - New test `barnes_hut_theta_05_is_a_reasonable_approximation` caught a real bug in the first mask design: a per-particle "done" flag (instead of a per-stack-entry mask) double-approximated nothing but *skipped* sibling subtrees -> forces ~640x too small. Mask travels with the stack entry: fixed. Also caught the earlier 43x "speedup" as garbage.
 - Verdict: correct but FLAT (3k 11.2 ms incl. sort, 100k 460 ms vs 421-490 solo). The bottleneck at theta=0.5 is the leaf-pair arithmetic (each pair computed once per particle, ~independent of batching), not node loads (tree is L3-resident at 100k, 13 MB in 32 MB L3). Batching amortizes node loads only.
 - The real remaining lever for the pair arithmetic: SIMD across the batch lanes (wide crate, f64x4/f32x8) on the pair + criterion loops - compute-bound, unlike the buffer passes. MortonSort is currently neutral (sort ~5-15 ms at 100k) - it stays (standard technique, keeps batches coherent if node loads ever matter).
+
+### #11 SIMD: done - the win finally landed
+
+Batch forces vectorized across the lanes (wide crate, `SimdVec` trait in types.rs, f64x4 / f32x8). BATCH = one register (4 f64 / 8 f32). Bugs caught by the tests while writing: (1) NaN*0 = NaN: the vectorized self-pair computes 0/0 on its own lane -> masks must select, not multiply; (2) drag with distance=0 divides by zero before the validity mask -> mask the ratio first; (3) sign error: approx branch used com-pos instead of pos-com -> forces partially inverted (only visible via the theta=0.5 sanity test). All fixed, 8/8 tests under both features.
+
+Results (100k bh + sort):
+
+| version | 3k | 100k |
+|---|---|---|
+| solo scalar (original) | 9.5-11.3 ms | 421-490 ms |
+| scalar batched + sort | 11.2 ms | 460 ms |
+| SIMD f64x4 + sort | 4.31 ms | 184 ms |
+| SIMD f32x8 + sort | - | **7.0 ms** |
+
+f64: ~2.6x vs solo. f32: ~4.8x vs f64 solo (8 lanes + f32 sqrt/div throughput on AVX2). NOTE: the earlier reported "f32 7 ms" was measured with a broken full-batch mask (see below) - the real f32 number is ~96 ms. 100k particles: 460 ms (f64 scalar) -> 96 ms (f32 SIMD).
+
+### SIMD everywhere else (naive N-body, insert redistribution, fusion)
+
+Three candidates, measured:
+1. Naive N-body SIMD (forces.rs `apply_pairwise_simd`, kernels per force): 3k naive 11.5-12 ms -> 8.4 ms (~30%). Modest: at 3k the per-thread work is small, thread overhead dominates.
+2. Insert redistribution vectorized (4 children per register): REVERTED - a regression. The scalar early-exit `break` averages ~1.5 containment tests per particle; the SIMD version paid 4 lanes + register round-trips every time (100k insert 6.4-7.7 ms -> 9.6 ms).
+3. Pass fusion: `Integrator::integrate_scaled_vec` (result += values * scale * dt), declared on the interface, implemented in GaussianIntegrator; Physics accumulates forces then calls it via its Box<dyn Integrator> (velocities += forces * inv_masses * dt in one pass, mass scaled ONCE at integration - not per force). full_step 340-420 µs -> ~306-314 µs (~15-20%). Integrator stays swappable.
+   - Rejected alternative: dividing by mass inside the force kernels (a = F/m per force). Scales per force (inefficient, kernels needed 4 SIMD outputs instead of 2).
+
+### Pre-existing f32 bug found (full-batch mask)
+
+`(1 << count) - 1` for count == 8 yields 0 on u8 (1u8 << 8 == 1 at runtime), so every full f32x8 batch (the last partial batch worked) got a zero root mask -> no forces. f64 never hit it (count <= 4). This also invalidated the earlier "f32 7 ms" measurement. Fixed with `u8::MAX >> (8 - count)`. The f32 test suite now genuinely runs to completion (it had silently stopped at 8/8-passed doc-test lines before).
 
 ### #2 verdict: no measurable gain
 

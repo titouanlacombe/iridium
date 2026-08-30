@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    app::{max_fps, AppData, AppMain},
+    app::{AppData, AppMain, max_fps},
     rendering::{
         input::{KeysState, WindowEvent},
         render_thread::RenderThread,

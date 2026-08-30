@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use nalgebra::Vector2;
 use rayon::prelude::*;
 use std::time::Duration;
@@ -122,6 +122,8 @@ fn benchmark_buffer_ops(c: &mut Criterion) {
     let mut particles = generate_particles(100_000);
     let mut forces = vec![Vector2::zeros(); particles.len()];
 
+    // Constant dt: benches must not depend on variable render frame time
+    let dt = 1.0 / 120.0;
     let mut uniform_gravity = UniformGravity::new(Vector2::new(0.0, -9.81));
     let mut uniform_drag = UniformDrag::new(0.1, Vector2::zeros());
 
@@ -134,21 +136,22 @@ fn benchmark_buffer_ops(c: &mut Criterion) {
     });
 
     group.bench_function("mass_divide", |b| {
+        // Fused step: velocities += forces * inv_masses * dt (one pass)
         b.iter(|| {
-            forces
+            particles
+                .velocities
                 .par_iter_mut()
+                .zip(&forces)
                 .zip(particles.inv_masses.par_iter())
-                .for_each(|(force, inv_mass)| *force *= *inv_mass);
+                .for_each(|((velocity, force), inv_mass)| *velocity += *force * *inv_mass * dt);
         })
     });
 
-    // Constant dt: benches must not depend on variable render frame time
-    let dt = 1.0 / 120.0;
     let integrator = GaussianIntegrator;
     let mut positions_out = particles.positions.clone();
     group.bench_function("integrate", |b| {
         b.iter(|| {
-            integrator.integrate_vec(&particles.velocities, &mut positions_out, dt);
+            integrator.integrate_vec(&particles.velocities, None, &mut positions_out, dt);
         })
     });
 
