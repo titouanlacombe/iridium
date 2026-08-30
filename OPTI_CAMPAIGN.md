@@ -40,7 +40,7 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 2 | `.cargo/config.toml`: `target-cpu=native` + lto/codegen-units=1 | H | L | L | done (see log) |
 | 3 | Reuse per-thread scratch buffer (barnes-hut stack) | H | L | L | done (see log) |
 | 4 | `1/mass` multiply instead of divide | M | L | L | done (see log) |
-| 5 | Concrete `Vector2` integrator impl | M | L | L | pending |
+| 5 | Concrete `Vector2` integrator impl | M | L | L | done (reverted: no gain, see log) |
 | 6 | Rename `get_infos` + slices (`&[T]`) API | L | L | L | pending |
 | 7 | Tests (symmetry, conservation, stability, QT vs brute-force) | M | M | L | pending |
 | 8 | Kill `Arc<Mutex>` -> fold/reduce (determinism) | M | M | M | pending |
@@ -80,7 +80,11 @@ Tried 3 shapes:
 1. per-frame reciprocal buffer in Physics (reciprocal pass + mul pass): mass_divide 106 µs vs 58-73 divide -> **~50% slower** (extra pass costs memory traffic; confirms memory-bound).
 2. `inv_masses` stored in Particles SoA, computed once at creation (`Particles::new`, `swap_remove`, `clear`, `reserve_exact`, `shrink_to_fit`, `copy_from_indexes`, `GeneratorFactory::create`): mass_divide 56.3 µs, full_step 370 µs -> small win at best (within noise), zero divisions per frame.
 
-Caveat: `masses` is still `pub` — a direct write to `particles.masses[i]` would desync `inv_masses` (documented on the field). If it ever becomes a problem, seal via accessors.
+Caveat: `masses` is still `pub` — a direct write to `particles.masses[i]` would desync `inv_masses` (documented on the field). If it ever becomes a problem, seal via accessors (noted in TODO).
+
+### #5 verdict: reverted, keep the generic impl
+
+Concrete `impl Integrator<Vector2<f64>>` cannot coexist with the generic `impl<T: ...> Integrator<T>` — coherence rejects the overlap (E0119, no stable specialization). The generic impl is strictly more general. Measured the concrete version before reverting: integrate 52.7 µs vs 52-59 µs generic -> flat (Clone is a no-op for Copy types; LLVM eliminates it). Conclusion: the generic impl is the right API and not a bottleneck.
 
 ### #2 verdict: no measurable gain
 

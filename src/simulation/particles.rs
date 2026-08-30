@@ -70,7 +70,7 @@ impl Particles {
         self.colors.shrink_to_fit();
     }
 
-    pub fn copy_from_indexes(&mut self, indexes: &Vec<usize>, particles: &Particles) {
+    pub fn copy_from_indexes(&mut self, indexes: &[usize], particles: &Particles) {
         self.clear();
         self.reserve_exact(indexes.len());
         indexes.iter().for_each(|&i| {
