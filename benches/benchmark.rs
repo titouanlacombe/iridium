@@ -33,15 +33,15 @@ fn generate_particles(n: usize) -> Particles {
 }
 
 // TODO add benchmark for more parameters (theta, max_particles)
-fn benchmark_qt(c: &mut Criterion) {
-    let mut group = c.benchmark_group("quadtree");
+fn benchmark_qt_at(c: &mut Criterion, group_name: &str, n: usize) {
+    let mut group = c.benchmark_group(group_name);
     group.warm_up_time(Duration::from_millis(400));
     group.measurement_time(Duration::from_secs(4));
 
     // Start the Tracy client
     tracy_client::Client::start();
 
-    let particles = generate_particles(3000);
+    let particles = generate_particles(n);
     let max_particles = 100;
     let theta = 0.5;
     let gravity = Gravity::new(1., 0.);
@@ -83,15 +83,20 @@ fn benchmark_qt(c: &mut Criterion) {
         })
     });
 
-    let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
+    // Naive is O(n^2), skip it at large n
+    if n <= 10_000 {
+        let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
 
-    group.bench_function("naive", |b| {
-        b.iter(|| {
-            gravity.clone().apply(&particles, &mut forces);
-            repulsion.clone().apply(&particles, &mut forces);
-            drag.clone().apply(&particles, &mut forces);
-        })
-    });
+        group.bench_function("naive", |b| {
+            b.iter(|| {
+                gravity.clone().apply(&particles, &mut forces);
+                repulsion.clone().apply(&particles, &mut forces);
+                drag.clone().apply(&particles, &mut forces);
+            })
+        });
+    }
+
+    let mut forces = vec![Vector2::new(0.0, 0.0); particles.len()];
 
     group.bench_function("barnes_hut", |b| {
         b.iter(|| {
@@ -100,6 +105,11 @@ fn benchmark_qt(c: &mut Criterion) {
     });
 
     group.finish();
+}
+
+fn benchmark_qt(c: &mut Criterion) {
+    benchmark_qt_at(c, "quadtree", 3000);
+    benchmark_qt_at(c, "quadtree_100k", 100_000);
 }
 
 fn benchmark_buffer_ops(c: &mut Criterion) {

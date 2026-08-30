@@ -60,9 +60,19 @@ No `.cargo/config.toml` tuning, deps updated (rand 0.10).
 | 2026-08-30 | #3 per-thread scratch stack in barnes_hut (for_each_init) | bh 10.3-11.3ms (run-to-run) | bh 10.6ms | flat (within noise) |
 | 2026-08-30 | #3 v3 (final): per-thread stack via for_each_init, `<'a>` unified in helper | bh 10.3-11.3ms (run-to-run) | bh 9.3ms | low end of noise range, inconclusive |
 
-### #3 verdict: final, flat (within noise)
+### #3 verdict: ~8% at 100k, borderline vs noise
 
-Per-thread stack (one `Vec` per rayon thread, `clear()` per particle, capacity hint from `get_infos`). Chosen approach: `for_each_init`. Alternatives considered and rejected: `stack` field (self-referential -> needs lifetime param on QuadTree), recursion (no stack, no lifetime), arena + `Vec<usize>` (task #10 refactor). Allocator cost not visible at 3000 particles; revisit with a 100k-particle barnes_hut bench before judging.
+100k-particle comparison (same bench file, base commit `2ff6262` = per-particle stack vs `2675a5b` = per-thread):
+
+| bench (100k) | per-particle | per-thread | diff |
+|---|---|---|---|
+| insertion (identical code, = noise floor) | 6.85 ms | 6.39 ms | ~7% |
+| re-insertion (identical code) | 5.57 ms | 5.47 ms | ~2% |
+| barnes_hut | 458.9 ms | 421.9 ms | ~8% |
+
+The insertion delta (~7%) on *identical* code measures run-to-run noise. barnes_hut at ~8% is the same magnitude -> real effect likely 0-8%, smaller than hoped (small allocs are cheap on glibc tcache; tree walk + memory traffic dominate). Keep the per-thread stack (removes 100k allocs/frame, no cost); don't expect it to show up visually.
+
+Also: barnes_hut at 100k = 422 ms/frame (naive would be ~12.7 s) -> still far from realtime for large counts; that's the batched traversal / FMM headroom.
 
 ### #2 verdict: no measurable gain
 
