@@ -3,6 +3,12 @@ opti barnes hut {
 	look into Fast Multipole Method (FMM) as replacement (O(n) vs O(n log n), accuracy via expansion order):
 	- ferreus_bbfmm crate (kernel-independent, supports 2D quadtree, parallel)
 	- kifmm (3D Laplace/Helmholtz, reference-grade)
+	→ tried ferreus_bbfmm 0.2.0 + git main (0.3.0): 2D far-field y-gradient is broken
+	  (values & x-gradients exact, y-gradients garbage ~1/cell-size, axis-intrinsic, all
+	  compression/tree options, reproduced with single far source + 1/r kernel; -r kernel is fine)
+	  min repro: target(100,100) src(500,600) → gy expected +1.9e-6 got -1.2e-3.
+	  workaround: central-diff on exact potential values (4 extra evals, ~1e-4..1e-7 accuracy);
+	  reopen once upstream fixes gradients (github.com/graphic-goose/ferreus_rbf_rs)
 }
 
 skip arrow/polars (dataframe libs add boxing/indirection, no SIMD gain over autovectorized loops) — if anything:
