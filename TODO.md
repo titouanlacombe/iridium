@@ -6,7 +6,7 @@ opti barnes hut {
 }
 
 skip arrow/polars (dataframe libs add boxing/indirection, no SIMD gain over autovectorized loops) — if anything:
-- use glam instead of nalgebra (SIMD-accelerated, lighter)
+- tried glam instead of nalgebra (SIMD-accelerated, lighter): reverted — Vec2/DVec2 are not scalar-generic, would lose the Vector2<Scalar> plumbing used by the f32/f64 features; benches showed no real gain anyway
 - or std::simd for the force kernels
 
 github, logo & readme
